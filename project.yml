@@ -1,0 +1,48 @@
+name: montty
+options:
+  bundleIdPrefix: com.montty
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_OBJC_BRIDGING_HEADER: montty-Bridging-Header.h
+    HEADER_SEARCH_PATHS: $(SRCROOT)
+
+targets:
+  montty:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.montty.app
+        CODE_SIGN_ENTITLEMENTS: Resources/montty.entitlements
+        INFOPLIST_FILE: Resources/Info.plist
+        PRODUCT_NAME: montty
+        SWIFT_VERSION: "5.0"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+        FRAMEWORK_SEARCH_PATHS: "$(inherited) $(SRCROOT)"
+        SWIFT_STRICT_CONCURRENCY: minimal
+        OTHER_LDFLAGS: "$(inherited) -lc++"
+    dependencies:
+      - framework: GhosttyKit.xcframework
+        embed: false
+
+  montty-unit:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.montty.app.tests
+        SWIFT_VERSION: "5.0"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        GENERATE_INFOPLIST_FILE: "YES"
+        # No test host -- model tests run standalone without launching the app
+        TEST_HOST: ""

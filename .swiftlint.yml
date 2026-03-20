@@ -1,0 +1,5 @@
+excluded:
+  - Sources/Ghostty
+  - ghostty
+  - DerivedData
+  - build
