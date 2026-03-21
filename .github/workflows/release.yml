@@ -19,6 +19,8 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - uses: extractions/setup-just@v2
+
       - name: Cache GhosttyKit
         id: cache-ghosttykit
         uses: actions/cache@v4
@@ -38,8 +40,6 @@ jobs:
 
       - name: Create xcframework symlink
         run: ln -sfn ghostty/macos/GhosttyKit.xcframework GhosttyKit.xcframework
-
-      - uses: extractions/setup-just@v2
 
       - name: Install SwiftLint and xcodegen
         run: brew install swiftlint xcodegen
