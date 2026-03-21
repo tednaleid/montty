@@ -80,31 +80,36 @@ extension DebugServer {
                 sendJSONArray([], connection: connection)
                 return
             }
-            let results = appDelegate.tabStore.tabs.map { tab -> [String: Any] in
-                var entry: [String: Any] = [
-                    "id": tab.surfaceID.uuidString,
-                    "tab_id": tab.id.uuidString,
-                    "tab_name": tab.displayName,
-                    "tab_position": tab.position,
-                    "tab_color": colorString(tab.color),
-                    "active": tab.id == appDelegate.tabStore.activeTabID
-                ]
-                if let view = appDelegate.surfaceView(for: tab.surfaceID) {
-                    entry["title"] = view.title
-                    entry["focused"] = view.focused
-                    if let size = view.surfaceSize {
-                        entry["size"] = [
-                            "rows": size.rows,
-                            "cols": size.columns,
-                            "width_px": size.width_px,
-                            "height_px": size.height_px
-                        ]
+            var results: [[String: Any]] = []
+            for tab in appDelegate.tabStore.tabs {
+                let isActiveTab = tab.id == appDelegate.tabStore.activeTabID
+                for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
+                    var entry: [String: Any] = [
+                        "id": leaf.surfaceID.uuidString,
+                        "leaf_id": leaf.id.uuidString,
+                        "tab_id": tab.id.uuidString,
+                        "tab_name": tab.displayName,
+                        "tab_position": tab.position,
+                        "tab_color": colorString(tab.color),
+                        "active": isActiveTab,
+                        "focused_in_tab": leaf.id == tab.focusedLeafID
+                    ]
+                    if let view = appDelegate.surfaceView(for: leaf.surfaceID) {
+                        entry["title"] = view.title
+                        if let size = view.surfaceSize {
+                            entry["size"] = [
+                                "rows": size.rows,
+                                "cols": size.columns,
+                                "width_px": size.width_px,
+                                "height_px": size.height_px
+                            ]
+                        }
                     }
+                    if let pwd = tab.workingDirectory {
+                        entry["pwd"] = pwd
+                    }
+                    results.append(entry)
                 }
-                if let pwd = tab.workingDirectory {
-                    entry["pwd"] = pwd
-                }
-                return entry
             }
             sendJSONArray(results, connection: connection)
         }

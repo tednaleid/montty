@@ -8,10 +8,26 @@ final class Tab: Identifiable {
     var color: TabColor
     var position: Int
     var workingDirectory: String?
-    var surfaceID: UUID
+    var splitRoot: SplitNode
+    var focusedLeafID: UUID?
 
     var displayName: String {
         name.isEmpty ? autoName : name
+    }
+
+    /// The surfaceID of the focused leaf, or the first leaf if none focused.
+    var focusedSurfaceID: UUID? {
+        if let focusedLeafID = focusedLeafID,
+           let leaves = Optional(SplitTree.allLeaves(node: splitRoot)),
+           let leaf = leaves.first(where: { $0.id == focusedLeafID }) {
+            return leaf.surfaceID
+        }
+        return SplitTree.allLeaves(node: splitRoot).first?.surfaceID
+    }
+
+    /// All surface IDs in this tab's split tree.
+    var allSurfaceIDs: [UUID] {
+        SplitTree.allLeaves(node: splitRoot).map(\.surfaceID)
     }
 
     init(
@@ -29,6 +45,8 @@ final class Tab: Identifiable {
         self.color = color
         self.position = position
         self.workingDirectory = workingDirectory
-        self.surfaceID = surfaceID
+        let leaf = SurfaceLeaf(surfaceID: surfaceID)
+        self.splitRoot = .leaf(leaf)
+        self.focusedLeafID = leaf.id
     }
 }

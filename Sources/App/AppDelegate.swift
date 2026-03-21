@@ -84,14 +84,60 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     func closeTab(id: UUID) {
         guard let tab = tabStore.tabs.first(where: { $0.id == id }) else { return }
-        surfaceObservers.removeValue(forKey: tab.surfaceID)
-        surfaces.removeValue(forKey: tab.surfaceID)
+        // Clean up all surfaces in this tab's split tree
+        for surfaceID in tab.allSurfaceIDs {
+            surfaceObservers.removeValue(forKey: surfaceID)
+            surfaces.removeValue(forKey: surfaceID)
+        }
         tabStore.close(id: id)
 
         // If no tabs remain, quit
         if tabStore.tabs.isEmpty {
             NSApplication.shared.terminate(nil)
         }
+    }
+
+    /// Close a single surface within a tab's split tree.
+    /// If it's the last surface, closes the tab.
+    func closeSurface(surfaceID: UUID) {
+        guard let tab = tabStore.tab(forSurfaceID: surfaceID) else { return }
+        guard let leaf = SplitTree.findLeaf(
+            node: tab.splitRoot, surfaceID: surfaceID
+        ) else { return }
+
+        surfaceObservers.removeValue(forKey: surfaceID)
+        surfaces.removeValue(forKey: surfaceID)
+
+        if let newRoot = SplitTree.close(node: tab.splitRoot, leafID: leaf.id) {
+            tab.splitRoot = newRoot
+            // Focus the next available leaf
+            let leaves = SplitTree.allLeaves(node: newRoot)
+            tab.focusedLeafID = leaves.first?.id
+        } else {
+            // Last surface in tab -- close the tab
+            closeTab(id: tab.id)
+        }
+    }
+
+    /// Split the focused surface in the active tab.
+    func splitSurface(orientation: SplitOrientation) {
+        guard let app = ghostty.app,
+              let tab = tabStore.activeTab,
+              let focusedLeafID = tab.focusedLeafID else { return }
+
+        let newSurfaceView = Ghostty.SurfaceView(app)
+        let newLeafID = UUID()
+        surfaces[newSurfaceView.id] = newSurfaceView
+
+        tab.splitRoot = SplitTree.split(
+            node: tab.splitRoot,
+            leafID: focusedLeafID,
+            orientation: orientation,
+            newLeafID: newLeafID,
+            newSurfaceID: newSurfaceView.id
+        )
+        tab.focusedLeafID = newLeafID
+        observeSurface(newSurfaceView, tab: tab)
     }
 
     func surfaceView(for surfaceID: UUID) -> Ghostty.SurfaceView? {
@@ -124,7 +170,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     private func observeGhosttyActions() {
         let center = NotificationCenter.default
+        observeTabActions(center)
+        observeSplitActions(center)
+    }
 
+    private func observeTabActions(_ center: NotificationCenter) {
         center.addObserver(
             forName: Ghostty.Notification.ghosttyNewTab,
             object: nil, queue: .main
@@ -147,9 +197,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             object: nil, queue: .main
         ) { [weak self] notification in
             guard let self = self,
-                  let surfaceView = notification.object as? Ghostty.SurfaceView,
-                  let tab = self.tabStore.tab(forSurfaceID: surfaceView.id) else { return }
-            self.closeTab(id: tab.id)
+                  let surfaceView = notification.object as? Ghostty.SurfaceView else { return }
+            self.closeSurface(surfaceID: surfaceView.id)
         }
 
         center.addObserver(
@@ -195,6 +244,50 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             let index = Int(rawValue) - 1
             if let tab = tabStore.tab(at: index) {
                 tabStore.activeTabID = tab.id
+            }
+        }
+    }
+
+    private func observeSplitActions(_ center: NotificationCenter) {
+        center.addObserver(
+            forName: Ghostty.Notification.ghosttyNewSplit,
+            object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let self = self else { return }
+            let direction = notification.userInfo?["direction"]
+                as? ghostty_action_split_direction_e
+            let orientation: SplitOrientation =
+                (direction == GHOSTTY_SPLIT_DIRECTION_DOWN
+                    || direction == GHOSTTY_SPLIT_DIRECTION_UP)
+                ? .vertical : .horizontal
+            self.splitSurface(orientation: orientation)
+        }
+
+        center.addObserver(
+            forName: Ghostty.Notification.ghosttyFocusSplit,
+            object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let tab = self.tabStore.activeTab,
+                  let focusedLeafID = tab.focusedLeafID else { return }
+            let direction = notification.userInfo?[
+                Ghostty.Notification.SplitDirectionKey
+            ] as? Ghostty.SplitFocusDirection
+
+            let target: SurfaceLeaf?
+            switch direction {
+            case .previous:
+                target = SplitTree.previousLeaf(
+                    node: tab.splitRoot, before: focusedLeafID)
+            default:
+                target = SplitTree.nextLeaf(
+                    node: tab.splitRoot, after: focusedLeafID)
+            }
+            if let target = target {
+                tab.focusedLeafID = target.id
+                if let surfaceView = surfaces[target.surfaceID] {
+                    Ghostty.moveFocus(to: surfaceView)
+                }
             }
         }
     }

@@ -22,21 +22,31 @@ struct MainWindow: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onChange(of: tabStore.activeTabID) { _, newID in
-            // Refocus the terminal surface after tab switch so typing
-            // goes to the terminal, not the sidebar.
             guard let newID = newID,
                   let tab = tabStore.tabs.first(where: { $0.id == newID }),
-                  let surfaceView = appDelegate.surfaceView(for: tab.surfaceID) else { return }
+                  let surfaceID = tab.focusedSurfaceID,
+                  let surfaceView = appDelegate.surfaceView(for: surfaceID) else { return }
             Ghostty.moveFocus(to: surfaceView)
         }
     }
 
     @ViewBuilder
     private var terminalContent: some View {
-        if let activeTab = tabStore.activeTab,
-           let surfaceView = appDelegate.surfaceView(for: activeTab.surfaceID) {
-            Ghostty.SurfaceWrapper(surfaceView: surfaceView)
-                .id(activeTab.surfaceID)
+        if let activeTab = tabStore.activeTab {
+            SplitContainerView(
+                node: activeTab.splitRoot,
+                focusedLeafID: activeTab.focusedLeafID,
+                surfaceLookup: { appDelegate.surfaceView(for: $0) },
+                onFocusLeaf: { leafID in
+                    activeTab.focusedLeafID = leafID
+                    if let leaf = SplitTree.allLeaves(node: activeTab.splitRoot)
+                        .first(where: { $0.id == leafID }),
+                       let surfaceView = appDelegate.surfaceView(for: leaf.surfaceID) {
+                        Ghostty.moveFocus(to: surfaceView)
+                    }
+                }
+            )
+            .id(activeTab.id)
         } else {
             Color(nsColor: .windowBackgroundColor)
         }

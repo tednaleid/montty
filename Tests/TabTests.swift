@@ -27,6 +27,21 @@ struct TabTests {
     @Test func surfaceIDIsAssigned() {
         let surfaceID = UUID()
         let tab = Tab(surfaceID: surfaceID)
-        #expect(tab.surfaceID == surfaceID)
+        #expect(tab.focusedSurfaceID == surfaceID)
+    }
+
+    @Test func splitRootStartsAsLeaf() {
+        let tab = Tab()
+        guard case .leaf = tab.splitRoot else {
+            Issue.record("Expected leaf as initial splitRoot")
+            return
+        }
+        #expect(tab.focusedLeafID != nil)
+    }
+
+    @Test func allSurfaceIDsReturnsOne() {
+        let surfaceID = UUID()
+        let tab = Tab(surfaceID: surfaceID)
+        #expect(tab.allSurfaceIDs == [surfaceID])
     }
 }

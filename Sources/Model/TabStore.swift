@@ -15,7 +15,9 @@ final class TabStore {
     }
 
     func tab(forSurfaceID surfaceID: UUID) -> Tab? {
-        tabs.first { $0.surfaceID == surfaceID }
+        tabs.first { tab in
+            SplitTree.findLeaf(node: tab.splitRoot, surfaceID: surfaceID) != nil
+        }
     }
 
     // MARK: - Mutations
