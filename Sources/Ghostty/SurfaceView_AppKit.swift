@@ -1105,6 +1105,19 @@ extension Ghostty {
 
             let action = event.isARepeat ? GHOSTTY_ACTION_REPEAT : GHOSTTY_ACTION_PRESS
 
+            // MONTTY: Fast path for ctrl-only keys. Send directly to Ghostty
+            // without interpretKeyEvents, which would route ctrl+h/j/k/l through
+            // macOS text input (deleteBackward:, etc.) and leak control characters
+            // to the PTY before Ghostty's binding system can consume them.
+            if event.modifierFlags.contains(.control)
+                && !event.modifierFlags.contains(.command)
+                && !event.modifierFlags.contains(.option)
+                && !hasMarkedText()
+            {
+                _ = keyAction(action, event: event, translationEvent: translationEvent)
+                return
+            }
+
             // By setting this to non-nil, we note that we're in a keyDown event. From here,
             // we call interpretKeyEvents so that we can handle complex input such as Korean
             // language.
