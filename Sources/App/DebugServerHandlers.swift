@@ -124,20 +124,92 @@ extension DebugServer {
                 return
             }
 
-            // Map key names to the action string format Ghostty understands
-            let action = keyActionString(for: keyName)
-            if ghostty_surface_binding_action(surface, action, UInt(action.utf8.count)) {
+            // Send as a proper key event via ghostty_surface_key
+            if let keyEvent = buildKeyEvent(for: keyName) {
+                // Press
+                ghostty_surface_key(surface, keyEvent)
+                // Release
+                var release = keyEvent
+                release.action = GHOSTTY_ACTION_RELEASE
+                ghostty_surface_key(surface, release)
                 sendJSON(["ok": true, "key": keyName], connection: connection)
             } else {
-                // For simple keys like "return", send as text
-                if let text = keyToText(keyName) {
-                    ghostty_surface_text(surface, text, UInt(text.utf8.count))
-                    sendJSON(["ok": true, "key": keyName, "sent_as": "text"], connection: connection)
-                } else {
-                    sendJSON(["error": "Unknown key: \(keyName)"], status: 400, connection: connection)
-                }
+                sendJSON(
+                    ["error": "Unknown key: \(keyName)"],
+                    status: 400,
+                    connection: connection
+                )
             }
         }
+    }
+
+    // Build a ghostty_input_key_s for a named key, with optional modifiers.
+    // swiftlint:disable:next cyclomatic_complexity
+    private static func buildKeyEvent(for name: String) -> ghostty_input_key_s? {
+        let lower = name.lowercased()
+        var mods = ghostty_input_mods_e(rawValue: 0)
+        var keyName = lower
+
+        // Parse modifier prefix (e.g., "ctrl+c")
+        if lower.hasPrefix("ctrl+") {
+            mods = GHOSTTY_MODS_CTRL
+            keyName = String(lower.dropFirst(5))
+        }
+
+        let key: ghostty_input_key_e
+        let text: String?
+        switch keyName {
+        case "return", "enter":    key = GHOSTTY_KEY_ENTER;     text = "\r"
+        case "tab":                key = GHOSTTY_KEY_TAB;       text = "\t"
+        case "space":              key = GHOSTTY_KEY_SPACE;     text = " "
+        case "escape", "esc":      key = GHOSTTY_KEY_ESCAPE;    text = nil
+        case "backspace", "delete": key = GHOSTTY_KEY_BACKSPACE; text = nil
+        case "up":                 key = GHOSTTY_KEY_ARROW_UP;    text = nil
+        case "down":               key = GHOSTTY_KEY_ARROW_DOWN;  text = nil
+        case "left":               key = GHOSTTY_KEY_ARROW_LEFT;  text = nil
+        case "right":              key = GHOSTTY_KEY_ARROW_RIGHT; text = nil
+        default:
+            // Single character keys (a-z)
+            if keyName.count == 1, let char = keyName.first, char.isLetter {
+                key = letterToKey(char)
+                if mods.rawValue & GHOSTTY_MODS_CTRL.rawValue != 0 {
+                    text = nil
+                } else {
+                    text = keyName
+                }
+            } else {
+                return nil
+            }
+        }
+
+        return withText(text) { textPtr in
+            ghostty_input_key_s(
+                action: GHOSTTY_ACTION_PRESS,
+                mods: mods,
+                consumed_mods: ghostty_input_mods_e(rawValue: 0),
+                keycode: key.rawValue,
+                text: textPtr,
+                unshifted_codepoint: 0,
+                composing: false
+            )
+        }
+    }
+
+    // Convert a lowercase letter to its GHOSTTY_KEY_* constant.
+    private static func letterToKey(_ char: Character) -> ghostty_input_key_e {
+        let offset = Int(char.asciiValue ?? 0) - Int(Character("a").asciiValue ?? 0)
+        return ghostty_input_key_e(rawValue: GHOSTTY_KEY_A.rawValue + UInt32(offset))
+    }
+
+    // Call body with a C string pointer that lives for the duration.
+    private static func withText<T>(
+        _ text: String?,
+        body: (UnsafePointer<CChar>?) -> T
+    ) -> T {
+        if let text = text {
+            return text.withCString { body($0) }
+        }
+        return body(nil)
     }
 
     private static func handleScreen(surfaceID: String?, connection: NWConnection) {

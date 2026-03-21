@@ -41,8 +41,8 @@
 - [x] CLAUDE.md references debug server
 - [x] Unit tests for request parsing and key mapping (9 tests)
 - [x] SwiftLint passes
-- [ ] Integration test: inspect-type + inspect-key + inspect-screen (needs manual verification)
-- [ ] Integration test: inspect-screenshot saves viewable PNG (needs manual verification)
+- [x] Integration test: inspect-type + inspect-key + inspect-screen verified
+- [x] Integration test: inspect-screenshot saves viewable PNG verified
 
 ## Phase 2: Tab Model + Sidebar
 (to be detailed when Phase 2 work begins)

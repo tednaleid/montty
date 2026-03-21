@@ -113,6 +113,10 @@ run: build
 stop:
     @osascript -e 'tell application "montty" to quit' 2>/dev/null || echo "montty is not running"
 
+# Force-kill the running app (no cleanup)
+kill:
+    @pkill -f 'montty.app/Contents/MacOS/montty' 2>/dev/null || echo "montty is not running"
+
 # -- Debug server inspection (localhost:9876, debug builds only) --
 
 # List all terminal surfaces
