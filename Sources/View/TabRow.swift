@@ -3,9 +3,14 @@ import SwiftUI
 struct TabRow: View {
     let tab: Tab
     let isActive: Bool
+    @Binding var editingTabID: UUID?
 
-    @State private var isEditing = false
     @State private var editName = ""
+    @FocusState private var textFieldFocused: Bool
+
+    private var isEditing: Bool {
+        editingTabID == tab.id
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -18,10 +23,19 @@ struct TabRow: View {
                 if isEditing {
                     TextField("Tab name", text: $editName, onCommit: {
                         tab.name = editName
-                        isEditing = false
+                        editingTabID = nil
                     })
                     .textFieldStyle(.plain)
                     .font(.system(size: 16, weight: .bold))
+                    .focused($textFieldFocused)
+                    .onAppear {
+                        editName = tab.name
+                        // Delay focus slightly so the view is in the hierarchy
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            textFieldFocused = true
+                        }
+                    }
+                    .onExitCommand { editingTabID = nil }
                 } else {
                     Text(tab.displayName.isEmpty ? "Terminal" : tab.displayName)
                         .font(.system(size: 16, weight: .bold))
@@ -44,8 +58,7 @@ struct TabRow: View {
         }
         .background(isActive ? activeBackground : Color.clear)
         .onTapGesture(count: 2) {
-            editName = tab.name
-            isEditing = true
+            editingTabID = tab.id
         }
     }
 

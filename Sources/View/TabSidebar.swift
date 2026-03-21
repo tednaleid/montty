@@ -6,26 +6,38 @@ struct TabSidebar: View {
     let onCloseTab: (UUID) -> Void
     let onSetColor: (UUID, TabColor) -> Void
 
+    @State private var editingTabID: UUID?
+    @State private var draggedTabID: UUID?
+
     var body: some View {
         VStack(spacing: 0) {
             List(selection: $tabStore.activeTabID) {
                 ForEach(tabStore.tabs) { tab in
-                    TabRow(tab: tab, isActive: tab.id == tabStore.activeTabID)
-                        .tag(tab.id)
-                        .contextMenu {
-                            TabContextMenu(
-                                tab: tab,
-                                onRename: {
-                                    // Double-click on TabRow handles inline rename
-                                },
-                                onSetColor: { color in
-                                    onSetColor(tab.id, color)
-                                },
-                                onClose: {
-                                    onCloseTab(tab.id)
-                                }
-                            )
-                        }
+                    TabRow(
+                        tab: tab,
+                        isActive: tab.id == tabStore.activeTabID,
+                        editingTabID: $editingTabID
+                    )
+                    .tag(tab.id)
+                    .draggable(tab.id.uuidString) {
+                        // Drag preview
+                        Text(tab.displayName.isEmpty ? "Terminal" : tab.displayName)
+                            .padding(4)
+                    }
+                    .contextMenu {
+                        TabContextMenu(
+                            tab: tab,
+                            onRename: {
+                                editingTabID = tab.id
+                            },
+                            onSetColor: { color in
+                                onSetColor(tab.id, color)
+                            },
+                            onClose: {
+                                onCloseTab(tab.id)
+                            }
+                        )
+                    }
                 }
                 .onMove { source, destination in
                     guard let fromIndex = source.first else { return }
