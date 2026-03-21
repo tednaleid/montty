@@ -121,7 +121,9 @@ enum BackportPointerStyle {
 enum BackportNSGlassStyle {
     case regular, clear
 
-    #if canImport(AppKit)
+    // MONTTY: Guard with swift(>=6.2) since NSGlassEffectView only
+    // exists in the macOS 26 SDK (Xcode 26+).
+    #if canImport(AppKit) && swift(>=6.2)
     @available(macOS 26, *)
     var official: NSGlassEffectView.Style {
         switch self {
