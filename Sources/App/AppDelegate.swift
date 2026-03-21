@@ -138,6 +138,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         )
         tab.focusedLeafID = newLeafID
         observeSurface(newSurfaceView, tab: tab)
+
+        // Move AppKit focus to the new surface after a brief delay
+        // to let SwiftUI render the new view hierarchy
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            Ghostty.moveFocus(to: newSurfaceView)
+        }
     }
 
     func surfaceView(for surfaceID: UUID) -> Ghostty.SurfaceView? {

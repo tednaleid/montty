@@ -52,12 +52,17 @@ extension DebugServer {
 
     /// Find a surface by UUID string, or return the focused/first surface.
     static func surface(forID id: String?) -> Ghostty.SurfaceView? {
-        let all = findSurfaces()
         if let id = id, let uuid = UUID(uuidString: id) {
-            return all.first { $0.id == uuid }
+            return appDelegate()?.surfaceView(for: uuid)
+                ?? findSurfaces().first { $0.id == uuid }
         }
-        // Return focused surface, or first if none focused
-        return all.first { $0.focused } ?? all.first
+        // Use the tab model's focused surface, not AppKit's
+        if let appDel = appDelegate(),
+           let tab = appDel.tabStore.activeTab,
+           let surfaceID = tab.focusedSurfaceID {
+            return appDel.surfaceView(for: surfaceID)
+        }
+        return findSurfaces().first
     }
 
     // MARK: - Handlers
