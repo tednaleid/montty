@@ -1,0 +1,150 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "[0-9]*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    env:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install zig 0.15.2
+        run: |
+          curl -sL https://ziglang.org/builds/zig-macos-aarch64-0.15.2.tar.xz | tar xJ -C /tmp
+          echo "/tmp/zig-macos-aarch64-0.15.2" >> "$GITHUB_PATH"
+
+      - uses: extractions/setup-just@v2
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Build GhosttyKit
+        run: just setup
+
+      - name: Check (test + lint + build)
+        run: just check
+
+      - name: Build Release
+        run: |
+          xcodebuild -project montty.xcodeproj \
+            -scheme montty -configuration Release \
+            build SYMROOT=/tmp/montty-build
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      # -- Conditional signing (only when Apple Developer secrets are configured) --
+
+      - name: Import signing certificate
+        if: env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+      - name: Store notarization credentials
+        if: env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials "montty-notarize" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD"
+
+      - name: Re-sign app with Developer ID
+        if: env.APPLE_CERTIFICATE != ''
+        run: |
+          codesign --force --deep --sign "Developer ID Application" \
+            --options runtime \
+            --entitlements Resources/montty.entitlements \
+            --timestamp \
+            /tmp/montty-build/Release/montty.app
+
+      - name: Ad-hoc re-sign
+        if: env.APPLE_CERTIFICATE == ''
+        run: |
+          codesign --force --deep --sign - /tmp/montty-build/Release/montty.app
+
+      # -- DMG creation --
+
+      - name: Create DMG
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DMG_PATH="/tmp/montty-build/montty-${VERSION}.dmg"
+          STAGING="$(mktemp -d)"
+
+          cp -R /tmp/montty-build/Release/montty.app "$STAGING/montty.app"
+          ln -s /Applications "$STAGING/Applications"
+
+          hdiutil create \
+            -volname "montty" \
+            -srcfolder "$STAGING" \
+            -ov \
+            -format UDZO \
+            "$DMG_PATH"
+
+          rm -rf "$STAGING"
+          echo "DMG_PATH=$DMG_PATH" >> "$GITHUB_ENV"
+
+      - name: Sign DMG
+        if: env.APPLE_CERTIFICATE != ''
+        run: |
+          codesign --sign "Developer ID Application" --timestamp "$DMG_PATH"
+
+      - name: Notarize DMG
+        if: env.APPLE_CERTIFICATE != ''
+        run: |
+          xcrun notarytool submit "$DMG_PATH" \
+            --keychain-profile "montty-notarize" \
+            --wait
+
+      - name: Staple notarization ticket
+        if: env.APPLE_CERTIFICATE != ''
+        run: |
+          xcrun stapler staple "$DMG_PATH"
+
+      # -- Upload --
+
+      - name: Extract release notes from tag
+        run: git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > /tmp/release-notes.txt
+
+      - name: Upload DMG to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: /tmp/release-notes.txt
+          files: ${{ env.DMG_PATH }}
+
+      # -- Cleanup --
+
+      - name: Clean up keychain
+        if: always() && env.APPLE_CERTIFICATE != ''
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true

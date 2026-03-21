@@ -65,7 +65,24 @@
 - [x] Tab switch refocuses terminal for immediate typing
 
 ## Phase 3: Splits
-(to be detailed when Phase 3 work begins)
+- [x] SplitNode/SplitBranch/SurfaceLeaf data model
+- [x] SplitTree pure functions (split, close, find, navigate)
+- [x] SplitContainerView recursive SwiftUI view
+- [x] SplitDividerView with draggable divider
+- [x] Tab model updated (splitRoot + focusedLeafID)
+- [x] AppDelegate surface lifecycle for splits
+- [x] Ghostty action routing (new_split, close_surface, focus_split)
+- [x] Focus management (ghostty_surface_set_focus, visual dimming)
+- [x] Spatial navigation (findNeighbor with tree walk)
+- [x] Directional split creation (left/up places new pane first)
+- [x] Perpendicular position matching in spatial navigation
+- [x] Ctrl-key fast path (bypass interpretKeyEvents for ctrl-only input)
+- [x] 60 unit tests, SwiftLint passes, build succeeds
+
+## CI
+- [x] GitHub Actions ci.yml (test + lint + build on push/PR to main)
+- [x] GitHub Actions release.yml (signed DMG on tag push)
+- [x] Apple Developer secrets configured in repo
 
 ## Phase 4: Session Persistence
 (to be detailed when Phase 4 work begins)
