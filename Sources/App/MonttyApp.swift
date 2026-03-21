@@ -6,7 +6,7 @@ struct MonttyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainWindow()
+            MainWindow(tabStore: appDelegate.tabStore)
                 .environmentObject(appDelegate.ghostty)
                 .environmentObject(appDelegate)
         }
