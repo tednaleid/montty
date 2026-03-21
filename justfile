@@ -113,6 +113,32 @@ run: build
 stop:
     @osascript -e 'tell application "montty" to quit' 2>/dev/null || echo "montty is not running"
 
+# -- Debug server inspection (localhost:9876, debug builds only) --
+
+# List all terminal surfaces
+inspect-surfaces:
+    @curl -sf localhost:9876/surfaces | jq .
+
+# Send text to the running terminal
+inspect-type text surface="":
+    @curl -sf -X POST 'localhost:9876/type{{ if surface != "" { "?surface=" + surface } else { "" } }}' -d '{{text}}'
+
+# Send a key event (e.g., return, ctrl+c, tab, escape)
+inspect-key key surface="":
+    @curl -sf -X POST 'localhost:9876/key{{ if surface != "" { "?surface=" + surface } else { "" } }}' -d '{{key}}'
+
+# Read visible terminal text
+inspect-screen surface="":
+    @curl -sf 'localhost:9876/screen{{ if surface != "" { "?surface=" + surface } else { "" } }}' | jq .
+
+# Capture terminal screenshot
+inspect-screenshot surface="" path=(".llm/inspect/screenshot-" + `date +%Y%m%d-%H%M%S` + ".png"):
+    @mkdir -p .llm/inspect && curl -sf 'localhost:9876/screenshot{{ if surface != "" { "?surface=" + surface } else { "" } }}' -o '{{path}}' && echo '{{path}}'
+
+# Get terminal state (title, pwd, size)
+inspect-state surface="":
+    @curl -sf 'localhost:9876/state{{ if surface != "" { "?surface=" + surface } else { "" } }}' | jq .
+
 # Remove build artifacts
 clean:
     rm -rf {{build_dir}} DerivedData

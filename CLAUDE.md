@@ -11,8 +11,23 @@ Implementation specs are in `docs/spec/`. Start with `contract.md` for the overv
 ```bash
 just setup      # init submodules, build GhosttyKit
 just build      # compile the app
+just run        # build and launch
 just test       # run unit tests
 just lint       # run SwiftLint
+```
+
+## Debug server
+
+Debug builds include an HTTP server on `localhost:9876` for programmatic terminal interaction. See `docs/debug-server.md` for full API documentation.
+
+```bash
+just run                            # launches app with debug server
+just inspect-surfaces               # list terminal surfaces
+just inspect-type "echo hello"      # type text
+just inspect-key return             # send key event
+just inspect-screen                 # read terminal text
+just inspect-screenshot             # save PNG to .llm/inspect/
+just inspect-state                  # get terminal metadata
 ```
 
 ## Testing philosophy

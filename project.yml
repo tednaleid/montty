@@ -46,3 +46,11 @@ targets:
         GENERATE_INFOPLIST_FILE: "YES"
         # No test host -- model tests run standalone without launching the app
         TEST_HOST: ""
+        FRAMEWORK_SEARCH_PATHS: "$(inherited) $(SRCROOT)"
+        HEADER_SEARCH_PATHS: $(SRCROOT)
+        SWIFT_OBJC_BRIDGING_HEADER: montty-Bridging-Header.h
+        OTHER_LDFLAGS: "$(inherited) -lc++"
+        SWIFT_STRICT_CONCURRENCY: minimal
+    dependencies:
+      - framework: GhosttyKit.xcframework
+        embed: false

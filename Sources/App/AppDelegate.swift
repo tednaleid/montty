@@ -34,9 +34,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         tickTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
             self?.ghostty.appTick()
         }
+
+        #if DEBUG
+        DebugServer.start()
+        #endif
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        #if DEBUG
+        DebugServer.stop()
+        #endif
+
         tickTimer?.invalidate()
         tickTimer = nil
     }
