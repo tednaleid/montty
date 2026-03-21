@@ -38,6 +38,7 @@ targets:
     platform: macOS
     sources:
       - path: Tests
+      - path: Sources/Model
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.montty.app.tests
