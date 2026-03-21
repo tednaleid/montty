@@ -1132,12 +1132,24 @@ extension Ghostty {
                 return true
         }
 
-        // MONTTY: Stubbed -- no split tree yet. Will be implemented in Phase 3.
+        // MONTTY: Routes to notification for AppDelegate to handle via TabStore
         private static func gotoSplit(
             _ app: ghostty_app_t,
             target: ghostty_target_s,
             direction: ghostty_action_goto_split_e) -> Bool {
-            return false
+            guard let surface = target.target.surface else { return false }
+            guard let surfaceView = self.surfaceView(from: surface) else { return false }
+            guard let splitDirection = SplitFocusDirection.from(direction: direction) else {
+                return false
+            }
+            NotificationCenter.default.post(
+                name: Notification.ghosttyFocusSplit,
+                object: surfaceView,
+                userInfo: [
+                    Notification.SplitDirectionKey: splitDirection as Any
+                ]
+            )
+            return true
         }
 
         // MONTTY: Stubbed -- single window app, no window navigation needed.

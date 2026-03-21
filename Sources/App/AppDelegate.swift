@@ -138,11 +138,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         )
         tab.focusedLeafID = newLeafID
         observeSurface(newSurfaceView, tab: tab)
+        updateSurfaceFocus(for: tab)
 
         // Move AppKit focus to the new surface after a brief delay
         // to let SwiftUI render the new view hierarchy
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             Ghostty.moveFocus(to: newSurfaceView)
+        }
+    }
+
+    /// Update ghostty_surface_set_focus for all surfaces in the active tab
+    /// so only the focused pane has an active cursor.
+    func updateSurfaceFocus(for tab: Tab) {
+        let focusedSurfaceID = tab.focusedSurfaceID
+        for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
+            guard let view = surfaces[leaf.surfaceID],
+                  let surface = view.surface else { continue }
+            ghostty_surface_set_focus(surface, leaf.surfaceID == focusedSurfaceID)
         }
     }
 
@@ -291,6 +303,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             }
             if let target = target {
                 tab.focusedLeafID = target.id
+                self.updateSurfaceFocus(for: tab)
                 if let surfaceView = surfaces[target.surfaceID] {
                     Ghostty.moveFocus(to: surfaceView)
                 }
