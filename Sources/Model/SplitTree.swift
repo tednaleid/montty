@@ -147,7 +147,18 @@ enum SplitTree {
             {
                 let sibling = fromPosition == .second
                     ? step.branch.first : step.branch.second
-                return edgeLeaf(node: sibling, preference: descendPreference)
+
+                // Find our position in the perpendicular dimension so we
+                // descend toward the leaf that shares an edge with us.
+                // e.g., going right from bottom-left should find the
+                // bottom-right neighbor, not the top-right.
+                let perpPreference = perpendicularPreference(
+                    path: path, ancestorIndex: i, direction: direction,
+                    fallback: descendPreference)
+
+                return edgeLeaf(
+                    node: sibling, direction: direction,
+                    perpPreference: perpPreference)
             }
         }
 
@@ -201,17 +212,50 @@ enum SplitTree {
         }
     }
 
-    /// Find the leaf at the edge of a subtree. When preference is `.second`,
-    /// descend toward the second child at each branch (rightmost/bottommost).
+    /// Determine the perpendicular preference by scanning the path between
+    /// the matching ancestor and the leaf for the nearest perpendicular split.
+    /// This tells us our position in the dimension orthogonal to navigation
+    /// so we can target the neighbor that actually shares an edge.
+    private static func perpendicularPreference(
+        path: [PathStep], ancestorIndex: Int,
+        direction: SplitDirection, fallback: ChildPosition
+    ) -> ChildPosition {
+        let perpOrientation: SplitOrientation =
+            direction.orientation == .horizontal ? .vertical : .horizontal
+        for j in (ancestorIndex + 1)..<path.count {
+            if path[j].branch.orientation == perpOrientation {
+                return path[j].position
+            }
+        }
+        return fallback
+    }
+
+    /// Find the leaf at the edge of a subtree. At splits matching the
+    /// navigation direction, take the nearest edge. At perpendicular splits,
+    /// match the source position so we land on the neighbor sharing an edge.
     private static func edgeLeaf(
-        node: SplitNode, preference: ChildPosition
+        node: SplitNode, direction: SplitDirection,
+        perpPreference: ChildPosition
     ) -> SurfaceLeaf {
         switch node {
         case .leaf(let leaf):
             return leaf
         case .split(let branch):
-            let child = preference == .second ? branch.second : branch.first
-            return edgeLeaf(node: child, preference: preference)
+            let child: SplitNode
+            if branch.orientation == direction.orientation {
+                // Same orientation as navigation: take the nearest edge
+                switch direction {
+                case .left, .up: child = branch.second
+                case .right, .down: child = branch.first
+                }
+            } else {
+                // Perpendicular: match the source position
+                child = perpPreference == .second
+                    ? branch.second : branch.first
+            }
+            return edgeLeaf(
+                node: child, direction: direction,
+                perpPreference: perpPreference)
         }
     }
 }

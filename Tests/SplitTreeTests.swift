@@ -330,6 +330,58 @@ struct SplitTreeTests {
         #expect(result?.id == leafC.id)
     }
 
+    @Test func findNeighborRightMatchesPerpendicularPosition() {
+        // Tree: horizontal(vertical(A, C), vertical(B, D))
+        //   A | B
+        //   --+--
+        //   C | D
+        // From C (bottom-left), go right -> D (bottom-right, not B)
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let leafC = SurfaceLeaf()
+        let leafD = SurfaceLeaf()
+        let left = SplitBranch(
+            orientation: .vertical,
+            first: .leaf(leafA), second: .leaf(leafC)
+        )
+        let right = SplitBranch(
+            orientation: .vertical,
+            first: .leaf(leafB), second: .leaf(leafD)
+        )
+        let root = SplitNode.split(SplitBranch(
+            orientation: .horizontal,
+            first: .split(left), second: .split(right)
+        ))
+
+        let result = SplitTree.findNeighbor(
+            node: root, leafID: leafC.id, direction: .right)
+        #expect(result?.id == leafD.id)
+    }
+
+    @Test func findNeighborLeftMatchesPerpendicularPosition() {
+        // Same tree as above, from D (bottom-right), go left -> C (bottom-left)
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let leafC = SurfaceLeaf()
+        let leafD = SurfaceLeaf()
+        let left = SplitBranch(
+            orientation: .vertical,
+            first: .leaf(leafA), second: .leaf(leafC)
+        )
+        let right = SplitBranch(
+            orientation: .vertical,
+            first: .leaf(leafB), second: .leaf(leafD)
+        )
+        let root = SplitNode.split(SplitBranch(
+            orientation: .horizontal,
+            first: .split(left), second: .split(right)
+        ))
+
+        let result = SplitTree.findNeighbor(
+            node: root, leafID: leafD.id, direction: .left)
+        #expect(result?.id == leafC.id)
+    }
+
     // MARK: - Directional split creation
 
     @Test func splitDirectionLeft() {
