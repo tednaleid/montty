@@ -187,4 +187,252 @@ struct SplitTreeTests {
         #expect(leaves.count == 2)
         #expect(leaves.map(\.id) == [leaf1.id, leaf3.id])
     }
+
+    // MARK: - Spatial navigation
+
+    @Test func findNeighborLeft() {
+        // horizontal(A, B) -- from B, go left -> A
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let root = SplitNode.split(SplitBranch(
+            orientation: .horizontal,
+            first: .leaf(leafA), second: .leaf(leafB)
+        ))
+
+        let result = SplitTree.findNeighbor(
+            node: root, leafID: leafB.id, direction: .left)
+        #expect(result?.id == leafA.id)
+    }
+
+    @Test func findNeighborRight() {
+        // horizontal(A, B) -- from A, go right -> B
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let root = SplitNode.split(SplitBranch(
+            orientation: .horizontal,
+            first: .leaf(leafA), second: .leaf(leafB)
+        ))
+
+        let result = SplitTree.findNeighbor(
+            node: root, leafID: leafA.id, direction: .right)
+        #expect(result?.id == leafB.id)
+    }
+
+    @Test func findNeighborUp() {
+        // vertical(A, B) -- from B, go up -> A
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let root = SplitNode.split(SplitBranch(
+            orientation: .vertical,
+            first: .leaf(leafA), second: .leaf(leafB)
+        ))
+
+        let result = SplitTree.findNeighbor(
+            node: root, leafID: leafB.id, direction: .up)
+        #expect(result?.id == leafA.id)
+    }
+
+    @Test func findNeighborDown() {
+        // vertical(A, B) -- from A, go down -> B
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let root = SplitNode.split(SplitBranch(
+            orientation: .vertical,
+            first: .leaf(leafA), second: .leaf(leafB)
+        ))
+
+        let result = SplitTree.findNeighbor(
+            node: root, leafID: leafA.id, direction: .down)
+        #expect(result?.id == leafB.id)
+    }
+
+    @Test func findNeighborAcrossBranches() {
+        // Tree: horizontal(vertical(A, B), C)
+        // From C, go left -> B (rightmost in left subtree)
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let leafC = SurfaceLeaf()
+        let left = SplitBranch(
+            orientation: .vertical,
+            first: .leaf(leafA), second: .leaf(leafB)
+        )
+        let root = SplitNode.split(SplitBranch(
+            orientation: .horizontal,
+            first: .split(left), second: .leaf(leafC)
+        ))
+
+        let result = SplitTree.findNeighbor(
+            node: root, leafID: leafC.id, direction: .left)
+        #expect(result?.id == leafB.id)
+    }
+
+    @Test func findNeighborReturnsNilAtEdge() {
+        // horizontal(A, B) -- from A, go left -> nil (already leftmost)
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let root = SplitNode.split(SplitBranch(
+            orientation: .horizontal,
+            first: .leaf(leafA), second: .leaf(leafB)
+        ))
+
+        let result = SplitTree.findNeighbor(
+            node: root, leafID: leafA.id, direction: .left)
+        #expect(result == nil)
+    }
+
+    @Test func findNeighborUpAcrossBranches() {
+        // Tree: vertical(horizontal(A, B), horizontal(C, D))
+        // From D, go up -> B (bottommost in top subtree, rightmost)
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let leafC = SurfaceLeaf()
+        let leafD = SurfaceLeaf()
+        let top = SplitBranch(
+            orientation: .horizontal,
+            first: .leaf(leafA), second: .leaf(leafB)
+        )
+        let bottom = SplitBranch(
+            orientation: .horizontal,
+            first: .leaf(leafC), second: .leaf(leafD)
+        )
+        let root = SplitNode.split(SplitBranch(
+            orientation: .vertical,
+            first: .split(top), second: .split(bottom)
+        ))
+
+        let result = SplitTree.findNeighbor(
+            node: root, leafID: leafD.id, direction: .up)
+        #expect(result?.id == leafB.id)
+    }
+
+    @Test func findNeighborDownFromTopLeft() {
+        // Tree: vertical(horizontal(A, B), horizontal(C, D))
+        // From A, go down -> C (topmost in bottom subtree, leftmost)
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let leafC = SurfaceLeaf()
+        let leafD = SurfaceLeaf()
+        let top = SplitBranch(
+            orientation: .horizontal,
+            first: .leaf(leafA), second: .leaf(leafB)
+        )
+        let bottom = SplitBranch(
+            orientation: .horizontal,
+            first: .leaf(leafC), second: .leaf(leafD)
+        )
+        let root = SplitNode.split(SplitBranch(
+            orientation: .vertical,
+            first: .split(top), second: .split(bottom)
+        ))
+
+        let result = SplitTree.findNeighbor(
+            node: root, leafID: leafA.id, direction: .down)
+        #expect(result?.id == leafC.id)
+    }
+
+    // MARK: - Directional split creation
+
+    @Test func splitDirectionLeft() {
+        // Splitting left: new pane becomes first child
+        let leaf = SurfaceLeaf()
+        let root = SplitNode.leaf(leaf)
+        let newLeafID = UUID()
+
+        let result = SplitTree.split(
+            node: root, leafID: leaf.id,
+            direction: .left, newLeafID: newLeafID
+        )
+
+        guard case .split(let branch) = result else {
+            Issue.record("Expected split branch")
+            return
+        }
+        #expect(branch.orientation == .horizontal)
+        // New pane is first (left), original is second (right)
+        guard case .leaf(let first) = branch.first else {
+            Issue.record("Expected leaf")
+            return
+        }
+        #expect(first.id == newLeafID)
+        guard case .leaf(let second) = branch.second else {
+            Issue.record("Expected leaf")
+            return
+        }
+        #expect(second.id == leaf.id)
+    }
+
+    @Test func splitDirectionRight() {
+        // Splitting right: original stays first, new goes second (existing behavior)
+        let leaf = SurfaceLeaf()
+        let root = SplitNode.leaf(leaf)
+        let newLeafID = UUID()
+
+        let result = SplitTree.split(
+            node: root, leafID: leaf.id,
+            direction: .right, newLeafID: newLeafID
+        )
+
+        guard case .split(let branch) = result else {
+            Issue.record("Expected split branch")
+            return
+        }
+        #expect(branch.orientation == .horizontal)
+        // Original is first (left), new is second (right)
+        guard case .leaf(let first) = branch.first else {
+            Issue.record("Expected leaf")
+            return
+        }
+        #expect(first.id == leaf.id)
+        guard case .leaf(let second) = branch.second else {
+            Issue.record("Expected leaf")
+            return
+        }
+        #expect(second.id == newLeafID)
+    }
+
+    @Test func splitDirectionUp() {
+        // Splitting up: new pane becomes first child (top)
+        let leaf = SurfaceLeaf()
+        let root = SplitNode.leaf(leaf)
+        let newLeafID = UUID()
+
+        let result = SplitTree.split(
+            node: root, leafID: leaf.id,
+            direction: .up, newLeafID: newLeafID
+        )
+
+        guard case .split(let branch) = result else {
+            Issue.record("Expected split branch")
+            return
+        }
+        #expect(branch.orientation == .vertical)
+        guard case .leaf(let first) = branch.first else {
+            Issue.record("Expected leaf")
+            return
+        }
+        #expect(first.id == newLeafID)
+    }
+
+    @Test func splitDirectionDown() {
+        // Splitting down: original stays first (top), new goes second (bottom)
+        let leaf = SurfaceLeaf()
+        let root = SplitNode.leaf(leaf)
+        let newLeafID = UUID()
+
+        let result = SplitTree.split(
+            node: root, leafID: leaf.id,
+            direction: .down, newLeafID: newLeafID
+        )
+
+        guard case .split(let branch) = result else {
+            Issue.record("Expected split branch")
+            return
+        }
+        #expect(branch.orientation == .vertical)
+        guard case .leaf(let first) = branch.first else {
+            Issue.record("Expected leaf")
+            return
+        }
+        #expect(first.id == leaf.id)
+    }
 }

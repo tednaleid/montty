@@ -120,7 +120,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     }
 
     /// Split the focused surface in the active tab.
-    func splitSurface(orientation: SplitOrientation) {
+    func splitSurface(direction: SplitDirection) {
         guard let app = ghostty.app,
               let tab = tabStore.activeTab,
               let focusedLeafID = tab.focusedLeafID else { return }
@@ -132,7 +132,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         tab.splitRoot = SplitTree.split(
             node: tab.splitRoot,
             leafID: focusedLeafID,
-            orientation: orientation,
+            direction: direction,
             newLeafID: newLeafID,
             newSurfaceID: newSurfaceView.id
         )
@@ -272,13 +272,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             object: nil, queue: .main
         ) { [weak self] notification in
             guard let self = self else { return }
-            let direction = notification.userInfo?["direction"]
+            let ghosttyDirection = notification.userInfo?["direction"]
                 as? ghostty_action_split_direction_e
-            let orientation: SplitOrientation =
-                (direction == GHOSTTY_SPLIT_DIRECTION_DOWN
-                    || direction == GHOSTTY_SPLIT_DIRECTION_UP)
-                ? .vertical : .horizontal
-            self.splitSurface(orientation: orientation)
+            let splitDirection: SplitDirection
+            switch ghosttyDirection {
+            case GHOSTTY_SPLIT_DIRECTION_LEFT: splitDirection = .left
+            case GHOSTTY_SPLIT_DIRECTION_UP: splitDirection = .up
+            case GHOSTTY_SPLIT_DIRECTION_DOWN: splitDirection = .down
+            default: splitDirection = .right
+            }
+            self.splitSurface(direction: splitDirection)
         }
 
         center.addObserver(
@@ -297,6 +300,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             case .previous:
                 target = SplitTree.previousLeaf(
                     node: tab.splitRoot, before: focusedLeafID)
+            case .next:
+                target = SplitTree.nextLeaf(
+                    node: tab.splitRoot, after: focusedLeafID)
+            case .left:
+                target = SplitTree.findNeighbor(
+                    node: tab.splitRoot, leafID: focusedLeafID, direction: .left)
+            case .right:
+                target = SplitTree.findNeighbor(
+                    node: tab.splitRoot, leafID: focusedLeafID, direction: .right)
+            case .up:
+                target = SplitTree.findNeighbor(
+                    node: tab.splitRoot, leafID: focusedLeafID, direction: .up)
+            case .down:
+                target = SplitTree.findNeighbor(
+                    node: tab.splitRoot, leafID: focusedLeafID, direction: .down)
             default:
                 target = SplitTree.nextLeaf(
                     node: tab.splitRoot, after: focusedLeafID)

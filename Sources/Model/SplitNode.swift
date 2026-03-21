@@ -48,3 +48,23 @@ enum SplitOrientation: String, Codable {
     case horizontal // left | right
     case vertical   // top / bottom
 }
+
+/// Directional intent for split creation and navigation.
+enum SplitDirection {
+    case left, right, up, down
+
+    var orientation: SplitOrientation {
+        switch self {
+        case .left, .right: return .horizontal
+        case .up, .down: return .vertical
+        }
+    }
+
+    /// Whether the new pane should be placed first (before the original).
+    var newPaneFirst: Bool {
+        switch self {
+        case .left, .up: return true
+        case .right, .down: return false
+        }
+    }
+}
