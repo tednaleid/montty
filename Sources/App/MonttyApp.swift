@@ -8,6 +8,7 @@ struct MonttyApp: App {
         WindowGroup {
             MainWindow()
                 .environmentObject(appDelegate.ghostty)
+                .environmentObject(appDelegate)
         }
     }
 }

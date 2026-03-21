@@ -108,9 +108,15 @@ lint:
 # Run tests, lint, and build (CI check)
 check: test lint build
 
-# Build and launch the app
+# Build and launch the app (foreground)
 run: build
     {{build_dir}}/Debug/montty.app/Contents/MacOS/montty
+
+# Build and launch the app (background, for scripted testing)
+run-bg: build
+    @{{build_dir}}/Debug/montty.app/Contents/MacOS/montty &
+    @sleep 2
+    @echo "montty launched in background. Use 'just stop' to quit."
 
 # Quit the running app gracefully
 stop:

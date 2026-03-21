@@ -257,16 +257,25 @@ extension DebugServer {
 
     private static func handleScreenshot(surfaceID: String?, connection: NWConnection) {
         DispatchQueue.main.async {
-            guard let view = surface(forID: surfaceID) else {
-                sendJSON(["error": "No surface found"], status: 404, connection: connection)
+            // Capture the full window (including sidebar and titlebar)
+            guard let window = NSApp?.mainWindow
+                    ?? NSApp?.keyWindow
+                    ?? NSApp?.windows.first(where: { $0.isVisible }) else {
+                sendJSON(["error": "No window found"], status: 404, connection: connection)
                 return
             }
-            guard let bitmapRep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
-                sendJSON(["error": "Failed to create bitmap"], status: 500, connection: connection)
+            let windowID = CGWindowID(window.windowNumber)
+            guard let cgImage = CGWindowListCreateImage(
+                .null,
+                .optionIncludingWindow,
+                windowID,
+                [.boundsIgnoreFraming]
+            ) else {
+                sendJSON(["error": "Window capture failed"], status: 500, connection: connection)
                 return
             }
-            view.cacheDisplay(in: view.bounds, to: bitmapRep)
-            guard let png = bitmapRep.representation(using: .png, properties: [:]) else {
+            let bitmap = NSBitmapImageRep(cgImage: cgImage)
+            guard let png = bitmap.representation(using: .png, properties: [:]) else {
                 sendJSON(["error": "PNG conversion failed"], status: 500, connection: connection)
                 return
             }

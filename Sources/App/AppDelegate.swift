@@ -1,4 +1,5 @@
 import Cocoa
+import Combine
 import GhosttyKit
 import os
 import SwiftUI
@@ -10,9 +11,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     )
 
     @Published var ghostty: Ghostty.App
+    let tabStore = TabStore()
 
     /// UndoManager accessed by Ghostty.App.swift for undo/redo routing
     let undoManager: UndoManager? = nil
+
+    /// Surface views keyed by surface UUID. SwiftUI can't hold NSView
+    /// references in the model layer, so AppDelegate owns them.
+    private var surfaces: [UUID: Ghostty.SurfaceView] = [:]
+
+    /// Combine subscriptions for surface property observation
+    private var surfaceObservers: [UUID: Set<AnyCancellable>] = [:]
 
     /// Tick timer for the Ghostty event loop
     private var tickTimer: Timer?
@@ -35,6 +44,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             self?.ghostty.appTick()
         }
 
+        // Create the initial tab
+        createTab()
+
         #if DEBUG
         DebugServer.start()
         #endif
@@ -53,21 +65,70 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         return true
     }
 
+    // MARK: - Tab lifecycle
+
+    func createTab() {
+        guard let app = ghostty.app else { return }
+        let surfaceView = Ghostty.SurfaceView(app)
+        let tab = Tab(surfaceID: surfaceView.id)
+        surfaces[surfaceView.id] = surfaceView
+        tabStore.append(tab: tab)
+        tabStore.activeTabID = tab.id
+
+        // Watch for title and PWD changes from this surface
+        observeSurface(surfaceView, tab: tab)
+    }
+
+    func closeTab(id: UUID) {
+        guard let tab = tabStore.tabs.first(where: { $0.id == id }) else { return }
+        surfaceObservers.removeValue(forKey: tab.surfaceID)
+        surfaces.removeValue(forKey: tab.surfaceID)
+        tabStore.close(id: id)
+
+        // If no tabs remain, quit
+        if tabStore.tabs.isEmpty {
+            NSApplication.shared.terminate(nil)
+        }
+    }
+
+    func surfaceView(for surfaceID: UUID) -> Ghostty.SurfaceView? {
+        surfaces[surfaceID]
+    }
+
+    // MARK: - Surface observation
+
+    private func observeSurface(_ surfaceView: Ghostty.SurfaceView, tab: Tab) {
+        var cancellables = Set<AnyCancellable>()
+
+        surfaceView.$title
+            .receive(on: DispatchQueue.main)
+            .sink { [weak tab] title in
+                tab?.autoName = title
+            }
+            .store(in: &cancellables)
+
+        surfaceView.$pwd
+            .receive(on: DispatchQueue.main)
+            .sink { [weak tab] pwd in
+                tab?.workingDirectory = pwd
+            }
+            .store(in: &cancellables)
+
+        surfaceObservers[surfaceView.id] = cancellables
+    }
+
     // MARK: - GhosttyAppDelegate
 
     func findSurface(forUUID uuid: UUID) -> Ghostty.SurfaceView? {
-        // Phase 1: no surface tracking yet
-        return nil
+        surfaces[uuid]
     }
 
     // MARK: - Interface expected by Ghostty binding files
 
-    // SurfaceView_AppKit.swift calls this to handle Ghostty keybinding menu equivalents
     func performGhosttyBindingMenuKeyEquivalent(with event: NSEvent) -> Bool {
         return false
     }
 
-    // Ghostty.App.swift action handlers call these on AppDelegate by name
     func checkForUpdates(_ sender: Any?) {}
     func closeAllWindows(_ sender: Any?) {}
     func toggleVisibility(_ sender: Any?) {}

@@ -2,8 +2,33 @@ import SwiftUI
 
 struct MainWindow: View {
     @EnvironmentObject var ghostty: Ghostty.App
+    @EnvironmentObject var appDelegate: AppDelegate
+
+    private let sidebarWidth: CGFloat = 200
 
     var body: some View {
-        Ghostty.Terminal()
+        HSplitView {
+            TabSidebar(
+                tabStore: appDelegate.tabStore,
+                onNewTab: { appDelegate.createTab() },
+                onCloseTab: { appDelegate.closeTab(id: $0) },
+                onSetColor: { appDelegate.tabStore.setColor(id: $0, color: $1) }
+            )
+            .frame(minWidth: 150, idealWidth: sidebarWidth, maxWidth: 300)
+
+            // Terminal content for the active tab
+            terminalContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private var terminalContent: some View {
+        if let activeTab = appDelegate.tabStore.activeTab,
+           let surfaceView = appDelegate.surfaceView(for: activeTab.surfaceID) {
+            Ghostty.SurfaceWrapper(surfaceView: surfaceView)
+        } else {
+            Color(nsColor: .windowBackgroundColor)
+        }
     }
 }
