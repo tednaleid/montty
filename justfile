@@ -156,6 +156,22 @@ inspect-state surface="":
 inspect-action action surface="":
     @curl -sf -X POST 'localhost:9876/action{{ if surface != "" { "?surface=" + surface } else { "" } }}' -d '{{action}}' | jq .
 
+# Bump version in Info.plist, commit, tag, and push
+bump version:
+    @test -n "{{version}}" || { echo "Usage: just bump 0.2.0"; exit 1; }
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString {{version}}" Resources/Info.plist
+    git add Resources/Info.plist
+    git commit -m "Bump version to {{version}}"
+    git tag -a "{{version}}" -m "{{version}}"
+    git push && git push --tags
+
+# Delete a GitHub release and re-tag the current commit to re-trigger release workflow
+retag tag:
+    gh release delete {{tag}} --yes || true
+    git push origin :refs/tags/{{tag}} || true
+    git tag -f {{tag}}
+    git push && git push --tags
+
 # Remove build artifacts
 clean:
     rm -rf {{build_dir}} DerivedData
