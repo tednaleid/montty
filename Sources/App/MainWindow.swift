@@ -36,6 +36,7 @@ struct MainWindow: View {
             SplitContainerView(
                 node: activeTab.splitRoot,
                 focusedLeafID: activeTab.focusedLeafID,
+                tabColor: activeTab.color,
                 surfaceLookup: { appDelegate.surfaceView(for: $0) },
                 onFocusLeaf: { leafID in
                     activeTab.focusedLeafID = leafID

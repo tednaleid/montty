@@ -3,8 +3,13 @@ import SwiftUI
 struct SplitContainerView: View {
     let node: SplitNode
     let focusedLeafID: UUID?
+    let tabColor: TabColor
     let surfaceLookup: (UUID) -> Ghostty.SurfaceView?
     let onFocusLeaf: (UUID) -> Void
+
+    // Tweak this to control how much unfocused panes are dimmed.
+    // 0.0 = no dimming, 0.3 = heavy dimming.
+    private static let unfocusedDimOpacity: Double = 0.15
 
     var body: some View {
         switch node {
@@ -18,13 +23,17 @@ struct SplitContainerView: View {
 
     @ViewBuilder
     private func leafView(_ leaf: SurfaceLeaf) -> some View {
+        let isFocused = leaf.id == focusedLeafID
+
         if let surfaceView = surfaceLookup(leaf.surfaceID) {
             Ghostty.SurfaceWrapper(surfaceView: surfaceView)
-                .border(
-                    leaf.id == focusedLeafID
-                        ? Color.accentColor.opacity(0.5) : Color.clear,
-                    width: 2
+                .overlay(
+                    isFocused
+                        ? nil
+                        : Color.black.opacity(Self.unfocusedDimOpacity)
+                            .allowsHitTesting(false)
                 )
+                .border(isFocused ? borderColor : Color.clear, width: 2)
                 .onTapGesture {
                     onFocusLeaf(leaf.id)
                 }
@@ -33,10 +42,20 @@ struct SplitContainerView: View {
         }
     }
 
+    private var borderColor: Color {
+        switch tabColor {
+        case .preset(let preset):
+            return preset.swiftUIColor.opacity(0.7)
+        case .auto:
+            return Color.accentColor.opacity(0.5)
+        }
+    }
+
     private func branchView(_ branch: SplitBranch) -> some View {
         BranchWrapper(
             branch: branch,
             focusedLeafID: focusedLeafID,
+            tabColor: tabColor,
             surfaceLookup: surfaceLookup,
             onFocusLeaf: onFocusLeaf
         )
@@ -47,6 +66,7 @@ struct SplitContainerView: View {
 private struct BranchWrapper: View {
     let branch: SplitBranch
     let focusedLeafID: UUID?
+    let tabColor: TabColor
     let surfaceLookup: (UUID) -> Ghostty.SurfaceView?
     let onFocusLeaf: (UUID) -> Void
 
@@ -55,11 +75,13 @@ private struct BranchWrapper: View {
     init(
         branch: SplitBranch,
         focusedLeafID: UUID?,
+        tabColor: TabColor,
         surfaceLookup: @escaping (UUID) -> Ghostty.SurfaceView?,
         onFocusLeaf: @escaping (UUID) -> Void
     ) {
         self.branch = branch
         self.focusedLeafID = focusedLeafID
+        self.tabColor = tabColor
         self.surfaceLookup = surfaceLookup
         self.onFocusLeaf = onFocusLeaf
         self._ratio = State(initialValue: branch.ratio)
@@ -73,6 +95,7 @@ private struct BranchWrapper: View {
             SplitContainerView(
                 node: branch.first,
                 focusedLeafID: focusedLeafID,
+                tabColor: tabColor,
                 surfaceLookup: surfaceLookup,
                 onFocusLeaf: onFocusLeaf
             )
@@ -80,6 +103,7 @@ private struct BranchWrapper: View {
             SplitContainerView(
                 node: branch.second,
                 focusedLeafID: focusedLeafID,
+                tabColor: tabColor,
                 surfaceLookup: surfaceLookup,
                 onFocusLeaf: onFocusLeaf
             )
