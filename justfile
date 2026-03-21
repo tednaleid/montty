@@ -105,6 +105,9 @@ test:
 lint:
     swiftlint lint --strict
 
+# Run tests, lint, and build (CI check)
+check: test lint build
+
 # Build and launch the app
 run: build
     {{build_dir}}/Debug/montty.app/Contents/MacOS/montty
