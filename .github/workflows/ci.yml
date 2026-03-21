@@ -14,18 +14,30 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Cache GhosttyKit
+        id: cache-ghosttykit
+        uses: actions/cache@v4
+        with:
+          path: ghostty/macos/GhosttyKit.xcframework
+          key: ghosttykit-${{ hashFiles('.git/modules/ghostty/HEAD') }}
+
       - name: Install zig 0.15.2
+        if: steps.cache-ghosttykit.outputs.cache-hit != 'true'
         run: |
           curl -sL https://ziglang.org/download/0.15.2/zig-aarch64-macos-0.15.2.tar.xz | tar xJ -C /tmp
           echo "/tmp/zig-aarch64-macos-0.15.2" >> "$GITHUB_PATH"
+
+      - name: Build GhosttyKit
+        if: steps.cache-ghosttykit.outputs.cache-hit != 'true'
+        run: just setup
+
+      - name: Create xcframework symlink
+        run: ln -sfn ghostty/macos/GhosttyKit.xcframework GhosttyKit.xcframework
 
       - uses: extractions/setup-just@v2
 
       - name: Install SwiftLint and xcodegen
         run: brew install swiftlint xcodegen
-
-      - name: Build GhosttyKit
-        run: just setup
 
       - name: Generate Xcode project
         run: just generate

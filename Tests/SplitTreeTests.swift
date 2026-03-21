@@ -188,7 +188,9 @@ struct SplitTreeTests {
         #expect(leaves.map(\.id) == [leaf1.id, leaf3.id])
     }
 
-    // MARK: - Spatial navigation
+}
+
+struct SplitTreeNavigationTests {
 
     @Test func findNeighborLeft() {
         // horizontal(A, B) -- from B, go left -> A
@@ -382,7 +384,9 @@ struct SplitTreeTests {
         #expect(result?.id == leafC.id)
     }
 
-    // MARK: - Directional split creation
+}
+
+struct SplitTreeDirectionTests {
 
     @Test func splitDirectionLeft() {
         // Splitting left: new pane becomes first child

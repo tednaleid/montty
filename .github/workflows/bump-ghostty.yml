@@ -1,0 +1,83 @@
+name: Bump Ghostty
+
+on:
+  schedule:
+    - cron: "0 8 * * 1" # Weekly Monday 8am UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Check for newer Ghostty release
+        id: check
+        run: |
+          cd ghostty
+          CURRENT_TAG=$(git describe --tags --exact-match 2>/dev/null || git rev-parse --short HEAD)
+          echo "current=$CURRENT_TAG"
+
+          git fetch --tags origin
+          LATEST_TAG=$(git tag -l 'v[0-9]*' --sort=-version:refname | head -1)
+          echo "latest=$LATEST_TAG"
+
+          if [ "$CURRENT_TAG" = "$LATEST_TAG" ]; then
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+            echo "Already on latest: $CURRENT_TAG"
+          else
+            echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+            echo "new_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+            echo "Update available: $CURRENT_TAG -> $LATEST_TAG"
+          fi
+
+      - name: Update submodule to new tag
+        if: steps.check.outputs.up_to_date == 'false'
+        run: |
+          cd ghostty
+          git checkout ${{ steps.check.outputs.new_tag }}
+
+      - name: Install zig 0.15.2
+        if: steps.check.outputs.up_to_date == 'false'
+        run: |
+          curl -sL https://ziglang.org/download/0.15.2/zig-aarch64-macos-0.15.2.tar.xz | tar xJ -C /tmp
+          echo "/tmp/zig-aarch64-macos-0.15.2" >> "$GITHUB_PATH"
+
+      - uses: extractions/setup-just@v2
+        if: steps.check.outputs.up_to_date == 'false'
+
+      - name: Install SwiftLint and xcodegen
+        if: steps.check.outputs.up_to_date == 'false'
+        run: brew install swiftlint xcodegen
+
+      - name: Build GhosttyKit
+        if: steps.check.outputs.up_to_date == 'false'
+        run: just setup
+
+      - name: Generate Xcode project
+        if: steps.check.outputs.up_to_date == 'false'
+        run: just generate
+
+      - name: Verify build and tests
+        if: steps.check.outputs.up_to_date == 'false'
+        run: just check
+
+      - name: Create pull request
+        if: steps.check.outputs.up_to_date == 'false'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "Bump ghostty to ${{ steps.check.outputs.new_tag }}"
+          title: "Bump ghostty to ${{ steps.check.outputs.new_tag }}"
+          body: |
+            Automated bump of the ghostty submodule to [${{ steps.check.outputs.new_tag }}](https://github.com/ghostty-org/ghostty/releases/tag/${{ steps.check.outputs.new_tag }}).
+
+            CI passed with this version.
+          branch: bump-ghostty-${{ steps.check.outputs.new_tag }}
+          delete-branch: true

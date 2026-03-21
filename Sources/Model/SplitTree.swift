@@ -140,11 +140,10 @@ enum SplitTree {
         }
 
         // Walk up the path looking for a matching split
-        for i in stride(from: path.count - 1, through: 0, by: -1) {
-            let step = path[i]
-            if step.branch.orientation == direction.orientation
-                && step.position == fromPosition
-            {
+        for idx in stride(from: path.count - 1, through: 0, by: -1) {
+            let step = path[idx]
+            if step.branch.orientation == direction.orientation,
+               step.position == fromPosition {
                 let sibling = fromPosition == .second
                     ? step.branch.first : step.branch.second
 
@@ -153,7 +152,7 @@ enum SplitTree {
                 // e.g., going right from bottom-left should find the
                 // bottom-right neighbor, not the top-right.
                 let perpPreference = perpendicularPreference(
-                    path: path, ancestorIndex: i, direction: direction,
+                    path: path, ancestorIndex: idx, direction: direction,
                     fallback: descendPreference)
 
                 return edgeLeaf(
@@ -222,10 +221,9 @@ enum SplitTree {
     ) -> ChildPosition {
         let perpOrientation: SplitOrientation =
             direction.orientation == .horizontal ? .vertical : .horizontal
-        for j in (ancestorIndex + 1)..<path.count {
-            if path[j].branch.orientation == perpOrientation {
-                return path[j].position
-            }
+        for idx in (ancestorIndex + 1)..<path.count
+            where path[idx].branch.orientation == perpOrientation {
+            return path[idx].position
         }
         return fallback
     }

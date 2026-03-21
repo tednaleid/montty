@@ -3,3 +3,16 @@ excluded:
   - ghostty
   - DerivedData
   - build
+
+identifier_name:
+  excluded:
+    - id
+    - up
+
+type_body_length:
+  warning: 300
+  error: 400
+
+file_length:
+  warning: 500
+  error: 600

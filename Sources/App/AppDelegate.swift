@@ -295,37 +295,39 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
                 Ghostty.Notification.SplitDirectionKey
             ] as? Ghostty.SplitFocusDirection
 
-            let target: SurfaceLeaf?
-            switch direction {
-            case .previous:
-                target = SplitTree.previousLeaf(
-                    node: tab.splitRoot, before: focusedLeafID)
-            case .next:
-                target = SplitTree.nextLeaf(
-                    node: tab.splitRoot, after: focusedLeafID)
-            case .left:
-                target = SplitTree.findNeighbor(
-                    node: tab.splitRoot, leafID: focusedLeafID, direction: .left)
-            case .right:
-                target = SplitTree.findNeighbor(
-                    node: tab.splitRoot, leafID: focusedLeafID, direction: .right)
-            case .up:
-                target = SplitTree.findNeighbor(
-                    node: tab.splitRoot, leafID: focusedLeafID, direction: .up)
-            case .down:
-                target = SplitTree.findNeighbor(
-                    node: tab.splitRoot, leafID: focusedLeafID, direction: .down)
-            default:
-                target = SplitTree.nextLeaf(
-                    node: tab.splitRoot, after: focusedLeafID)
-            }
-            if let target = target {
+            if let target = focusTarget(
+                root: tab.splitRoot, leafID: focusedLeafID,
+                direction: direction
+            ) {
                 tab.focusedLeafID = target.id
                 self.updateSurfaceFocus(for: tab)
                 if let surfaceView = surfaces[target.surfaceID] {
                     Ghostty.moveFocus(to: surfaceView)
                 }
             }
+        }
+    }
+
+    /// Find the target leaf for a split focus navigation.
+    private func focusTarget(
+        root: SplitNode, leafID: UUID,
+        direction: Ghostty.SplitFocusDirection?
+    ) -> SurfaceLeaf? {
+        switch direction {
+        case .previous:
+            return SplitTree.previousLeaf(node: root, before: leafID)
+        case .next:
+            return SplitTree.nextLeaf(node: root, after: leafID)
+        case .left:
+            return SplitTree.findNeighbor(node: root, leafID: leafID, direction: .left)
+        case .right:
+            return SplitTree.findNeighbor(node: root, leafID: leafID, direction: .right)
+        case .up:
+            return SplitTree.findNeighbor(node: root, leafID: leafID, direction: .up)
+        case .down:
+            return SplitTree.findNeighbor(node: root, leafID: leafID, direction: .down)
+        default:
+            return SplitTree.nextLeaf(node: root, after: leafID)
         }
     }
 
