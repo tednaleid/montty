@@ -9,7 +9,7 @@ struct SplitContainerView: View {
 
     // Tweak this to control how much unfocused panes are dimmed.
     // 0.0 = no dimming, 0.3 = heavy dimming.
-    private static let unfocusedDimOpacity: Double = 0.15
+    private static let unfocusedDimOpacity: Double = 0.25
 
     var body: some View {
         switch node {
