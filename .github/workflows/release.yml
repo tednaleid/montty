@@ -26,11 +26,14 @@ jobs:
 
       - uses: extractions/setup-just@v2
 
-      - name: Install SwiftLint
-        run: brew install swiftlint
+      - name: Install SwiftLint and xcodegen
+        run: brew install swiftlint xcodegen
 
       - name: Build GhosttyKit
         run: just setup
+
+      - name: Generate Xcode project
+        run: just generate
 
       - name: Check (test + lint + build)
         run: just check
