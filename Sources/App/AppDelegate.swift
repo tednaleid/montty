@@ -143,6 +143,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         }
 
         center.addObserver(
+            forName: Ghostty.Notification.ghosttyCloseSurface,
+            object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let surfaceView = notification.object as? Ghostty.SurfaceView,
+                  let tab = self.tabStore.tab(forSurfaceID: surfaceView.id) else { return }
+            self.closeTab(id: tab.id)
+        }
+
+        center.addObserver(
             forName: Ghostty.Notification.ghosttyGotoTab,
             object: nil, queue: .main
         ) { [weak self] notification in

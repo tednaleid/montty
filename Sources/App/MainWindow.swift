@@ -21,6 +21,14 @@ struct MainWindow: View {
             terminalContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .onChange(of: tabStore.activeTabID) { _, newID in
+            // Refocus the terminal surface after tab switch so typing
+            // goes to the terminal, not the sidebar.
+            guard let newID = newID,
+                  let tab = tabStore.tabs.first(where: { $0.id == newID }),
+                  let surfaceView = appDelegate.surfaceView(for: tab.surfaceID) else { return }
+            Ghostty.moveFocus(to: surfaceView)
+        }
     }
 
     @ViewBuilder
