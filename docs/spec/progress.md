@@ -57,10 +57,12 @@
 - [x] inspect-action justfile recipe
 - [x] Full window screenshots (CGWindowListCreateImage)
 - [x] `just check` passes (34 tests, 0 lint violations, build succeeds)
-- [ ] Drag-to-reorder tabs (needs manual verification)
-- [ ] Right-click context menu: rename, set color, close (needs manual verification)
-- [ ] Cmd+T / Cmd+W keyboard shortcuts (needs manual verification)
-- [ ] Cmd+1-9 tab switching (needs manual verification)
+- [x] Drag-to-reorder tabs
+- [x] Right-click context menu: rename, set color, close
+- [x] Cmd+T / Cmd+W keyboard shortcuts
+- [x] Cmd+1-9 tab switching
+- [x] Shell exit (ctrl+D) auto-closes tab
+- [x] Tab switch refocuses terminal for immediate typing
 
 ## Phase 3: Splits
 (to be detailed when Phase 3 work begins)
