@@ -152,6 +152,10 @@ inspect-screenshot surface="" path=(".llm/inspect/screenshot-" + `date +%Y%m%d-%
 inspect-state surface="":
     @curl -sf 'localhost:9876/state{{ if surface != "" { "?surface=" + surface } else { "" } }}' | jq .
 
+# Trigger a Ghostty action (e.g., new_tab, close_tab, "goto_tab:1")
+inspect-action action surface="":
+    @curl -sf -X POST 'localhost:9876/action{{ if surface != "" { "?surface=" + surface } else { "" } }}' -d '{{action}}' | jq .
+
 # Remove build artifacts
 clean:
     rm -rf {{build_dir}} DerivedData

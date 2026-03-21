@@ -45,7 +45,22 @@
 - [x] Integration test: inspect-screenshot saves viewable PNG verified
 
 ## Phase 2: Tab Model + Sidebar
-(to be detailed when Phase 2 work begins)
+- [x] Tab data model (Tab, TabStore, TabColor) with position invariant
+- [x] 25 unit tests for model layer (ordering, close, move, rename, color, Codable)
+- [x] Vertical tab sidebar (TabSidebar, TabRow, TabContextMenu, TabColorPicker)
+- [x] HSplitView layout: sidebar | terminal content
+- [x] Multi-surface lifecycle (AppDelegate creates/stores/destroys per tab)
+- [x] Title/PWD observation via Combine (auto-updates tab name/directory)
+- [x] Ghostty action routing (new_tab, close_tab, goto_tab notifications)
+- [x] Tab switching via goto_tab:N actions
+- [x] Debug server /surfaces returns tab info (name, color, position, active)
+- [x] inspect-action justfile recipe
+- [x] Full window screenshots (CGWindowListCreateImage)
+- [x] `just check` passes (34 tests, 0 lint violations, build succeeds)
+- [ ] Drag-to-reorder tabs (needs manual verification)
+- [ ] Right-click context menu: rename, set color, close (needs manual verification)
+- [ ] Cmd+T / Cmd+W keyboard shortcuts (needs manual verification)
+- [ ] Cmd+1-9 tab switching (needs manual verification)
 
 ## Phase 3: Splits
 (to be detailed when Phase 3 work begins)

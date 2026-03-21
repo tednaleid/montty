@@ -1115,10 +1115,8 @@ extension Ghostty {
                     guard let surface = target.target.surface else { return false }
                     guard let surfaceView = self.surfaceView(from: surface) else { return false }
 
-                    // Similar to goto_split (see comment there) about our performability,
-                    // we should make this more accurate later.
-                    guard (surfaceView.window?.tabGroup?.windows.count ?? 0) > 1 else { return false }
-
+                    // MONTTY: Removed tabGroup?.windows.count guard -- montty uses
+                    // its own tab model, not native tab groups.
                     NotificationCenter.default.post(
                         name: Notification.ghosttyGotoTab,
                         object: surfaceView,

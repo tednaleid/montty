@@ -47,6 +47,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         // Create the initial tab
         createTab()
 
+        // Observe Ghostty action notifications for tab operations
+        observeGhosttyActions()
+
         #if DEBUG
         DebugServer.start()
         #endif
@@ -115,6 +118,75 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             .store(in: &cancellables)
 
         surfaceObservers[surfaceView.id] = cancellables
+    }
+
+    // MARK: - Ghostty action routing
+
+    private func observeGhosttyActions() {
+        let center = NotificationCenter.default
+
+        center.addObserver(
+            forName: Ghostty.Notification.ghosttyNewTab,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.createTab()
+        }
+
+        center.addObserver(
+            forName: .ghosttyCloseTab,
+            object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let surfaceView = notification.object as? Ghostty.SurfaceView,
+                  let tab = self.tabStore.tab(forSurfaceID: surfaceView.id) else { return }
+            self.closeTab(id: tab.id)
+        }
+
+        center.addObserver(
+            forName: Ghostty.Notification.ghosttyGotoTab,
+            object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let tabIndex = notification.userInfo?[
+                      Ghostty.Notification.GotoTabKey
+                  ] as? ghostty_action_goto_tab_e else { return }
+            self.handleGotoTab(tabIndex)
+        }
+    }
+
+    private func handleGotoTab(_ tabIndex: ghostty_action_goto_tab_e) {
+        let tabs = tabStore.tabs
+        guard !tabs.isEmpty else { return }
+
+        let rawValue = tabIndex.rawValue
+        switch rawValue {
+        case GHOSTTY_GOTO_TAB_PREVIOUS.rawValue:
+            // Previous tab
+            if let activeID = tabStore.activeTabID,
+               let currentIndex = tabs.firstIndex(where: { $0.id == activeID }),
+               currentIndex > 0 {
+                tabStore.activeTabID = tabs[currentIndex - 1].id
+            }
+
+        case GHOSTTY_GOTO_TAB_NEXT.rawValue:
+            // Next tab
+            if let activeID = tabStore.activeTabID,
+               let currentIndex = tabs.firstIndex(where: { $0.id == activeID }),
+               currentIndex < tabs.count - 1 {
+                tabStore.activeTabID = tabs[currentIndex + 1].id
+            }
+
+        case GHOSTTY_GOTO_TAB_LAST.rawValue:
+            // Last tab
+            tabStore.activeTabID = tabs.last?.id
+
+        default:
+            // Positive values are 1-based tab indices
+            let index = Int(rawValue) - 1
+            if let tab = tabStore.tab(at: index) {
+                tabStore.activeTabID = tab.id
+            }
+        }
     }
 
     // MARK: - GhosttyAppDelegate

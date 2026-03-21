@@ -61,28 +61,59 @@ extension DebugServer {
     }
 
     // MARK: - Handlers
+    private static func appDelegate() -> AppDelegate? {
+        // With @NSApplicationDelegateAdaptor, NSApp.delegate is a SwiftUI
+        // wrapper. Walk its properties to find our actual AppDelegate.
+        guard let delegate = NSApp?.delegate else { return nil }
+        if let appDel = delegate as? AppDelegate { return appDel }
+        // SwiftUI stores the adaptee in a property
+        let mirror = Mirror(reflecting: delegate)
+        for child in mirror.children {
+            if let appDel = child.value as? AppDelegate { return appDel }
+        }
+        return nil
+    }
+
     private static func handleSurfaces(connection: NWConnection) {
         DispatchQueue.main.async {
-            let surfaces = findSurfaces().map { view -> [String: Any] in
+            guard let appDelegate = appDelegate() else {
+                sendJSONArray([], connection: connection)
+                return
+            }
+            let results = appDelegate.tabStore.tabs.map { tab -> [String: Any] in
                 var entry: [String: Any] = [
-                    "id": view.id.uuidString,
-                    "title": view.title,
-                    "focused": view.focused
+                    "id": tab.surfaceID.uuidString,
+                    "tab_id": tab.id.uuidString,
+                    "tab_name": tab.displayName,
+                    "tab_position": tab.position,
+                    "tab_color": colorString(tab.color),
+                    "active": tab.id == appDelegate.tabStore.activeTabID
                 ]
-                if let pwd = view.pwd {
-                    entry["pwd"] = pwd
+                if let view = appDelegate.surfaceView(for: tab.surfaceID) {
+                    entry["title"] = view.title
+                    entry["focused"] = view.focused
+                    if let size = view.surfaceSize {
+                        entry["size"] = [
+                            "rows": size.rows,
+                            "cols": size.columns,
+                            "width_px": size.width_px,
+                            "height_px": size.height_px
+                        ]
+                    }
                 }
-                if let size = view.surfaceSize {
-                    entry["size"] = [
-                        "rows": size.rows,
-                        "cols": size.columns,
-                        "width_px": size.width_px,
-                        "height_px": size.height_px
-                    ]
+                if let pwd = tab.workingDirectory {
+                    entry["pwd"] = pwd
                 }
                 return entry
             }
-            sendJSONArray(surfaces, connection: connection)
+            sendJSONArray(results, connection: connection)
+        }
+    }
+
+    private static func colorString(_ color: TabColor) -> String {
+        switch color {
+        case .preset(let preset): return preset.rawValue
+        case .auto: return "auto"
         }
     }
 
