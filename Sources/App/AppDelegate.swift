@@ -424,10 +424,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     ) -> SplitNode {
         switch node {
         case .leaf(let leaf):
-            let surfaceView = Ghostty.SurfaceView(app)
+            var config = Ghostty.SurfaceConfiguration()
+            config.workingDirectory = directories[leaf.id]
+            let surfaceView = Ghostty.SurfaceView(app, baseConfig: config)
             surfaces[surfaceView.id] = surfaceView
             observeSurface(surfaceView, tab: tab)
-            // Set working directory if we have one saved
+            // Set tab directory for immediate UI display (surface will
+            // update it via observer once the shell reports its pwd)
             if let dir = directories[leaf.id] {
                 tab.workingDirectory = dir
             }
