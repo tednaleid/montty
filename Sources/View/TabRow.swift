@@ -3,6 +3,7 @@ import SwiftUI
 struct TabRow: View {
     let tab: Tab
     let isActive: Bool
+    let activeTabColor: Color
     @Binding var editingTabID: UUID?
 
     @State private var editName = ""
@@ -85,6 +86,15 @@ struct TabRow: View {
             Spacer(minLength: 0)
         }
         .background(isActive ? activeBackground : Color.clear)
+        .overlay {
+            if isActive {
+                VStack {
+                    Rectangle().fill(accentColor).frame(height: 4)
+                    Spacer()
+                    Rectangle().fill(accentColor).frame(height: 4)
+                }
+            }
+        }
         .onTapGesture(count: 2) {
             editingTabID = tab.id
         }
