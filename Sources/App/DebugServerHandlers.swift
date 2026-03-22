@@ -88,35 +88,67 @@ extension DebugServer {
             var results: [[String: Any]] = []
             for tab in appDelegate.tabStore.tabs {
                 let isActiveTab = tab.id == appDelegate.tabStore.activeTabID
+                let info = tab.tabInfo
                 for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
-                    var entry: [String: Any] = [
-                        "id": leaf.surfaceID.uuidString,
-                        "leaf_id": leaf.id.uuidString,
-                        "tab_id": tab.id.uuidString,
-                        "tab_name": tab.displayName,
-                        "tab_position": tab.position,
-                        "tab_color": colorString(tab.color),
-                        "active": isActiveTab,
-                        "focused_in_tab": leaf.id == tab.focusedLeafID
-                    ]
-                    if let view = appDelegate.surfaceView(for: leaf.surfaceID) {
-                        entry["title"] = view.title
-                        if let size = view.surfaceSize {
-                            entry["size"] = [
-                                "rows": size.rows,
-                                "cols": size.columns,
-                                "width_px": size.width_px,
-                                "height_px": size.height_px
-                            ]
-                        }
-                    }
-                    if let pwd = tab.workingDirectory {
-                        entry["pwd"] = pwd
-                    }
+                    var entry = surfaceEntry(
+                        leaf: leaf, tab: tab, info: info,
+                        isActiveTab: isActiveTab, appDelegate: appDelegate
+                    )
+                    addSurfaceViewData(leaf: leaf, appDelegate: appDelegate, entry: &entry)
                     results.append(entry)
                 }
             }
             sendJSONArray(results, connection: connection)
+        }
+    }
+
+    private static func surfaceEntry(
+        leaf: SurfaceLeaf, tab: Tab, info: TabInfo,
+        isActiveTab: Bool, appDelegate: AppDelegate
+    ) -> [String: Any] {
+        var entry: [String: Any] = [
+            "id": leaf.surfaceID.uuidString,
+            "leaf_id": leaf.id.uuidString,
+            "tab_id": tab.id.uuidString,
+            "tab_name": info.displayName,
+            "tab_position": tab.position,
+            "tab_color": colorString(tab.color),
+            "active": isActiveTab,
+            "focused_in_tab": leaf.id == tab.focusedLeafID,
+            "split_count": info.splitCount
+        ]
+        if let dirName = info.directoryName {
+            entry["directory_name"] = dirName
+        }
+        if let gitInfo = info.gitInfo {
+            var git: [String: Any] = [
+                "repo_name": gitInfo.repoName,
+                "repo_path": gitInfo.repoPath
+            ]
+            if let branch = gitInfo.branchName { git["branch"] = branch }
+            if let worktree = gitInfo.worktreeName { git["worktree"] = worktree }
+            entry["git"] = git
+        }
+        if let claude = info.claudeCode {
+            entry["claude_code"] = [
+                "session_name": claude.sessionName,
+                "state": String(describing: claude.state)
+            ]
+        }
+        return entry
+    }
+
+    private static func addSurfaceViewData(
+        leaf: SurfaceLeaf, appDelegate: AppDelegate, entry: inout [String: Any]
+    ) {
+        guard let view = appDelegate.surfaceView(for: leaf.surfaceID) else { return }
+        entry["title"] = view.title
+        if let pwd = view.pwd { entry["pwd"] = pwd }
+        if let size = view.surfaceSize {
+            entry["size"] = [
+                "rows": size.rows, "cols": size.columns,
+                "width_px": size.width_px, "height_px": size.height_px
+            ]
         }
     }
 

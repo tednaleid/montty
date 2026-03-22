@@ -32,6 +32,28 @@ targets:
     dependencies:
       - framework: GhosttyKit.xcframework
         embed: false
+    postBuildScripts:
+      - name: Bundle Ghostty Shell Integration
+        script: |
+          # Copy shell integration scripts from submodule so GhosttyKit can
+          # auto-discover them and inject OSC 7 pwd reporting into shells.
+          GHOST_RES="${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ghostty"
+          TERMINFO_DIR="${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/terminfo/78"
+
+          # Create terminfo sentinel (GhosttyKit looks for this to find resources)
+          mkdir -p "${TERMINFO_DIR}"
+          touch "${TERMINFO_DIR}/xterm-ghostty"
+
+          # Copy shell integration scripts from the Ghostty submodule source
+          SHELL_INT_SRC="${SRCROOT}/ghostty/src/shell-integration"
+          if [ -d "${SHELL_INT_SRC}" ]; then
+            mkdir -p "${GHOST_RES}/shell-integration"
+            for shell in bash zsh fish elvish; do
+              if [ -d "${SHELL_INT_SRC}/${shell}" ]; then
+                cp -R "${SHELL_INT_SRC}/${shell}" "${GHOST_RES}/shell-integration/"
+              fi
+            done
+          fi
 
   montty-unit:
     type: bundle.unit-test
