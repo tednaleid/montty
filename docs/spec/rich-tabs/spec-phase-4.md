@@ -72,7 +72,7 @@ The left edge is the 4px color indicator bar (existing). Each section is conditi
 
 ### Dynamic row height
 
-Tabs grow/shrink based on content. A tab with no git info, no splits, and no Claude Code is compact (just name + directory). A tab with everything is taller. SwiftUI's List handles variable-height rows.
+Every tab always shows the minimap -- it's the tab's visual identity. Rows vary slightly based on whether git info and Claude Code badges are present, but the minimap is never hidden. SwiftUI's List handles variable-height rows.
 
 ## Red/Green Tests
 
