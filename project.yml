@@ -39,6 +39,7 @@ targets:
     sources:
       - path: Tests
       - path: Sources/Model
+      - path: Sources/Persistence
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.montty.app.tests

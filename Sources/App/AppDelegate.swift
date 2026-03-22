@@ -26,6 +26,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Tick timer for the Ghostty event loop
     private var tickTimer: Timer?
 
+    /// Session persistence
+    private let sessionStore = SessionStore()
+
     override init() {
         // ghostty_init must be called before any other GhosttyKit API
         if ghostty_init(UInt(CommandLine.argc), CommandLine.unsafeArgv) != GHOSTTY_SUCCESS {
@@ -44,11 +47,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             self?.ghostty.appTick()
         }
 
-        // Create the initial tab
-        createTab()
+        // Restore previous session or create a fresh tab
+        if let snapshot = sessionStore.load() {
+            restoreSession(snapshot)
+        } else {
+            createTab()
+        }
 
         // Observe Ghostty action notifications for tab operations
         observeGhosttyActions()
+
+        // Auto-save session every 8 seconds
+        sessionStore.startAutoSave { [weak self] in
+            self?.createSnapshot() ?? SessionSnapshot()
+        }
 
         #if DEBUG
         DebugServer.start()
@@ -56,6 +68,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        sessionStore.stopAutoSave()
+        sessionStore.save(snapshot: createSnapshot())
+
         #if DEBUG
         DebugServer.stop()
         #endif
@@ -328,6 +343,107 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             return SplitTree.findNeighbor(node: root, leafID: leafID, direction: .down)
         default:
             return SplitTree.nextLeaf(node: root, after: leafID)
+        }
+    }
+
+    // MARK: - Session persistence
+
+    func createSnapshot() -> SessionSnapshot {
+        let frame = NSApp.mainWindow?.frame ?? .zero
+        let tabSnapshots = tabStore.tabs.map { tab -> TabSnapshot in
+            var dirs: [UUID: String] = [:]
+            for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
+                if let pwd = surfaces[leaf.surfaceID]?.pwd {
+                    dirs[leaf.id] = pwd
+                }
+            }
+            return TabSnapshot(
+                tabID: tab.id,
+                name: tab.name,
+                color: tab.color,
+                position: tab.position,
+                focusedLeafID: tab.focusedLeafID,
+                splitLayout: tab.splitRoot,
+                leafDirectories: dirs
+            )
+        }
+        return SessionSnapshot(
+            windowX: frame.origin.x,
+            windowY: frame.origin.y,
+            windowWidth: frame.width,
+            windowHeight: frame.height,
+            activeTabID: tabStore.activeTabID,
+            tabs: tabSnapshots
+        )
+    }
+
+    private func restoreSession(_ snapshot: SessionSnapshot) {
+        guard let app = ghostty.app, !snapshot.tabs.isEmpty else {
+            createTab()
+            return
+        }
+
+        for tabSnap in snapshot.tabs.sorted(by: { $0.position < $1.position }) {
+            let tab = Tab(
+                id: tabSnap.tabID,
+                name: tabSnap.name,
+                color: tabSnap.color,
+                position: tabSnap.position
+            )
+            // Rebuild the split tree with fresh surfaces
+            tab.splitRoot = restoreSplitNode(
+                tabSnap.splitLayout,
+                directories: tabSnap.leafDirectories,
+                app: app, tab: tab
+            )
+            tab.focusedLeafID = tabSnap.focusedLeafID
+            tabStore.append(tab: tab)
+        }
+
+        tabStore.activeTabID = snapshot.activeTabID ?? tabStore.tabs.first?.id
+
+        // Restore window frame after a brief delay to let SwiftUI lay out
+        if snapshot.windowWidth > 0, snapshot.windowHeight > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                let frame = CGRect(
+                    x: snapshot.windowX, y: snapshot.windowY,
+                    width: snapshot.windowWidth, height: snapshot.windowHeight
+                )
+                NSApp.mainWindow?.setFrame(frame, display: true)
+            }
+        }
+    }
+
+    /// Recursively rebuild a SplitNode tree, creating fresh Ghostty surfaces
+    /// for each leaf with the saved working directory.
+    private func restoreSplitNode(
+        _ node: SplitNode,
+        directories: [UUID: String],
+        app: ghostty_app_t,
+        tab: Tab
+    ) -> SplitNode {
+        switch node {
+        case .leaf(let leaf):
+            let surfaceView = Ghostty.SurfaceView(app)
+            surfaces[surfaceView.id] = surfaceView
+            observeSurface(surfaceView, tab: tab)
+            // Set working directory if we have one saved
+            if let dir = directories[leaf.id] {
+                tab.workingDirectory = dir
+            }
+            return .leaf(SurfaceLeaf(id: leaf.id, surfaceID: surfaceView.id))
+        case .split(let branch):
+            return .split(SplitBranch(
+                id: branch.id,
+                orientation: branch.orientation,
+                ratio: branch.ratio,
+                first: restoreSplitNode(
+                    branch.first, directories: directories,
+                    app: app, tab: tab),
+                second: restoreSplitNode(
+                    branch.second, directories: directories,
+                    app: app, tab: tab)
+            ))
         }
     }
 

@@ -85,7 +85,16 @@
 - [x] Apple Developer secrets configured in repo
 
 ## Phase 4: Session Persistence
-(to be detailed when Phase 4 work begins)
+- [x] Codable conformance on SplitNode, SplitBranch, SurfaceLeaf
+- [x] SessionSnapshot and TabSnapshot types
+- [x] SessionStore with file I/O and auto-save timer
+- [x] Snapshot creation from live state (tabs, splits, window frame, per-leaf directories)
+- [x] Session restoration on launch (recreates tabs, splits, surfaces)
+- [x] Window frame persistence and restoration
+- [x] Auto-save every 8 seconds + save on quit
+- [x] Graceful fallback to single tab on missing/corrupt session file
+- [x] Round-trip encode/decode tests (6 new tests)
+- [x] 66 unit tests, SwiftLint passes, build succeeds
 
 ## Phase 5: Polish
 (to be detailed when Phase 5 work begins)

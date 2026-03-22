@@ -49,4 +49,21 @@ final class Tab: Identifiable {
         self.splitRoot = .leaf(leaf)
         self.focusedLeafID = leaf.id
     }
+
+    /// Init for session restoration with a pre-built split tree.
+    init(
+        id: UUID,
+        name: String,
+        color: TabColor,
+        position: Int
+    ) {
+        self.id = id
+        self.name = name
+        self.autoName = ""
+        self.color = color
+        self.position = position
+        self.workingDirectory = nil
+        self.splitRoot = .leaf(SurfaceLeaf())
+        self.focusedLeafID = nil
+    }
 }
