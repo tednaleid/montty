@@ -64,6 +64,30 @@ struct TabInfoTests {
         #expect(info.displayName == "Terminal")
     }
 
+    @Test func tabInfoShowsShortDirName() {
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: "/Users/ted/projects/montty",
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.displayName == ".../montty")
+    }
+
+    @Test func tabInfoShowsRootDirWithoutPrefix() {
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: "/tmp",
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.displayName == "/tmp")
+    }
+
     // MARK: - Directory
 
     @Test func tabInfoExtractsDirectoryName() {

@@ -13,9 +13,23 @@ struct TabInfo: Equatable {
         tab: TabProperties,
         gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:)
     ) -> TabInfo {
-        let name = tab.name.isEmpty ? tab.autoName : tab.name
         let dirName = tab.workingDirectory.map {
             ($0 as NSString).lastPathComponent
+        }
+
+        // Display name: user-set name takes priority.
+        // Otherwise show ".../currentDir" (short, scannable).
+        // Falls back to autoName or "Terminal".
+        let name: String
+        if !tab.name.isEmpty {
+            name = tab.name
+        } else if let pwd = tab.workingDirectory, let dir = dirName {
+            let parent = (pwd as NSString).deletingLastPathComponent
+            name = (parent == "/" || parent.isEmpty) ? "/\(dir)" : ".../\(dir)"
+        } else if !tab.autoName.isEmpty {
+            name = tab.autoName
+        } else {
+            name = "Terminal"
         }
 
         let gitInfo: GitInfo? = tab.workingDirectory.flatMap { pwd in
@@ -29,7 +43,7 @@ struct TabInfo: Equatable {
         )
 
         return TabInfo(
-            displayName: name.isEmpty ? "Terminal" : name,
+            displayName: name,
             workingDirectory: tab.workingDirectory,
             directoryName: dirName,
             gitInfo: gitInfo,

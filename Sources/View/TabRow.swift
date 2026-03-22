@@ -31,7 +31,7 @@ struct TabRow: View {
                         editingTabID = nil
                     })
                     .textFieldStyle(.plain)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 21, weight: .bold))
                     .focused($textFieldFocused)
                     .onAppear {
                         editName = tab.name
@@ -43,7 +43,7 @@ struct TabRow: View {
                     .onExitCommand { editingTabID = nil }
                 } else {
                     Text(info.displayName)
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 21, weight: .bold))
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
@@ -58,14 +58,14 @@ struct TabRow: View {
                                 .foregroundStyle(.tertiary)
                         }
                     }
-                    .font(.system(size: 11))
+                    .font(.system(size: 16))
                     .lineLimit(1)
                 }
 
                 // Directory line (show when no git info, or when dir differs from repo name)
                 if let dir = info.directoryName, info.gitInfo == nil {
                     Text(dir)
-                        .font(.system(size: 11))
+                        .font(.system(size: 16))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
