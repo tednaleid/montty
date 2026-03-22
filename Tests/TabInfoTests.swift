@@ -33,7 +33,8 @@ struct TabInfoTests {
             name: "My Server",
             autoName: "zsh",
             workingDirectory: nil,
-            splitRoot: singleLeaf()
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
         #expect(info.displayName == "My Server")
@@ -44,7 +45,8 @@ struct TabInfoTests {
             name: "",
             autoName: "vim main.swift",
             workingDirectory: nil,
-            splitRoot: singleLeaf()
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
         #expect(info.displayName == "vim main.swift")
@@ -55,7 +57,8 @@ struct TabInfoTests {
             name: "",
             autoName: "",
             workingDirectory: nil,
-            splitRoot: singleLeaf()
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
         #expect(info.displayName == "Terminal")
@@ -68,7 +71,8 @@ struct TabInfoTests {
             name: "",
             autoName: "zsh",
             workingDirectory: "/Users/ted/projects/montty",
-            splitRoot: singleLeaf()
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
         #expect(info.directoryName == "montty")
@@ -80,7 +84,8 @@ struct TabInfoTests {
             name: "",
             autoName: "zsh",
             workingDirectory: nil,
-            splitRoot: singleLeaf()
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
         #expect(info.directoryName == nil)
@@ -100,7 +105,8 @@ struct TabInfoTests {
             name: "",
             autoName: "zsh",
             workingDirectory: "/Users/ted/projects/montty/Sources",
-            splitRoot: singleLeaf()
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in mockGit })
         #expect(info.gitInfo == mockGit)
@@ -111,7 +117,8 @@ struct TabInfoTests {
             name: "",
             autoName: "zsh",
             workingDirectory: "/tmp",
-            splitRoot: singleLeaf()
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
         #expect(info.gitInfo == nil)
@@ -124,7 +131,8 @@ struct TabInfoTests {
             name: "",
             autoName: "zsh",
             workingDirectory: nil,
-            splitRoot: singleLeaf()
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
         #expect(info.splitCount == 1)
@@ -135,7 +143,8 @@ struct TabInfoTests {
             name: "",
             autoName: "zsh",
             workingDirectory: nil,
-            splitRoot: twoLeaves()
+            splitRoot: twoLeaves(),
+            focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
         #expect(info.splitCount == 2)
@@ -146,7 +155,8 @@ struct TabInfoTests {
             name: "",
             autoName: "zsh",
             workingDirectory: nil,
-            splitRoot: threeLeaves()
+            splitRoot: threeLeaves(),
+            focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
         #expect(info.splitCount == 3)
@@ -159,7 +169,8 @@ struct TabInfoTests {
             name: "",
             autoName: "Claude Code -- fixing the BCI toggle",
             workingDirectory: nil,
-            splitRoot: singleLeaf()
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
         #expect(info.claudeCode?.sessionName == "fixing the BCI toggle")
@@ -171,7 +182,8 @@ struct TabInfoTests {
             name: "",
             autoName: "zsh",
             workingDirectory: nil,
-            splitRoot: singleLeaf()
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
         #expect(info.claudeCode == nil)

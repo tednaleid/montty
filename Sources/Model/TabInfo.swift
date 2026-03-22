@@ -7,6 +7,7 @@ struct TabInfo: Equatable {
     let gitInfo: GitInfo?           // nil if not in a git repo
     let claudeCode: ClaudeCodeStatus?  // nil if Claude Code not detected
     let splitCount: Int             // 1 = no splits
+    let minimap: SplitMinimap
 
     static func from(
         tab: TabProperties,
@@ -23,13 +24,18 @@ struct TabInfo: Equatable {
 
         let claudeCode = TitleParser.claudeCodeStatus(from: tab.autoName)
 
+        let minimap = SplitMinimap.from(
+            node: tab.splitRoot, focusedLeafID: tab.focusedLeafID
+        )
+
         return TabInfo(
             displayName: name.isEmpty ? "Terminal" : name,
             workingDirectory: tab.workingDirectory,
             directoryName: dirName,
             gitInfo: gitInfo,
             claudeCode: claudeCode,
-            splitCount: SplitTree.allLeaves(node: tab.splitRoot).count
+            splitCount: SplitTree.allLeaves(node: tab.splitRoot).count,
+            minimap: minimap
         )
     }
 }
@@ -52,4 +58,5 @@ struct TabProperties: Equatable {
     let autoName: String
     let workingDirectory: String?
     let splitRoot: SplitNode
+    let focusedLeafID: UUID?
 }

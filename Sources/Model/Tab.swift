@@ -21,7 +21,8 @@ final class Tab: Identifiable {
             name: name,
             autoName: autoName,
             workingDirectory: workingDirectory,
-            splitRoot: splitRoot
+            splitRoot: splitRoot,
+            focusedLeafID: focusedLeafID
         ))
     }
 
