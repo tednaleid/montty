@@ -21,15 +21,7 @@ struct TabInfo: Equatable {
             gitInfoProvider(pwd)
         }
 
-        // Stub: simple heuristic for Claude Code detection from title.
-        // Full implementation in Phase 2.
-        let claudeCode: ClaudeCodeStatus? = {
-            let prefix = "Claude Code -- "
-            guard tab.autoName.hasPrefix(prefix) else { return nil }
-            let session = String(tab.autoName.dropFirst(prefix.count))
-            guard !session.isEmpty else { return nil }
-            return ClaudeCodeStatus(sessionName: session, state: .unknown)
-        }()
+        let claudeCode = TitleParser.claudeCodeStatus(from: tab.autoName)
 
         return TabInfo(
             displayName: name.isEmpty ? "Terminal" : name,
