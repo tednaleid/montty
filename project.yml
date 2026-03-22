@@ -33,18 +33,26 @@ targets:
       - framework: GhosttyKit.xcframework
         embed: false
     postBuildScripts:
-      - name: Bundle Ghostty Shell Integration
+      - name: Bundle Shell Integration
         script: |
-          # Copy shell integration scripts from submodule so GhosttyKit can
-          # auto-discover them and inject OSC 7 pwd reporting into shells.
+          # Bundle terminfo + Ghostty's shell integration from the submodule.
+          # Terminfo provides terminal capabilities for xterm-ghostty.
+          # Shell integration enables OSC 7 pwd reporting, prompt markers, etc.
           GHOST_RES="${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ghostty"
           TERMINFO_DIR="${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/terminfo/78"
 
-          # Create terminfo sentinel (GhosttyKit looks for this to find resources)
-          mkdir -p "${TERMINFO_DIR}"
-          touch "${TERMINFO_DIR}/xterm-ghostty"
+          # Copy compiled terminfo entries from the Ghostty submodule build output.
+          # GhosttyKit uses the 78/xterm-ghostty entry as a sentinel to find resources,
+          # and shells need valid terminfo for cursor movement, erase, etc.
+          TERMINFO_SRC="${SRCROOT}/ghostty/zig-out/share/terminfo"
+          TERMINFO_DST="${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/terminfo"
+          if [ -d "${TERMINFO_SRC}" ]; then
+            mkdir -p "${TERMINFO_DST}"
+            cp -R "${TERMINFO_SRC}/"* "${TERMINFO_DST}/"
+          fi
 
-          # Copy shell integration scripts from the Ghostty submodule source
+          # Copy shell integration scripts from the Ghostty submodule source.
+          # These stay in sync automatically when the submodule is bumped.
           SHELL_INT_SRC="${SRCROOT}/ghostty/src/shell-integration"
           if [ -d "${SHELL_INT_SRC}" ]; then
             mkdir -p "${GHOST_RES}/shell-integration"

@@ -30,8 +30,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     private let sessionStore = SessionStore()
 
     override init() {
-        // Point GhosttyKit at our bundled resources (shell integration scripts,
-        // terminfo) so shells automatically get OSC 7 pwd reporting.
+        // Point GhosttyKit at our bundled resources (terminfo + shell
+        // integration scripts copied from the Ghostty submodule at build time).
         if let resourcePath = Bundle.main.resourcePath {
             setenv("GHOSTTY_RESOURCES_DIR", resourcePath + "/ghostty", 1)
         }
