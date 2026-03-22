@@ -197,28 +197,18 @@ extension DebugServer {
                 return
             }
 
-            // Send as a proper key event via ghostty_surface_key
-            if let keyEvent = buildKeyEvent(for: keyName) {
-                // Press
-                ghostty_surface_key(surface, keyEvent)
-                // Release
-                var release = keyEvent
-                release.action = GHOSTTY_ACTION_RELEASE
-                ghostty_surface_key(surface, release)
-                sendJSON(["ok": true, "key": keyName], connection: connection)
-            } else {
-                sendJSON(
-                    ["error": "Unknown key: \(keyName)"],
-                    status: 400,
-                    connection: connection
-                )
-            }
+            // Send as a proper key event via ghostty_surface_key.
+            // Must call ghostty_surface_key inside the text scope
+            // because the text pointer is only valid within withCString.
+            sendKeyEvent(for: keyName, surface: surface, connection: connection)
         }
     }
 
-    // Build a ghostty_input_key_s for a named key, with optional modifiers.
-    // swiftlint:disable:next cyclomatic_complexity
-    private static func buildKeyEvent(for name: String) -> ghostty_input_key_s? {
+    // Send a key event to the surface, keeping text pointer alive for the duration.
+    // ghostty_surface_key expects macOS physical keycodes, not GHOSTTY_KEY_* enums.
+    private static func sendKeyEvent(
+        for name: String, surface: ghostty_surface_t, connection: NWConnection
+    ) {
         let lower = name.lowercased()
         var mods = ghostty_input_mods_e(rawValue: 0)
         var keyName = lower
@@ -229,52 +219,68 @@ extension DebugServer {
             keyName = String(lower.dropFirst(5))
         }
 
-        let key: ghostty_input_key_e
-        let text: String?
-        switch keyName {
-        case "return", "enter":    key = GHOSTTY_KEY_ENTER;     text = "\r"
-        case "tab":                key = GHOSTTY_KEY_TAB;       text = "\t"
-        case "space":              key = GHOSTTY_KEY_SPACE;     text = " "
-        case "escape", "esc":      key = GHOSTTY_KEY_ESCAPE;    text = nil
-        case "backspace", "delete": key = GHOSTTY_KEY_BACKSPACE; text = nil
-        case "up":                 key = GHOSTTY_KEY_ARROW_UP;    text = nil
-        case "down":               key = GHOSTTY_KEY_ARROW_DOWN;  text = nil
-        case "left":               key = GHOSTTY_KEY_ARROW_LEFT;  text = nil
-        case "right":              key = GHOSTTY_KEY_ARROW_RIGHT; text = nil
-        default:
-            // Single character keys (a-z)
-            if keyName.count == 1, let char = keyName.first, char.isLetter {
-                key = letterToKey(char)
-                if mods.rawValue & GHOSTTY_MODS_CTRL.rawValue != 0 {
-                    text = nil
-                } else {
-                    text = keyName
-                }
-            } else {
-                return nil
-            }
+        guard let (keycode, text) = resolveKey(keyName, mods: mods) else {
+            sendJSON(["error": "Unknown key: \(name)"], status: 400, connection: connection)
+            return
         }
 
-        return withText(text) { textPtr in
-            ghostty_input_key_s(
+        // Call ghostty_surface_key INSIDE withCString so the text pointer is valid
+        withText(text) { textPtr in
+            var keyEvent = ghostty_input_key_s(
                 action: GHOSTTY_ACTION_PRESS,
                 mods: mods,
                 consumed_mods: ghostty_input_mods_e(rawValue: 0),
-                keycode: key.rawValue,
+                keycode: keycode,
                 text: textPtr,
                 unshifted_codepoint: 0,
                 composing: false
             )
+            ghostty_surface_key(surface, keyEvent)
+            keyEvent.action = GHOSTTY_ACTION_RELEASE
+            ghostty_surface_key(surface, keyEvent)
+        }
+        sendJSON(["ok": true, "key": name], connection: connection)
+    }
+
+    // Resolve a key name to its macOS physical keycode and text character.
+    // swiftlint:disable:next cyclomatic_complexity
+    private static func resolveKey(
+        _ keyName: String, mods: ghostty_input_mods_e
+    ) -> (keycode: UInt32, text: String?)? {
+        switch keyName {
+        case "return", "enter":     return (36, "\r")
+        case "tab":                 return (48, "\t")
+        case "space":               return (49, " ")
+        case "escape", "esc":       return (53, nil)
+        case "backspace", "delete": return (51, "\u{7f}")
+        case "up":                  return (126, nil)
+        case "down":                return (125, nil)
+        case "left":                return (123, nil)
+        case "right":               return (124, nil)
+        default:
+            if keyName.count == 1, let char = keyName.first, char.isLetter,
+               let code = macOSKeycode(for: char) {
+                let text = (mods.rawValue & GHOSTTY_MODS_CTRL.rawValue != 0) ? nil : keyName
+                return (code, text)
+            }
+            return nil
         }
     }
 
-    // Convert a lowercase letter to its GHOSTTY_KEY_* constant.
-    private static func letterToKey(_ char: Character) -> ghostty_input_key_e {
-        let offset = Int(char.asciiValue ?? 0) - Int(Character("a").asciiValue ?? 0)
-        return ghostty_input_key_e(rawValue: GHOSTTY_KEY_A.rawValue + UInt32(offset))
+    // macOS physical keycodes for letter keys (ANSI layout).
+    private static func macOSKeycode(for char: Character) -> UInt32? {
+        // macOS keycodes are based on physical key position, not ASCII.
+        let map: [Character: UInt32] = [
+            "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6,
+            "x": 7, "c": 8, "v": 9, "b": 11, "q": 12, "w": 13, "e": 14,
+            "r": 15, "y": 16, "t": 17, "o": 31, "u": 32, "i": 34,
+            "p": 35, "l": 37, "j": 38, "k": 40, "n": 45, "m": 46
+        ]
+        return map[char]
     }
 
     // Call body with a C string pointer that lives for the duration.
+    @discardableResult
     private static func withText<T>(
         _ text: String?,
         body: (UnsafePointer<CChar>?) -> T
