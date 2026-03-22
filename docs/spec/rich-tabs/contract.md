@@ -15,8 +15,9 @@ Today, the only metadata flowing from terminal panes to tabs is the window title
 1. **Rich tab metadata**: Each tab displays working directory, git repo, git branch, and (when applicable) Claude Code session status -- all derived automatically with zero shell configuration.
 2. **Split minimap**: Tabs with splits show a visual minimap of the pane layout with activity indicators.
 3. **Clean data contract**: A well-defined `TabInfo` model sits between Ghostty surface metadata and the tab UI, making each layer independently testable.
-4. **OSC primer**: A reference document explaining OSC escape sequences, how terminals use them, and how montty can leverage them for future extensibility.
-5. **Extensibility for future customization**: The architecture supports user-configurable tab templates later, without requiring a rewrite.
+4. **Always-present minimap**: Every tab shows a colored visual representation of its pane layout. Single-pane tabs are a solid colored block. Splits show the layout structure. Each pane can have its own color (tab color by default, per-pane overrides in future phases via environment variables).
+5. **OSC primer**: A reference document explaining OSC escape sequences, how terminals use them, and how montty can leverage them for future extensibility.
+6. **Extensibility for future customization**: The architecture supports user-configurable tab templates and per-pane coloring via environment variables, without requiring a rewrite.
 
 ## Success Criteria
 
@@ -48,7 +49,7 @@ Visual rendering (SwiftUI tab layout) is not unit-testable but should be separat
 - `TabInfo` model: structured metadata derived from terminal surface properties
 - Git info derivation: repo name, branch, worktree from working directory (filesystem reads)
 - Claude Code detection: parse terminal title for Claude Code session names
-- Split minimap: small visual representation of split layout per tab
+- Split minimap: always-present colored visual of pane layout (solid block for single-pane, structured for splits)
 - OSC primer document with links to references
 - Auto-derive git info from pwd (no shell config required)
 - Fixed tab layout with sensible fallbacks (no user customization in v1)

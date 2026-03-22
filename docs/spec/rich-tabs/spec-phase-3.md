@@ -5,7 +5,7 @@
 
 ## Overview
 
-Add a split minimap model and SwiftUI rendering. Each tab with splits shows a tiny visual representation of its pane layout in the sidebar. The minimap model is a pure tree-to-layout transform, testable without UI.
+Add a split minimap model and SwiftUI rendering. Every tab shows a visual representation of its pane layout in the sidebar -- a solid colored block for single-pane tabs, a structured layout for splits. The minimap is always present because it serves as the tab's visual identity. Each pane in the minimap can have its own color (tab's color by default, with per-pane overrides planned for future phases). The minimap model is a pure tree-to-layout transform, testable without UI.
 
 ## Technical Approach
 
@@ -44,8 +44,10 @@ The model layer is pure and testable. The view layer is a simple GeometryReader 
 // Sources/Model/SplitMinimap.swift
 struct MinimapPane: Equatable {
     let leafID: UUID
-    let rect: MinimapRect   // normalized 0-1 coordinates
+    let rect: MinimapRect       // normalized 0-1 coordinates
     let isFocused: Bool
+    let colorOverride: TabColor?    // per-pane color (nil = use tab color)
+    let claudeCode: ClaudeCodeStatus?  // nil if no Claude Code in this pane
 }
 
 struct MinimapRect: Equatable {
@@ -76,9 +78,15 @@ struct MinimapView: View {
     let minimap: SplitMinimap
     let accentColor: Color
 
-    // Renders in a fixed ~60x40pt area
+    // Renders proportionally within the tab row
     // Each pane is a rounded rect with 1pt gap
-    // Focused pane gets the accent color, others are gray
+    // Unfocused panes: muted/low-alpha fill, no bright border
+    // Focused pane: bright colored border (matches the real app's
+    //   focus border), muted fill -- only the focused pane gets
+    //   the bright edge treatment
+    // Single-pane tabs: same treatment as a focused pane
+    // Claude Code indicator: small symbol overlaid on the pane
+    //   (muted when working, brighter when waiting for response)
 }
 ```
 
