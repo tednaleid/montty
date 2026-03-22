@@ -30,6 +30,7 @@ struct TabSidebar: View {
                         )
                         .tag(tab.id)
                         .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
                         .draggable(tab.id.uuidString) {
                             Text(tab.tabInfo.displayName)
                                 .padding(4)
@@ -56,7 +57,7 @@ struct TabSidebar: View {
                         tabStore.move(fromIndex: fromIndex, toIndex: toIndex)
                     }
                 }
-                .listStyle(.sidebar)
+                .listStyle(.plain)
 
                 Divider()
 
