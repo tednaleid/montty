@@ -414,7 +414,8 @@ extension Ghostty {
                     .focused($isSearchFieldFocused)
                     .overlay(alignment: .trailing) {
                         if let selected = searchState.selected {
-                            Text("\(selected + 1)/\(searchState.total, default: "?")")
+                            // MONTTY: Avoid default: interpolation for Swift 6.1 compat
+                            Text("\(selected + 1)/\(searchState.total.map(String.init) ?? "?")")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .monospacedDigit()
@@ -512,12 +513,18 @@ extension Ghostty {
             }
         }
 
+        // MONTTY: Guard with swift(>=6.2) since ConcentricRectangle only
+        // exists in the macOS 26 SDK (Xcode 26+).
         private var clipShape: some Shape {
+            #if swift(>=6.2)
             if #available(iOS 26.0, macOS 26.0, *) {
                 return ConcentricRectangle(corners: .concentric(minimum: 8), isUniform: true)
             } else {
                 return RoundedRectangle(cornerRadius: 8)
             }
+            #else
+            return RoundedRectangle(cornerRadius: 8)
+            #endif
         }
 
         enum Corner {
