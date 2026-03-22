@@ -12,6 +12,10 @@ struct TabRow: View {
         editingTabID == tab.id
     }
 
+    private var info: TabInfo {
+        tab.tabInfo
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             // Color indicator bar
@@ -19,14 +23,15 @@ struct TabRow: View {
                 .fill(colorBarColor)
                 .frame(width: 4)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
+                // Tab name (editable on double-tap)
                 if isEditing {
                     TextField("Tab name", text: $editName, onCommit: {
                         tab.name = editName
                         editingTabID = nil
                     })
                     .textFieldStyle(.plain)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .focused($textFieldFocused)
                     .onAppear {
                         editName = tab.name
@@ -37,28 +42,60 @@ struct TabRow: View {
                     }
                     .onExitCommand { editingTabID = nil }
                 } else {
-                    Text(tab.tabInfo.displayName)
-                        .font(.system(size: 16, weight: .bold))
+                    Text(info.displayName)
+                        .font(.system(size: 14, weight: .bold))
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
 
-                if let dir = tab.tabInfo.directoryName {
+                // Git info line
+                if let git = info.gitInfo {
+                    HStack(spacing: 4) {
+                        Text(git.repoName)
+                            .foregroundStyle(.secondary)
+                        if let branch = git.branchName {
+                            Text(branch)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .font(.system(size: 11))
+                    .lineLimit(1)
+                }
+
+                // Directory line (show when no git info, or when dir differs from repo name)
+                if let dir = info.directoryName, info.gitInfo == nil {
                     Text(dir)
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
+
+                // Minimap (always shown)
+                MinimapView(
+                    minimap: info.minimap,
+                    tabColor: accentColor,
+                    isActiveTab: isActive
+                )
+                .padding(.top, 2)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
 
-            Spacer()
+            Spacer(minLength: 0)
         }
         .background(isActive ? activeBackground : Color.clear)
         .onTapGesture(count: 2) {
             editingTabID = tab.id
+        }
+    }
+
+    private var accentColor: Color {
+        switch tab.color {
+        case .preset(let preset):
+            return preset.swiftUIColor
+        case .auto:
+            return .accentColor
         }
     }
 

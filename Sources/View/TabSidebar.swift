@@ -21,7 +21,7 @@ struct TabSidebar: View {
                     .tag(tab.id)
                     .draggable(tab.id.uuidString) {
                         // Drag preview
-                        Text(tab.displayName.isEmpty ? "Terminal" : tab.displayName)
+                        Text(tab.tabInfo.displayName)
                             .padding(4)
                     }
                     .contextMenu {
