@@ -97,7 +97,15 @@ struct GitInfo: Equatable {
 }
 ```
 
-Implementation walks up from `path` looking for `.git` (file or directory). Reads `.git/HEAD` for branch. Uses `git rev-parse --show-toplevel` for repo root and `git rev-parse --show-superproject-working-tree` for worktree detection. Results are cached by repo root path and invalidated when pwd changes.
+Implementation uses pure filesystem reads (no shelling out to `git`):
+
+1. Walk up from `path` looking for `.git` (file or directory). The directory containing `.git` is the repo root.
+2. If `.git` is a **directory**: this is the main repo. Read `.git/HEAD` for branch (`ref: refs/heads/branch-name` -> `branch-name`, raw SHA -> detached HEAD).
+3. If `.git` is a **file**: this is a linked worktree. The file contains `gitdir: /path/to/main-repo/.git/worktrees/worktree-name`. Parse the path to find the main repo root and the worktree name.
+4. `repoName` is the basename of the repo root directory.
+5. Results are cached by repo root path and invalidated when pwd changes.
+
+This avoids a `Process` dependency, making tests straightforward with fixture directories containing real `.git` structures.
 
 ### Claude Code detection (stub)
 
