@@ -15,6 +15,16 @@ final class Tab: Identifiable {
         name.isEmpty ? autoName : name
     }
 
+    /// Computed metadata for tab display, decoupled from AppKit/Ghostty.
+    var tabInfo: TabInfo {
+        TabInfo.from(tab: TabProperties(
+            name: name,
+            autoName: autoName,
+            workingDirectory: workingDirectory,
+            splitRoot: splitRoot
+        ))
+    }
+
     /// The surfaceID of the focused leaf, or the first leaf if none focused.
     var focusedSurfaceID: UUID? {
         if let focusedLeafID = focusedLeafID,

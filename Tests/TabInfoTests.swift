@@ -1,0 +1,179 @@
+import Testing
+@testable import montty_unit
+
+struct TabInfoTests {
+    private func singleLeaf() -> SplitNode {
+        .leaf(SurfaceLeaf())
+    }
+
+    private func twoLeaves() -> SplitNode {
+        .split(SplitBranch(
+            orientation: .horizontal,
+            first: .leaf(SurfaceLeaf()),
+            second: .leaf(SurfaceLeaf())
+        ))
+    }
+
+    private func threeLeaves() -> SplitNode {
+        .split(SplitBranch(
+            orientation: .horizontal,
+            first: .leaf(SurfaceLeaf()),
+            second: .split(SplitBranch(
+                orientation: .vertical,
+                first: .leaf(SurfaceLeaf()),
+                second: .leaf(SurfaceLeaf())
+            ))
+        ))
+    }
+
+    // MARK: - Display name
+
+    @Test func tabInfoDisplaysUserName() {
+        let props = TabProperties(
+            name: "My Server",
+            autoName: "zsh",
+            workingDirectory: nil,
+            splitRoot: singleLeaf()
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.displayName == "My Server")
+    }
+
+    @Test func tabInfoFallsBackToAutoName() {
+        let props = TabProperties(
+            name: "",
+            autoName: "vim main.swift",
+            workingDirectory: nil,
+            splitRoot: singleLeaf()
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.displayName == "vim main.swift")
+    }
+
+    @Test func tabInfoFallsBackToTerminal() {
+        let props = TabProperties(
+            name: "",
+            autoName: "",
+            workingDirectory: nil,
+            splitRoot: singleLeaf()
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.displayName == "Terminal")
+    }
+
+    // MARK: - Directory
+
+    @Test func tabInfoExtractsDirectoryName() {
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: "/Users/ted/projects/montty",
+            splitRoot: singleLeaf()
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.directoryName == "montty")
+        #expect(info.workingDirectory == "/Users/ted/projects/montty")
+    }
+
+    @Test func tabInfoNilDirectoryWhenMissing() {
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: nil,
+            splitRoot: singleLeaf()
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.directoryName == nil)
+        #expect(info.workingDirectory == nil)
+    }
+
+    // MARK: - Git info integration
+
+    @Test func tabInfoIncludesGitInfo() {
+        let mockGit = GitInfo(
+            repoName: "montty",
+            branchName: "main",
+            worktreeName: nil,
+            repoPath: "/Users/ted/projects/montty"
+        )
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: "/Users/ted/projects/montty/Sources",
+            splitRoot: singleLeaf()
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in mockGit })
+        #expect(info.gitInfo == mockGit)
+    }
+
+    @Test func tabInfoNilGitOutsideRepo() {
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: "/tmp",
+            splitRoot: singleLeaf()
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.gitInfo == nil)
+    }
+
+    // MARK: - Split count
+
+    @Test func tabInfoSplitCountSingle() {
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: nil,
+            splitRoot: singleLeaf()
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.splitCount == 1)
+    }
+
+    @Test func tabInfoSplitCountTwo() {
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: nil,
+            splitRoot: twoLeaves()
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.splitCount == 2)
+    }
+
+    @Test func tabInfoSplitCountNested() {
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: nil,
+            splitRoot: threeLeaves()
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.splitCount == 3)
+    }
+
+    // MARK: - Claude Code detection (stub)
+
+    @Test func tabInfoDetectsClaudeCode() {
+        let props = TabProperties(
+            name: "",
+            autoName: "Claude Code -- fixing the BCI toggle",
+            workingDirectory: nil,
+            splitRoot: singleLeaf()
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.claudeCode?.sessionName == "fixing the BCI toggle")
+        #expect(info.claudeCode?.state == .unknown)
+    }
+
+    @Test func tabInfoNoClaudeCodeForNormalTitle() {
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: nil,
+            splitRoot: singleLeaf()
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.claudeCode == nil)
+    }
+}

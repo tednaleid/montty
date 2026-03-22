@@ -37,13 +37,13 @@ struct TabRow: View {
                     }
                     .onExitCommand { editingTabID = nil }
                 } else {
-                    Text(tab.displayName.isEmpty ? "Terminal" : tab.displayName)
+                    Text(tab.tabInfo.displayName)
                         .font(.system(size: 16, weight: .bold))
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
 
-                if let dir = directoryLabel {
+                if let dir = tab.tabInfo.directoryName {
                     Text(dir)
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
@@ -60,11 +60,6 @@ struct TabRow: View {
         .onTapGesture(count: 2) {
             editingTabID = tab.id
         }
-    }
-
-    private var directoryLabel: String? {
-        guard let pwd = tab.workingDirectory, !pwd.isEmpty else { return nil }
-        return (pwd as NSString).lastPathComponent
     }
 
     private var colorBarColor: Color {
