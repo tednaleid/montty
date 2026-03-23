@@ -13,6 +13,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     @Published var ghostty: Ghostty.App
     let tabStore = TabStore()
 
+    /// Surface jump mode state (nil = normal mode).
+    @Published var jumpState: JumpState?
+
     /// UndoManager accessed by Ghostty.App.swift for undo/redo routing
     let undoManager: UndoManager? = nil
 
@@ -25,6 +28,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     /// Tick timer for the Ghostty event loop
     private var tickTimer: Timer?
+
+    /// NSEvent monitor for capturing keys during jump mode
+    private var jumpKeyMonitor: Any?
 
     /// Session persistence
     private let sessionStore = SessionStore()
@@ -208,6 +214,95 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     func surfaceView(for surfaceID: UUID) -> Ghostty.SurfaceView? {
         surfaces[surfaceID]
+    }
+
+    // MARK: - Surface jump mode
+
+    func enterJumpMode() {
+        // Collect all surfaces: active tab first, then other tabs by position
+        var targets: [JumpTarget] = []
+        let activeID = tabStore.activeTabID
+
+        // Active tab surfaces first (skip the currently focused surface)
+        if let activeTab = tabStore.activeTab {
+            for leaf in SplitTree.allLeaves(node: activeTab.splitRoot)
+                where leaf.id != activeTab.focusedLeafID {
+                targets.append(JumpTarget(tabID: activeTab.id, leafID: leaf.id))
+            }
+        }
+
+        // Other tabs by position
+        for tab in tabStore.tabs where tab.id != activeID {
+            for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
+                targets.append(JumpTarget(tabID: tab.id, leafID: leaf.id))
+            }
+        }
+
+        guard !targets.isEmpty else { return }
+
+        jumpState = JumpLabels.assign(targets: targets)
+        installJumpKeyMonitor()
+    }
+
+    func exitJumpMode() {
+        jumpState = nil
+        removeJumpKeyMonitor()
+    }
+
+    /// Jump to a specific surface (used by both jump mode and minimap click).
+    func jumpToSurface(tabID: UUID, leafID: UUID) {
+        guard let tab = tabStore.tabs.first(where: { $0.id == tabID }) else { return }
+        if tabStore.activeTabID != tabID {
+            tabStore.activeTabID = tabID
+        }
+        setFocusedLeaf(leafID, in: tab)
+    }
+
+    private func installJumpKeyMonitor() {
+        removeJumpKeyMonitor()
+        jumpKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.jumpState != nil else { return event }
+
+            // Escape cancels
+            if event.keyCode == 53 {
+                self.exitJumpMode()
+                return nil
+            }
+
+            // Only handle unmodified letter keys
+            guard event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                    .subtracting([.capsLock, .numericPad, .function]).isEmpty,
+                  let chars = event.charactersIgnoringModifiers,
+                  let key = chars.first,
+                  key.isLetter else {
+                self.exitJumpMode()
+                return nil
+            }
+
+            guard let state = self.jumpState else { return event }
+            let (newState, target) = JumpLabels.handleKey(
+                Character(key.lowercased()), state: state
+            )
+
+            if let target {
+                self.exitJumpMode()
+                self.jumpToSurface(tabID: target.tabID, leafID: target.leafID)
+            } else {
+                self.jumpState = newState // nil cancels, non-nil buffers prefix
+                if newState == nil {
+                    self.removeJumpKeyMonitor()
+                }
+            }
+
+            return nil // consume the event
+        }
+    }
+
+    private func removeJumpKeyMonitor() {
+        if let monitor = jumpKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            jumpKeyMonitor = nil
+        }
     }
 
     // MARK: - Surface observation

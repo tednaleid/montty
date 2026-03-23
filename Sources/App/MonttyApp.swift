@@ -10,5 +10,13 @@ struct MonttyApp: App {
                 .environmentObject(appDelegate.ghostty)
                 .environmentObject(appDelegate)
         }
+        .commands {
+            CommandMenu("Navigate") {
+                Button("Jump to Surface") {
+                    appDelegate.enterJumpMode()
+                }
+                .keyboardShortcut(";", modifiers: .command)
+            }
+        }
     }
 }

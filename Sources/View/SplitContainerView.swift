@@ -6,6 +6,7 @@ struct SplitContainerView: View {
     let tabColor: TabColor
     let surfaceLookup: (UUID) -> Ghostty.SurfaceView?
     let onFocusLeaf: (UUID) -> Void
+    var jumpLabels: [UUID: String] = [:]
 
     // Tweak this to control how much unfocused panes are dimmed.
     // 0.0 = no dimming, 0.3 = heavy dimming.
@@ -34,8 +35,20 @@ struct SplitContainerView: View {
                             .allowsHitTesting(false)
                 )
                 .border(isFocused ? borderColor : Color.clear, width: 2)
+                .overlay {
+                    if let label = jumpLabels[leaf.id] {
+                        JumpBadge(label: label, color: badgeColor, large: true)
+                    }
+                }
         } else {
             Color(nsColor: .windowBackgroundColor)
+        }
+    }
+
+    private var badgeColor: Color {
+        switch tabColor {
+        case .preset(let preset): return preset.swiftUIColor
+        case .auto: return .accentColor
         }
     }
 
@@ -54,7 +67,8 @@ struct SplitContainerView: View {
             focusedLeafID: focusedLeafID,
             tabColor: tabColor,
             surfaceLookup: surfaceLookup,
-            onFocusLeaf: onFocusLeaf
+            onFocusLeaf: onFocusLeaf,
+            jumpLabels: jumpLabels
         )
     }
 }
@@ -66,6 +80,7 @@ private struct BranchWrapper: View {
     let tabColor: TabColor
     let surfaceLookup: (UUID) -> Ghostty.SurfaceView?
     let onFocusLeaf: (UUID) -> Void
+    var jumpLabels: [UUID: String] = [:]
 
     @State private var ratio: CGFloat
 
@@ -74,13 +89,15 @@ private struct BranchWrapper: View {
         focusedLeafID: UUID?,
         tabColor: TabColor,
         surfaceLookup: @escaping (UUID) -> Ghostty.SurfaceView?,
-        onFocusLeaf: @escaping (UUID) -> Void
+        onFocusLeaf: @escaping (UUID) -> Void,
+        jumpLabels: [UUID: String] = [:]
     ) {
         self.branch = branch
         self.focusedLeafID = focusedLeafID
         self.tabColor = tabColor
         self.surfaceLookup = surfaceLookup
         self.onFocusLeaf = onFocusLeaf
+        self.jumpLabels = jumpLabels
         self._ratio = State(initialValue: branch.ratio)
     }
 
@@ -94,7 +111,8 @@ private struct BranchWrapper: View {
                 focusedLeafID: focusedLeafID,
                 tabColor: tabColor,
                 surfaceLookup: surfaceLookup,
-                onFocusLeaf: onFocusLeaf
+                onFocusLeaf: onFocusLeaf,
+                jumpLabels: jumpLabels
             )
         } second: {
             SplitContainerView(
@@ -102,7 +120,8 @@ private struct BranchWrapper: View {
                 focusedLeafID: focusedLeafID,
                 tabColor: tabColor,
                 surfaceLookup: surfaceLookup,
-                onFocusLeaf: onFocusLeaf
+                onFocusLeaf: onFocusLeaf,
+                jumpLabels: jumpLabels
             )
         }
     }

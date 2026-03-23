@@ -4,6 +4,8 @@ struct MinimapView: View {
     let minimap: SplitMinimap
     let tabColor: Color
     let isActiveTab: Bool
+    var jumpLabels: [UUID: String] = [:]
+    var onPaneTap: ((UUID) -> Void)?
 
     private let gap: CGFloat = 4
     private let cornerRadius: CGFloat = 3
@@ -20,12 +22,17 @@ struct MinimapView: View {
                             RoundedRectangle(cornerRadius: cornerRadius)
                                 .strokeBorder(paneBorder(pane), lineWidth: pane.isFocused ? 1.5 : 0.5)
                         )
-                    if let claude = pane.claudeCode {
+                    if let label = jumpLabels[pane.leafID] {
+                        JumpBadge(label: label, color: tabColor, large: false)
+                    } else if let claude = pane.claudeCode {
                         ClaudeIndicatorView(state: claude.state)
                     }
                 }
                 .frame(width: frame.width, height: frame.height)
                 .offset(x: frame.minX, y: frame.minY)
+                .onTapGesture {
+                    onPaneTap?(pane.leafID)
+                }
             }
         }
         .frame(height: 90)

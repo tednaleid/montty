@@ -13,7 +13,12 @@ struct MainWindow: View {
                 tabStore: tabStore,
                 onNewTab: { appDelegate.createTab() },
                 onCloseTab: { appDelegate.closeTab(id: $0) },
-                onSetColor: { tabStore.setColor(id: $0, color: $1) }
+                onSetColor: { tabStore.setColor(id: $0, color: $1) },
+                jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:],
+                onJumpToSurface: { tabID, leafID in
+                    appDelegate.exitJumpMode()
+                    appDelegate.jumpToSurface(tabID: tabID, leafID: leafID)
+                }
             )
             .frame(minWidth: 150, idealWidth: sidebarWidth, maxWidth: 300)
 
@@ -40,7 +45,8 @@ struct MainWindow: View {
                 surfaceLookup: { appDelegate.surfaceView(for: $0) },
                 onFocusLeaf: { leafID in
                     appDelegate.setFocusedLeaf(leafID, in: activeTab)
-                }
+                },
+                jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:]
             )
             .id(activeTab.id)
         } else {

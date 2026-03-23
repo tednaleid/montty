@@ -5,6 +5,8 @@ struct TabSidebar: View {
     let onNewTab: () -> Void
     let onCloseTab: (UUID) -> Void
     let onSetColor: (UUID, TabColor) -> Void
+    var jumpLabels: [UUID: String] = [:]
+    var onJumpToSurface: ((UUID, UUID) -> Void)?
 
     @State private var editingTabID: UUID?
 
@@ -25,7 +27,11 @@ struct TabSidebar: View {
                             tab: tab,
                             isActive: isActive,
                             activeTabColor: activeTabColor,
-                            editingTabID: $editingTabID
+                            editingTabID: $editingTabID,
+                            jumpLabels: jumpLabels,
+                            onPaneTap: { leafID in
+                                onJumpToSurface?(tab.id, leafID)
+                            }
                         )
                         .tag(tab.id)
                         .listRowInsets(EdgeInsets())

@@ -5,6 +5,8 @@ struct TabRow: View {
     let isActive: Bool
     let activeTabColor: Color
     @Binding var editingTabID: UUID?
+    var jumpLabels: [UUID: String] = [:]
+    var onPaneTap: ((UUID) -> Void)?
 
     @State private var editName = ""
     @FocusState private var textFieldFocused: Bool
@@ -79,7 +81,9 @@ struct TabRow: View {
                 MinimapView(
                     minimap: info.minimap,
                     tabColor: accentColor,
-                    isActiveTab: isActive
+                    isActiveTab: isActive,
+                    jumpLabels: jumpLabels,
+                    onPaneTap: onPaneTap
                 )
                 .padding(.top, 2)
             }
