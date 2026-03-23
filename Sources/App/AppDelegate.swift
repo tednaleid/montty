@@ -190,8 +190,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
         surfaceView.$title
             .receive(on: DispatchQueue.main)
-            .sink { [weak tab] title in
+            .sink { [weak tab, id = surfaceView.id] title in
                 tab?.autoName = title
+                tab?.surfaceTitles[id] = title
             }
             .store(in: &cancellables)
 

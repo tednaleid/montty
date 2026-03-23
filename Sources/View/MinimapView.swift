@@ -13,14 +13,21 @@ struct MinimapView: View {
             let size = geometry.size
             ForEach(minimap.panes, id: \.leafID) { pane in
                 let frame = paneFrame(pane.rect, in: size)
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(paneFill(pane))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .strokeBorder(paneBorder(pane), lineWidth: pane.isFocused ? 1.5 : 0.5)
-                    )
-                    .frame(width: frame.width, height: frame.height)
-                    .offset(x: frame.minX, y: frame.minY)
+                ZStack {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(paneFill(pane))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .strokeBorder(paneBorder(pane), lineWidth: pane.isFocused ? 1.5 : 0.5)
+                        )
+                    if pane.claudeCode != nil {
+                        Text("*")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.orange)
+                    }
+                }
+                .frame(width: frame.width, height: frame.height)
+                .offset(x: frame.minX, y: frame.minY)
             }
         }
         .frame(height: 90)

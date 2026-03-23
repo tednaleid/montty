@@ -46,7 +46,8 @@ struct TabInfo: Equatable {
         let claudeCode = TitleParser.claudeCodeStatus(from: tab.autoName)
 
         let minimap = SplitMinimap.from(
-            node: tab.splitRoot, focusedLeafID: tab.focusedLeafID
+            node: tab.splitRoot, focusedLeafID: tab.focusedLeafID,
+            surfaceTitles: tab.surfaceTitles
         )
 
         return TabInfo(
@@ -80,4 +81,6 @@ struct TabProperties: Equatable {
     let workingDirectory: String?
     let splitRoot: SplitNode
     let focusedLeafID: UUID?
+    /// Per-surface terminal titles, keyed by surfaceID.
+    var surfaceTitles: [UUID: String] = [:]
 }

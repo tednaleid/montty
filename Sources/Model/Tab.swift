@@ -10,6 +10,8 @@ final class Tab: Identifiable {
     var workingDirectory: String?
     var splitRoot: SplitNode
     var focusedLeafID: UUID?
+    /// Per-surface terminal titles, keyed by surfaceID.
+    var surfaceTitles: [UUID: String] = [:]
 
     var displayName: String {
         name.isEmpty ? autoName : name
@@ -22,7 +24,8 @@ final class Tab: Identifiable {
             autoName: autoName,
             workingDirectory: workingDirectory,
             splitRoot: splitRoot,
-            focusedLeafID: focusedLeafID
+            focusedLeafID: focusedLeafID,
+            surfaceTitles: surfaceTitles
         ))
     }
 

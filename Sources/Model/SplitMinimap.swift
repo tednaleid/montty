@@ -11,6 +11,7 @@ struct MinimapPane: Equatable {
     let leafID: UUID
     let rect: MinimapRect
     let isFocused: Bool
+    let claudeCode: ClaudeCodeStatus?
 }
 
 struct SplitMinimap: Equatable {
@@ -18,10 +19,15 @@ struct SplitMinimap: Equatable {
 
     /// Compute minimap layout from a split tree.
     /// Produces normalized 0-1 rects for each leaf pane.
-    static func from(node: SplitNode, focusedLeafID: UUID?) -> SplitMinimap {
+    /// Surface titles are used to detect Claude Code per-pane.
+    static func from(
+        node: SplitNode,
+        focusedLeafID: UUID?,
+        surfaceTitles: [UUID: String] = [:]
+    ) -> SplitMinimap {
         var panes: [MinimapPane] = []
         layoutNode(node, rect: MinimapRect(originX: 0, originY: 0, width: 1, height: 1),
-                   focusedLeafID: focusedLeafID, panes: &panes)
+                   focusedLeafID: focusedLeafID, surfaceTitles: surfaceTitles, panes: &panes)
         return SplitMinimap(panes: panes)
     }
 
@@ -29,14 +35,18 @@ struct SplitMinimap: Equatable {
         _ node: SplitNode,
         rect: MinimapRect,
         focusedLeafID: UUID?,
+        surfaceTitles: [UUID: String],
         panes: inout [MinimapPane]
     ) {
         switch node {
         case .leaf(let leaf):
+            let title = surfaceTitles[leaf.surfaceID]
+            let claude = title.flatMap { TitleParser.claudeCodeStatus(from: $0) }
             panes.append(MinimapPane(
                 leafID: leaf.id,
                 rect: rect,
-                isFocused: leaf.id == focusedLeafID
+                isFocused: leaf.id == focusedLeafID,
+                claudeCode: claude
             ))
         case .split(let branch):
             let ratio = Double(branch.ratio)
@@ -59,8 +69,10 @@ struct SplitMinimap: Equatable {
                     width: rect.width, height: rect.height * (1 - ratio))
             }
 
-            layoutNode(branch.first, rect: firstRect, focusedLeafID: focusedLeafID, panes: &panes)
-            layoutNode(branch.second, rect: secondRect, focusedLeafID: focusedLeafID, panes: &panes)
+            layoutNode(branch.first, rect: firstRect, focusedLeafID: focusedLeafID,
+                       surfaceTitles: surfaceTitles, panes: &panes)
+            layoutNode(branch.second, rect: secondRect, focusedLeafID: focusedLeafID,
+                       surfaceTitles: surfaceTitles, panes: &panes)
         }
     }
 }

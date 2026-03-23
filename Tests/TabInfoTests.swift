@@ -191,7 +191,7 @@ struct TabInfoTests {
     @Test func tabInfoDetectsClaudeCode() {
         let props = TabProperties(
             name: "",
-            autoName: "Claude Code -- fixing the BCI toggle",
+            autoName: "✳ fixing the BCI toggle",
             workingDirectory: nil,
             splitRoot: singleLeaf(),
             focusedLeafID: nil

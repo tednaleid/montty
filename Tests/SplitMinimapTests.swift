@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import montty_unit
 
@@ -141,5 +142,34 @@ struct SplitMinimapTests {
 
         #expect(minimap.panes[0].isFocused == false)
         #expect(minimap.panes[1].isFocused == false)
+    }
+
+    // MARK: - Claude Code detection per pane
+
+    @Test func paneDetectsClaudeCodeFromTitle() {
+        let left = SurfaceLeaf()
+        let right = SurfaceLeaf()
+        let node = SplitNode.split(SplitBranch(
+            orientation: .horizontal,
+            first: .leaf(left),
+            second: .leaf(right)
+        ))
+        // Only the right pane is running Claude Code
+        let titles: [UUID: String] = [
+            left.surfaceID: "zsh",
+            right.surfaceID: "✳ Fix auth bug"
+        ]
+        let minimap = SplitMinimap.from(
+            node: node, focusedLeafID: nil, surfaceTitles: titles
+        )
+        #expect(minimap.panes[0].claudeCode == nil)
+        #expect(minimap.panes[1].claudeCode != nil)
+        #expect(minimap.panes[1].claudeCode?.sessionName == "Fix auth bug")
+    }
+
+    @Test func paneWithNoTitlesHasNoClaudeCode() {
+        let leaf = SurfaceLeaf()
+        let minimap = SplitMinimap.from(node: .leaf(leaf), focusedLeafID: nil)
+        #expect(minimap.panes[0].claudeCode == nil)
     }
 }
