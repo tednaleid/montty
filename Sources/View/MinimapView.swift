@@ -66,7 +66,6 @@ struct ClaudeIndicatorView: View {
     private static let thinkingChars: [String] = ["*", "\u{2736}", "\u{273B}", "\u{2733}", "\u{2722}", "\u{00B7}"]
 
     @State private var charIndex = 0
-    @State private var blinkVisible = true
 
     var body: some View {
         Group {
@@ -75,15 +74,12 @@ struct ClaudeIndicatorView: View {
                 Text(Self.thinkingChars[charIndex % Self.thinkingChars.count])
                     .onAppear { startAnimation() }
             case .waiting:
-                Text(blinkVisible ? "*?" : "")
-                    .onAppear { startBlink() }
-            case .unknown:
+                Text("*?")
+            case .idle, .unknown:
                 Text("*")
-            case .idle:
-                EmptyView()
             }
         }
-        .font(.system(size: 32, weight: .bold))
+        .font(.system(size: 32))
         .foregroundStyle(.orange)
     }
 
@@ -93,9 +89,4 @@ struct ClaudeIndicatorView: View {
         }
     }
 
-    private func startBlink() {
-        Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { _ in
-            blinkVisible.toggle()
-        }
-    }
 }
