@@ -103,12 +103,12 @@ jobs:
             --options runtime \
             --entitlements Resources/montty.entitlements \
             --timestamp \
-            /tmp/montty-build/Release/montty.app
+            /tmp/montty-build/Release/Montty.app
 
       - name: Ad-hoc re-sign
         if: env.APPLE_CERTIFICATE == ''
         run: |
-          codesign --force --deep --sign - /tmp/montty-build/Release/montty.app
+          codesign --force --deep --sign - /tmp/montty-build/Release/Montty.app
 
       # -- DMG creation --
 
@@ -118,11 +118,11 @@ jobs:
           DMG_PATH="/tmp/montty-build/montty-${VERSION}.dmg"
           STAGING="$(mktemp -d)"
 
-          cp -R /tmp/montty-build/Release/montty.app "$STAGING/montty.app"
+          cp -R /tmp/montty-build/Release/Montty.app "$STAGING/Montty.app"
           ln -s /Applications "$STAGING/Applications"
 
           hdiutil create \
-            -volname "montty" \
+            -volname "Montty" \
             -srcfolder "$STAGING" \
             -ov \
             -format UDZO \

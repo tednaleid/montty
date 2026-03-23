@@ -22,7 +22,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.montty.app
         CODE_SIGN_ENTITLEMENTS: Resources/montty.entitlements
         INFOPLIST_FILE: Resources/Info.plist
-        PRODUCT_NAME: montty
+        PRODUCT_NAME: Montty
         SWIFT_VERSION: "5.0"
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"

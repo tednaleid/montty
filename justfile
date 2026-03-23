@@ -110,21 +110,21 @@ check: test lint build
 
 # Build and launch the app (foreground)
 run: build
-    {{build_dir}}/Debug/montty.app/Contents/MacOS/montty
+    {{build_dir}}/Debug/Montty.app/Contents/MacOS/Montty
 
 # Build and launch the app (background, for scripted testing)
 run-bg: build
-    @{{build_dir}}/Debug/montty.app/Contents/MacOS/montty &
+    @{{build_dir}}/Debug/Montty.app/Contents/MacOS/Montty &
     @sleep 2
-    @echo "montty launched in background. Use 'just stop' to quit."
+    @echo "Montty launched in background. Use 'just stop' to quit."
 
 # Quit the running app gracefully
 stop:
-    @osascript -e 'tell application "montty" to quit' 2>/dev/null || echo "montty is not running"
+    @osascript -e 'tell application "Montty" to quit' 2>/dev/null || echo "Montty is not running"
 
 # Force-kill the running app (no cleanup)
 kill:
-    @pkill -f 'montty.app/Contents/MacOS/montty' 2>/dev/null || echo "montty is not running"
+    @pkill -f 'Montty.app/Contents/MacOS/Montty' 2>/dev/null || echo "Montty is not running"
 
 # -- Debug server inspection (localhost:9876, debug builds only) --
 
