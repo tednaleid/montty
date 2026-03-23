@@ -25,8 +25,10 @@ jobs:
         id: cache-ghosttykit
         uses: actions/cache@v4
         with:
-          path: ghostty/macos/GhosttyKit.xcframework
-          key: ghosttykit-${{ hashFiles('.git/modules/ghostty/HEAD') }}
+          path: |
+            ghostty/macos/GhosttyKit.xcframework
+            ghostty/zig-out/share/terminfo
+          key: ghosttykit-v2-${{ hashFiles('.git/modules/ghostty/HEAD') }}
 
       - name: Install zig 0.15.2
         if: steps.cache-ghosttykit.outputs.cache-hit != 'true'
