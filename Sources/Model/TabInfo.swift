@@ -24,8 +24,15 @@ struct TabInfo: Equatable {
         if !tab.name.isEmpty {
             name = tab.name
         } else if let pwd = tab.workingDirectory, let dir = dirName {
-            let parent = (pwd as NSString).deletingLastPathComponent
-            name = (parent == "/" || parent.isEmpty) ? "/\(dir)" : ".../\(dir)"
+            let home = NSHomeDirectory()
+            if pwd == home {
+                name = "~"
+            } else if pwd.hasPrefix(home + "/") {
+                name = "~/\(dir)"
+            } else {
+                let parent = (pwd as NSString).deletingLastPathComponent
+                name = (parent == "/" || parent.isEmpty) ? "/\(dir)" : ".../\(dir)"
+            }
         } else if !tab.autoName.isEmpty {
             name = tab.autoName
         } else {

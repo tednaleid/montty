@@ -81,18 +81,23 @@ struct TabRow: View {
                 .padding(.top, 2)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.top, 6)
+            .padding(.bottom, 10)
 
             Spacer(minLength: 0)
         }
-        .background(isActive ? activeBackground : Color.clear)
+        .opacity(isActive ? 1.0 : 0.9)
+        .background(isActive ? activeBackground.padding(.trailing, -24) : nil)
         .overlay {
             if isActive {
+                // Extend borders past the row's right edge to meet the
+                // window divider line, using negative trailing padding
                 VStack {
                     Rectangle().fill(accentColor).frame(height: 4)
                     Spacer()
                     Rectangle().fill(accentColor).frame(height: 4)
                 }
+                .padding(.trailing, -24)
             }
         }
         .onTapGesture(count: 2) {
