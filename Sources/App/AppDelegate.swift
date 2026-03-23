@@ -91,10 +91,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     // MARK: - Tab lifecycle
 
+    /// Debug server port for Claude Code hook callbacks.
+    static let hookPort = 9876
+
     func createTab() {
         guard let app = ghostty.app else { return }
-        let surfaceView = Ghostty.SurfaceView(app)
+        let monttyID = UUID().uuidString
+        var config = Ghostty.SurfaceConfiguration()
+        config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
+        config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
+        let surfaceView = Ghostty.SurfaceView(app, baseConfig: config)
         let tab = Tab(surfaceID: surfaceView.id)
+        tab.surfaceToMonttyID[surfaceView.id] = monttyID
         surfaces[surfaceView.id] = surfaceView
         tabStore.append(tab: tab)
         tabStore.activeTabID = tab.id
@@ -146,9 +154,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
               let tab = tabStore.activeTab,
               let focusedLeafID = tab.focusedLeafID else { return }
 
-        let newSurfaceView = Ghostty.SurfaceView(app)
+        let monttyID = UUID().uuidString
+        var config = Ghostty.SurfaceConfiguration()
+        config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
+        config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
+        let newSurfaceView = Ghostty.SurfaceView(app, baseConfig: config)
         let newLeafID = UUID()
         surfaces[newSurfaceView.id] = newSurfaceView
+        tab.surfaceToMonttyID[newSurfaceView.id] = monttyID
 
         tab.splitRoot = SplitTree.split(
             node: tab.splitRoot,
@@ -431,9 +444,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     ) -> SplitNode {
         switch node {
         case .leaf(let leaf):
+            let monttyID = UUID().uuidString
             var config = Ghostty.SurfaceConfiguration()
             config.workingDirectory = directories[leaf.id]
+            config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
+            config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
             let surfaceView = Ghostty.SurfaceView(app, baseConfig: config)
+            tab.surfaceToMonttyID[surfaceView.id] = monttyID
             surfaces[surfaceView.id] = surfaceView
             observeSurface(surfaceView, tab: tab)
             // Set tab directory for immediate UI display (surface will

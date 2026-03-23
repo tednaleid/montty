@@ -12,6 +12,10 @@ final class Tab: Identifiable {
     var focusedLeafID: UUID?
     /// Per-surface terminal titles, keyed by surfaceID.
     var surfaceTitles: [UUID: String] = [:]
+    /// Per-surface Claude Code state, keyed by MONTTY_SURFACE_ID.
+    var claudeStates: [String: ClaudeCodeStatus.State] = [:]
+    /// Maps Ghostty surfaceID -> MONTTY_SURFACE_ID for hook routing.
+    var surfaceToMonttyID: [UUID: String] = [:]
 
     var displayName: String {
         name.isEmpty ? autoName : name
@@ -25,7 +29,9 @@ final class Tab: Identifiable {
             workingDirectory: workingDirectory,
             splitRoot: splitRoot,
             focusedLeafID: focusedLeafID,
-            surfaceTitles: surfaceTitles
+            surfaceTitles: surfaceTitles,
+            claudeStates: claudeStates,
+            surfaceToMonttyID: surfaceToMonttyID
         ))
     }
 

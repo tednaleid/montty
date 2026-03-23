@@ -63,6 +63,21 @@ targets:
             done
           fi
 
+          # Append montty's claude() wrapper to zsh integration.
+          # Injects hooks via --settings so montty receives state callbacks.
+          ZSH_ENV="${GHOST_RES}/shell-integration/zsh/.zshenv"
+          if [ -f "${ZSH_ENV}" ]; then
+            cat >> "${ZSH_ENV}" << 'MONTTY_HOOKS'
+
+          # montty: wrap claude to inject hook callbacks for status tracking
+          if [[ -n "$MONTTY_SURFACE_ID" && -n "$MONTTY_PORT" ]]; then
+            claude() {
+              command claude --settings "{\"hooks\":{\"UserPromptSubmit\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"curl -sf -X POST http://localhost:${MONTTY_PORT}/claude-hook -H 'Content-Type: application/json' -d '{\\\"event\\\":\\\"prompt-submit\\\",\\\"surface\\\":\\\"${MONTTY_SURFACE_ID}\\\"}' &\"}]}],\"Notification\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"curl -sf -X POST http://localhost:${MONTTY_PORT}/claude-hook -H 'Content-Type: application/json' -d '{\\\"event\\\":\\\"notification\\\",\\\"surface\\\":\\\"${MONTTY_SURFACE_ID}\\\"}' &\"}]}],\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"curl -sf -X POST http://localhost:${MONTTY_PORT}/claude-hook -H 'Content-Type: application/json' -d '{\\\"event\\\":\\\"stop\\\",\\\"surface\\\":\\\"${MONTTY_SURFACE_ID}\\\"}' &\"}]}]}}" "$@"
+            }
+          fi
+          MONTTY_HOOKS
+          fi
+
   montty-unit:
     type: bundle.unit-test
     platform: macOS

@@ -25,6 +25,8 @@ extension DebugServer {
             handleState(surfaceID: surfaceID, connection: connection)
         case ("POST", "/action"):
             handleAction(body: request.body, surfaceID: surfaceID, connection: connection)
+        case ("POST", "/claude-hook"):
+            handleClaudeHook(body: request.body, connection: connection)
         default:
             sendJSON(["error": "Not found: \(request.method) \(request.path)"], status: 404, connection: connection)
         }
@@ -406,6 +408,40 @@ extension DebugServer {
             }
             let result = ghostty_surface_binding_action(surface, action, UInt(action.utf8.count))
             sendJSON(["ok": result, "action": action], connection: connection)
+        }
+    }
+
+    // Handle Claude Code hook callbacks.
+    // Body is JSON: {"event": "prompt-submit|notification|stop", "surface": "MONTTY_SURFACE_ID"}
+    private static func handleClaudeHook(body: String, connection: NWConnection) {
+        guard let data = body.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let event = json["event"] as? String,
+              let surfaceID = json["surface"] as? String else {
+            sendJSON(["error": "Invalid hook body"], status: 400, connection: connection)
+            return
+        }
+
+        let state: ClaudeCodeStatus.State
+        switch event {
+        case "prompt-submit": state = .working
+        case "notification": state = .waiting
+        case "stop": state = .idle
+        default:
+            sendJSON(["error": "Unknown event: \(event)"], status: 400, connection: connection)
+            return
+        }
+
+        DispatchQueue.main.async {
+            guard let appDelegate = appDelegate() else {
+                sendJSON(["error": "No app delegate"], status: 500, connection: connection)
+                return
+            }
+            // Find the tab containing this MONTTY_SURFACE_ID and update its state
+            for tab in appDelegate.tabStore.tabs {
+                tab.claudeStates[surfaceID] = state
+            }
+            sendJSON(["ok": true, "event": event, "surface": surfaceID], connection: connection)
         }
     }
 }

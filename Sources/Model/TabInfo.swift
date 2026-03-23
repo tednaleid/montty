@@ -47,7 +47,9 @@ struct TabInfo: Equatable {
 
         let minimap = SplitMinimap.from(
             node: tab.splitRoot, focusedLeafID: tab.focusedLeafID,
-            surfaceTitles: tab.surfaceTitles
+            surfaceTitles: tab.surfaceTitles,
+            claudeStates: tab.claudeStates,
+            surfaceToMonttyID: tab.surfaceToMonttyID
         )
 
         return TabInfo(
@@ -68,9 +70,10 @@ struct ClaudeCodeStatus: Equatable {
     let state: State
 
     enum State: Equatable {
-        case unknown    // detected Claude Code, can't determine state yet
-        case working    // actively processing (future signal)
-        case waiting    // needs user input (future signal)
+        case unknown    // detected via title, no hook state yet
+        case working    // actively processing (hook: prompt-submit, pre-tool-use)
+        case waiting    // needs user input (hook: notification)
+        case idle       // finished turn, session still open (hook: stop)
     }
 }
 
@@ -83,4 +86,8 @@ struct TabProperties: Equatable {
     let focusedLeafID: UUID?
     /// Per-surface terminal titles, keyed by surfaceID.
     var surfaceTitles: [UUID: String] = [:]
+    /// Per-surface Claude Code state from hooks, keyed by MONTTY_SURFACE_ID.
+    var claudeStates: [String: ClaudeCodeStatus.State] = [:]
+    /// Maps Ghostty surfaceID -> MONTTY_SURFACE_ID.
+    var surfaceToMonttyID: [UUID: String] = [:]
 }

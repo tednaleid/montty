@@ -23,30 +23,47 @@ struct SplitMinimap: Equatable {
     static func from(
         node: SplitNode,
         focusedLeafID: UUID?,
-        surfaceTitles: [UUID: String] = [:]
+        surfaceTitles: [UUID: String] = [:],
+        claudeStates: [String: ClaudeCodeStatus.State] = [:],
+        surfaceToMonttyID: [UUID: String] = [:]
     ) -> SplitMinimap {
+        let ctx = LayoutContext(
+            focusedLeafID: focusedLeafID, surfaceTitles: surfaceTitles,
+            claudeStates: claudeStates, surfaceToMonttyID: surfaceToMonttyID
+        )
         var panes: [MinimapPane] = []
         layoutNode(node, rect: MinimapRect(originX: 0, originY: 0, width: 1, height: 1),
-                   focusedLeafID: focusedLeafID, surfaceTitles: surfaceTitles, panes: &panes)
+                   ctx: ctx, panes: &panes)
         return SplitMinimap(panes: panes)
     }
 
+    private struct LayoutContext {
+        let focusedLeafID: UUID?
+        let surfaceTitles: [UUID: String]
+        let claudeStates: [String: ClaudeCodeStatus.State]
+        let surfaceToMonttyID: [UUID: String]
+    }
+
     private static func layoutNode(
-        _ node: SplitNode,
-        rect: MinimapRect,
-        focusedLeafID: UUID?,
-        surfaceTitles: [UUID: String],
-        panes: inout [MinimapPane]
+        _ node: SplitNode, rect: MinimapRect,
+        ctx: LayoutContext, panes: inout [MinimapPane]
     ) {
         switch node {
         case .leaf(let leaf):
-            let title = surfaceTitles[leaf.surfaceID]
-            let claude = title.flatMap { TitleParser.claudeCodeStatus(from: $0) }
+            // Prefer hook-based state over title-based detection
+            let claude: ClaudeCodeStatus?
+            if let monttyID = ctx.surfaceToMonttyID[leaf.surfaceID],
+               let hookState = ctx.claudeStates[monttyID] {
+                let title = ctx.surfaceTitles[leaf.surfaceID] ?? ""
+                let sessionName = TitleParser.claudeCodeStatus(from: title)?.sessionName ?? "Claude Code"
+                claude = ClaudeCodeStatus(sessionName: sessionName, state: hookState)
+            } else {
+                let title = ctx.surfaceTitles[leaf.surfaceID]
+                claude = title.flatMap { TitleParser.claudeCodeStatus(from: $0) }
+            }
             panes.append(MinimapPane(
-                leafID: leaf.id,
-                rect: rect,
-                isFocused: leaf.id == focusedLeafID,
-                claudeCode: claude
+                leafID: leaf.id, rect: rect,
+                isFocused: leaf.id == ctx.focusedLeafID, claudeCode: claude
             ))
         case .split(let branch):
             let ratio = Double(branch.ratio)
@@ -69,10 +86,8 @@ struct SplitMinimap: Equatable {
                     width: rect.width, height: rect.height * (1 - ratio))
             }
 
-            layoutNode(branch.first, rect: firstRect, focusedLeafID: focusedLeafID,
-                       surfaceTitles: surfaceTitles, panes: &panes)
-            layoutNode(branch.second, rect: secondRect, focusedLeafID: focusedLeafID,
-                       surfaceTitles: surfaceTitles, panes: &panes)
+            layoutNode(branch.first, rect: firstRect, ctx: ctx, panes: &panes)
+            layoutNode(branch.second, rect: secondRect, ctx: ctx, panes: &panes)
         }
     }
 }
