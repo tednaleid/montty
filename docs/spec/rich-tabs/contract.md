@@ -21,15 +21,17 @@ Today, the only metadata flowing from terminal panes to tabs is the window title
 
 ## Success Criteria
 
-- [ ] Tabs show git repo name and branch when pwd is inside a git repository
-- [ ] Git info updates when user `cd`s to a different repo
-- [ ] Tabs show Claude Code session name when Claude Code is running (via terminal title)
-- [ ] Tabs with splits show a minimap of the split layout
-- [ ] `TabInfo` model is unit-testable without AppKit or Ghostty dependencies
-- [ ] Git info derivation is unit-testable (given a path, returns repo/branch/worktree)
-- [ ] OSC primer document exists at docs/spec/rich-tabs/osc-primer.md
-- [ ] All existing tests continue to pass
-- [ ] Tab rendering works correctly with 1, 3, and 8 tabs
+- [x] Tabs show git repo name and branch when pwd is inside a git repository
+- [x] Git info updates when user `cd`s to a different repo
+- [x] Tabs show Claude Code session name when Claude Code is running (via terminal title)
+- [x] Tabs with splits show a minimap of the split layout
+- [x] `TabInfo` model is unit-testable without AppKit or Ghostty dependencies
+- [x] Git info derivation is unit-testable (given a path, returns repo/branch/worktree)
+- [x] OSC primer document exists at docs/spec/rich-tabs/osc-primer.md
+- [x] All existing tests continue to pass
+- [x] Tab rendering works correctly with 1, 3, and 8 tabs
+- [ ] Claude Code indicator on minimap panes (Phase 5a: presence detection)
+- [ ] Claude Code working/waiting state detection via hooks (Phase 5b)
 
 ## Testing Philosophy
 
@@ -57,11 +59,11 @@ Visual rendering (SwiftUI tab layout) is not unit-testable but should be separat
 ### Out of Scope
 
 - User-configurable tab templates -- architecture supports it, but not implemented
-- Per-tab terminal theming (color-tinted backgrounds) -- separate Phase 5 work
+- Per-tab terminal theming (color-tinted backgrounds) -- future work
 - OSC 1337 SetUserVar support -- Ghostty doesn't support it upstream
 - Foreground process detection via PTY fd -- GhosttyKit doesn't expose it
 - Shell integration hooks for reporting custom metadata
-- Claude Code "working" vs "idle" state detection -- no reliable signal available
+- Claude Code "working" vs "idle" state detection -- Phase 5b via hooks
 
 ### Future Considerations
 
@@ -88,7 +90,9 @@ Phase 1: TabInfo + GitInfo
 
 **Strategy**: Hybrid -- Phase 1 is blocking, Phases 2 and 3 are parallelizable, Phase 4 depends on all.
 
-1. **Fix directory restoration** -- quick standalone fix before starting rich tabs
-2. **Phase 1** -- TabInfo model + GitInfo derivation _(blocking)_
-3. **Phases 2 and 3** -- Claude Code detection + Split minimap _(parallel after Phase 1)_
-4. **Phase 4** -- Rich tab UI _(blocked by all above)_
+1. ~~**Fix directory restoration** -- quick standalone fix before starting rich tabs~~ DONE
+2. ~~**Phase 1** -- TabInfo model + GitInfo derivation~~ DONE
+3. ~~**Phases 2 and 3** -- Claude Code detection + Split minimap~~ DONE
+4. ~~**Phase 4** -- Rich tab UI~~ DONE
+5. **Phase 5a** -- Claude Code presence indicator on minimap (title-based detection)
+6. **Phase 5b** -- Claude Code state detection via hooks (working/waiting/idle)
