@@ -22,7 +22,7 @@ struct MinimapView: View {
                         )
                     if pane.claudeCode != nil {
                         Text("*")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.system(size: 32, weight: .bold))
                             .foregroundStyle(.orange)
                     }
                 }
