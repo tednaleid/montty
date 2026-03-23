@@ -209,9 +209,18 @@ bump version:
 
 # Delete a GitHub release and re-tag the current commit to re-trigger release workflow
 retag tag:
-    gh release delete {{tag}} --yes || true
-    git push origin :refs/tags/{{tag}} || true
-    git tag -f {{tag}}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Save existing tag annotation before deleting
+    notes=$(git tag -l --format='%(contents)' "{{tag}}" 2>/dev/null || echo "{{tag}}")
+    notes_file=$(mktemp)
+    trap 'rm -f "$notes_file"' EXIT
+    echo "$notes" > "$notes_file"
+
+    gh release delete "{{tag}}" --yes || true
+    git push origin ":refs/tags/{{tag}}" || true
+    git tag -d "{{tag}}" || true
+    git tag -a "{{tag}}" -F "$notes_file"
     git push && git push --tags
 
 # Remove build artifacts
