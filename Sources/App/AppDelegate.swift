@@ -68,6 +68,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             self?.createSnapshot() ?? SessionSnapshot()
         }
 
+        HookServer.start()
         #if DEBUG
         DebugServer.start()
         #endif
@@ -77,6 +78,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         sessionStore.stopAutoSave()
         sessionStore.save(snapshot: createSnapshot())
 
+        HookServer.stop()
         #if DEBUG
         DebugServer.stop()
         #endif
@@ -91,7 +93,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     // MARK: - Tab lifecycle
 
-    /// Debug server port for Claude Code hook callbacks.
+    /// Port for the debug HTTP server (debug builds only).
     static let hookPort = 9876
 
     func createTab() {
@@ -100,6 +102,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         var config = Ghostty.SurfaceConfiguration()
         config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
         config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
+        config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
         let surfaceView = Ghostty.SurfaceView(app, baseConfig: config)
         let tab = Tab(surfaceID: surfaceView.id)
         tab.surfaceToMonttyID[surfaceView.id] = monttyID
@@ -163,6 +166,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         var config = Ghostty.SurfaceConfiguration()
         config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
         config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
+        config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
         let newSurfaceView = Ghostty.SurfaceView(app, baseConfig: config)
         let newLeafID = UUID()
         surfaces[newSurfaceView.id] = newSurfaceView
@@ -320,6 +324,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             config.workingDirectory = directories[leaf.id]
             config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
             config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
+        config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
             let surfaceView = Ghostty.SurfaceView(app, baseConfig: config)
             tab.surfaceToMonttyID[surfaceView.id] = monttyID
             surfaces[surfaceView.id] = surfaceView

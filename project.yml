@@ -70,9 +70,9 @@ targets:
             cat >> "${ZSH_ENV}" << 'MONTTY_HOOKS'
 
           # montty: wrap claude to inject hook callbacks for status tracking
-          if [[ -n "$MONTTY_SURFACE_ID" && -n "$MONTTY_PORT" ]]; then
+          if [[ -n "$MONTTY_SURFACE_ID" && -n "$MONTTY_SOCKET" ]]; then
             claude() {
-              command claude --settings "{\"hooks\":{\"UserPromptSubmit\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"curl -sf -X POST http://localhost:${MONTTY_PORT}/claude-hook -H 'Content-Type: application/json' -d '{\\\"event\\\":\\\"prompt-submit\\\",\\\"surface\\\":\\\"${MONTTY_SURFACE_ID}\\\"}' &\"}]}],\"Notification\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"curl -sf -X POST http://localhost:${MONTTY_PORT}/claude-hook -H 'Content-Type: application/json' -d '{\\\"event\\\":\\\"notification\\\",\\\"surface\\\":\\\"${MONTTY_SURFACE_ID}\\\"}' &\"}]}],\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"curl -sf -X POST http://localhost:${MONTTY_PORT}/claude-hook -H 'Content-Type: application/json' -d '{\\\"event\\\":\\\"stop\\\",\\\"surface\\\":\\\"${MONTTY_SURFACE_ID}\\\"}' &\"}]}]}}" "$@"
+              command claude --settings "{\"hooks\":{\"UserPromptSubmit\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"echo '{\\\"event\\\":\\\"prompt-submit\\\",\\\"surface\\\":\\\"${MONTTY_SURFACE_ID}\\\"}' | nc -U '${MONTTY_SOCKET}' -w 1 2>/dev/null &\"}]}],\"Notification\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"echo '{\\\"event\\\":\\\"notification\\\",\\\"surface\\\":\\\"${MONTTY_SURFACE_ID}\\\"}' | nc -U '${MONTTY_SOCKET}' -w 1 2>/dev/null &\"}]}],\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"echo '{\\\"event\\\":\\\"stop\\\",\\\"surface\\\":\\\"${MONTTY_SURFACE_ID}\\\"}' | nc -U '${MONTTY_SOCKET}' -w 1 2>/dev/null &\"}]}]}}" "$@"
             }
           fi
           MONTTY_HOOKS
