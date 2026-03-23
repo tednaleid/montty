@@ -7,7 +7,6 @@ struct TabSidebar: View {
     let onSetColor: (UUID, TabColor) -> Void
 
     @State private var editingTabID: UUID?
-    @State private var draggedTabID: UUID?
 
     private var activeTabColor: Color {
         guard let tab = tabStore.activeTab else { return .accentColor }
@@ -35,6 +34,18 @@ struct TabSidebar: View {
                             Text(tab.tabInfo.displayName)
                                 .padding(4)
                         }
+                        .dropDestination(for: String.self) { items, _ in
+                            guard let draggedIDString = items.first,
+                                  let draggedID = UUID(uuidString: draggedIDString),
+                                  let fromIndex = tabStore.tabs.firstIndex(
+                                      where: { $0.id == draggedID }),
+                                  let toIndex = tabStore.tabs.firstIndex(
+                                      where: { $0.id == tab.id }),
+                                  fromIndex != toIndex
+                            else { return false }
+                            tabStore.move(fromIndex: fromIndex, toIndex: toIndex)
+                            return true
+                        }
                         .contextMenu {
                             TabContextMenu(
                                 tab: tab,
@@ -49,12 +60,6 @@ struct TabSidebar: View {
                                 }
                             )
                         }
-                    }
-                    .onMove { source, destination in
-                        guard let fromIndex = source.first else { return }
-                        let toIndex = destination > fromIndex
-                            ? destination - 1 : destination
-                        tabStore.move(fromIndex: fromIndex, toIndex: toIndex)
                     }
                 }
                 .listStyle(.plain)

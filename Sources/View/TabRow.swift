@@ -47,6 +47,9 @@ struct TabRow: View {
                         .font(.system(size: 21, weight: .bold))
                         .lineLimit(1)
                         .truncationMode(.tail)
+                        .onTapGesture(count: 2) {
+                            editingTabID = tab.id
+                        }
                 }
 
                 // Git info line
@@ -99,9 +102,6 @@ struct TabRow: View {
                 }
                 .padding(.trailing, -24)
             }
-        }
-        .onTapGesture(count: 2) {
-            editingTabID = tab.id
         }
     }
 

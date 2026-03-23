@@ -34,9 +34,6 @@ struct SplitContainerView: View {
                             .allowsHitTesting(false)
                 )
                 .border(isFocused ? borderColor : Color.clear, width: 2)
-                .onTapGesture {
-                    onFocusLeaf(leaf.id)
-                }
         } else {
             Color(nsColor: .windowBackgroundColor)
         }

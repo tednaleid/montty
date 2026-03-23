@@ -39,13 +39,7 @@ struct MainWindow: View {
                 tabColor: activeTab.color,
                 surfaceLookup: { appDelegate.surfaceView(for: $0) },
                 onFocusLeaf: { leafID in
-                    activeTab.focusedLeafID = leafID
-                    appDelegate.updateSurfaceFocus(for: activeTab)
-                    if let leaf = SplitTree.allLeaves(node: activeTab.splitRoot)
-                        .first(where: { $0.id == leafID }),
-                       let surfaceView = appDelegate.surfaceView(for: leaf.surfaceID) {
-                        Ghostty.moveFocus(to: surfaceView)
-                    }
+                    appDelegate.setFocusedLeaf(leafID, in: activeTab)
                 }
             )
             .id(activeTab.id)

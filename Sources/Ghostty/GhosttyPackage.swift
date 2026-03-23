@@ -366,6 +366,10 @@ extension Ghostty.Notification {
 
     /// Focus previous/next split. Has a SplitFocusDirection in the userinfo.
     static let ghosttyFocusSplit = Notification.Name("com.mitchellh.ghostty.focusSplit")
+
+    // MONTTY: Posted when a surface gains focus (e.g. via mouse click).
+    // The sending object is the SurfaceView that gained focus.
+    static let ghosttySurfaceFocused = Notification.Name("montty.surfaceFocused")
     static let SplitDirectionKey = ghosttyFocusSplit.rawValue
 
     /// Goto tab. Has tab index in the userinfo.

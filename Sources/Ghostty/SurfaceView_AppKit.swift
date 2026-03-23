@@ -438,6 +438,14 @@ extension Ghostty {
             // Notify libghostty
             ghostty_surface_set_focus(surface, focused)
 
+            // MONTTY: Notify montty so it can update focusedLeafID
+            if focused {
+                NotificationCenter.default.post(
+                    name: Ghostty.Notification.ghosttySurfaceFocused,
+                    object: self
+                )
+            }
+
             // Update our secure input state if we are a password input
             if passwordInput {
                 SecureInput.shared.setScoped(ObjectIdentifier(self), focused: focused)
