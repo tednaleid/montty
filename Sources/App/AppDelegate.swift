@@ -292,19 +292,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
         tabStore.activeTabID = snapshot.activeTabID ?? tabStore.tabs.first?.id
 
-        // Sync Ghostty focus state so only the focused pane has an active cursor
-        if let activeTab = tabStore.activeTab {
-            updateSurfaceFocus(for: activeTab)
-        }
-
-        // Restore window frame after a brief delay to let SwiftUI lay out
-        if snapshot.windowWidth > 0, snapshot.windowHeight > 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+        // Restore window frame and sync focus after SwiftUI has laid out
+        // the view hierarchy. Must happen after layout because:
+        // 1. Window frame needs the views to exist
+        // 2. Each surface calls becomeFirstResponder when added to the
+        //    window, resetting focus -- we need the last word.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard let self else { return }
+            if snapshot.windowWidth > 0, snapshot.windowHeight > 0 {
                 let frame = CGRect(
                     x: snapshot.windowX, y: snapshot.windowY,
                     width: snapshot.windowWidth, height: snapshot.windowHeight
                 )
                 NSApp.mainWindow?.setFrame(frame, display: true)
+            }
+            for tab in self.tabStore.tabs {
+                self.updateSurfaceFocus(for: tab)
             }
         }
     }
