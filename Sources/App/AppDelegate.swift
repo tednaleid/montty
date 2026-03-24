@@ -16,6 +16,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Surface jump mode state (nil = normal mode).
     @Published var jumpState: JumpState?
 
+    /// Sidebar width, persisted across sessions.
+    @Published var sidebarWidth: Double = 200
+
+    /// Whether the sidebar is visible.
+    @Published var sidebarVisible = true
+
+    /// Whether surface background tinting is enabled.
+    @Published var surfaceTintEnabled = true
+
     /// UndoManager accessed by Ghostty.App.swift for undo/redo routing
     let undoManager: UndoManager? = nil
 
@@ -358,6 +367,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             windowY: frame.origin.y,
             windowWidth: frame.width,
             windowHeight: frame.height,
+            sidebarWidth: sidebarWidth,
+            surfaceTintEnabled: surfaceTintEnabled,
             activeTabID: tabStore.activeTabID,
             tabs: tabSnapshots
         )
@@ -368,6 +379,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             createTab()
             return
         }
+
+        sidebarWidth = snapshot.sidebarWidth
+        surfaceTintEnabled = snapshot.surfaceTintEnabled
 
         for tabSnap in snapshot.tabs.sorted(by: { $0.position < $1.position }) {
             let tab = Tab(

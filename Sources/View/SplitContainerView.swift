@@ -8,6 +8,7 @@ struct SplitContainerView: View {
     let onFocusLeaf: (UUID) -> Void
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
+    var surfaceTintEnabled: Bool = true
 
     // Tweak this to control how much unfocused panes are dimmed.
     // 0.0 = no dimming, 0.3 = heavy dimming.
@@ -30,9 +31,11 @@ struct SplitContainerView: View {
         if let surfaceView = surfaceLookup(leaf.surfaceID) {
             Ghostty.SurfaceWrapper(surfaceView: surfaceView)
                 .overlay(
-                    surfaceTintColor(for: leaf.surfaceID)
-                        .opacity(0.06)
-                        .allowsHitTesting(false)
+                    surfaceTintEnabled
+                        ? surfaceTintColor(for: leaf.surfaceID)
+                            .opacity(0.06)
+                            .allowsHitTesting(false)
+                        : nil
                 )
                 .overlay(
                     isFocused
@@ -80,7 +83,8 @@ struct SplitContainerView: View {
             surfaceLookup: surfaceLookup,
             onFocusLeaf: onFocusLeaf,
             jumpLabels: jumpLabels,
-            surfaceDirectories: surfaceDirectories
+            surfaceDirectories: surfaceDirectories,
+            surfaceTintEnabled: surfaceTintEnabled
         )
     }
 }
@@ -94,6 +98,7 @@ private struct BranchWrapper: View {
     let onFocusLeaf: (UUID) -> Void
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
+    var surfaceTintEnabled: Bool = true
 
     @State private var ratio: CGFloat
 
@@ -104,7 +109,8 @@ private struct BranchWrapper: View {
         surfaceLookup: @escaping (UUID) -> Ghostty.SurfaceView?,
         onFocusLeaf: @escaping (UUID) -> Void,
         jumpLabels: [UUID: String] = [:],
-        surfaceDirectories: [UUID: String] = [:]
+        surfaceDirectories: [UUID: String] = [:],
+        surfaceTintEnabled: Bool = true
     ) {
         self.branch = branch
         self.focusedLeafID = focusedLeafID
@@ -113,6 +119,7 @@ private struct BranchWrapper: View {
         self.onFocusLeaf = onFocusLeaf
         self.jumpLabels = jumpLabels
         self.surfaceDirectories = surfaceDirectories
+        self.surfaceTintEnabled = surfaceTintEnabled
         self._ratio = State(initialValue: branch.ratio)
     }
 
@@ -128,7 +135,8 @@ private struct BranchWrapper: View {
                 surfaceLookup: surfaceLookup,
                 onFocusLeaf: onFocusLeaf,
                 jumpLabels: jumpLabels,
-                surfaceDirectories: surfaceDirectories
+                surfaceDirectories: surfaceDirectories,
+                surfaceTintEnabled: surfaceTintEnabled
             )
         } second: {
             SplitContainerView(
@@ -138,7 +146,8 @@ private struct BranchWrapper: View {
                 surfaceLookup: surfaceLookup,
                 onFocusLeaf: onFocusLeaf,
                 jumpLabels: jumpLabels,
-                surfaceDirectories: surfaceDirectories
+                surfaceDirectories: surfaceDirectories,
+                surfaceTintEnabled: surfaceTintEnabled
             )
         }
     }
