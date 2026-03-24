@@ -12,10 +12,11 @@ struct TabSidebar: View {
 
     private var activeTabColor: Color {
         guard let tab = tabStore.activeTab else { return .accentColor }
-        switch tab.color {
-        case .preset(let preset): return preset.swiftUIColor
-        case .auto: return .accentColor
+        let preset = tab.effectivePresetColor
+        if case .auto = tab.color {
+            return preset.desaturatedColor
         }
+        return preset.swiftUIColor
     }
 
     var body: some View {

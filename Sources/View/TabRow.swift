@@ -109,31 +109,26 @@ struct TabRow: View {
         }
     }
 
+    private var isAutoColor: Bool {
+        if case .auto = tab.color { return true }
+        return false
+    }
+
     private var accentColor: Color {
-        switch tab.color {
-        case .preset(let preset):
-            return preset.swiftUIColor
-        case .auto:
-            return .accentColor
-        }
+        let preset = tab.effectivePresetColor
+        return isAutoColor ? preset.desaturatedColor : preset.swiftUIColor
     }
 
     private var colorBarColor: Color {
-        switch tab.color {
-        case .preset(let preset):
-            return preset.swiftUIColor
-        case .auto:
-            return isActive ? .accentColor : .gray.opacity(0.3)
+        let preset = tab.effectivePresetColor
+        if isAutoColor {
+            return isActive ? preset.desaturatedColor : .gray.opacity(0.3)
         }
+        return preset.swiftUIColor
     }
 
     private var activeBackground: Color {
-        switch tab.color {
-        case .preset(let preset):
-            return preset.swiftUIColor.opacity(0.15)
-        case .auto:
-            return Color.accentColor.opacity(0.1)
-        }
+        tab.effectivePresetColor.swiftUIColor.opacity(isAutoColor ? 0.07 : 0.15)
     }
 }
 
@@ -151,5 +146,10 @@ extension TabColor.PresetColor {
         case .brown: return .brown
         case .gray: return .gray
         }
+    }
+
+    /// Desaturated variant for auto-derived tab colors.
+    var desaturatedColor: Color {
+        swiftUIColor.opacity(0.55)
     }
 }

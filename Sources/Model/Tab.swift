@@ -23,6 +23,19 @@ final class Tab: Identifiable {
         name.isEmpty ? autoName : name
     }
 
+    /// The effective preset color for this tab. For user-set colors, returns
+    /// the preset directly. For auto tabs, derives from the focused surface's
+    /// working directory.
+    var effectivePresetColor: TabColor.PresetColor {
+        switch color {
+        case .preset(let preset): return preset
+        case .auto:
+            let dir = focusedSurfaceID.flatMap { surfaceDirectories[$0] }
+                ?? workingDirectory
+            return TabColor.colorForDirectory(dir)
+        }
+    }
+
     /// Computed metadata for tab display, decoupled from AppKit/Ghostty.
     var tabInfo: TabInfo {
         TabInfo.from(tab: TabProperties(

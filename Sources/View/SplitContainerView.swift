@@ -52,28 +52,27 @@ struct SplitContainerView: View {
     }
 
     private func surfaceTintColor(for surfaceID: UUID) -> Color {
-        let dir = surfaceDirectories[surfaceID]
-        switch tabColor {
-        case .preset(let preset): return preset.swiftUIColor
-        case .auto: return TabColor.colorForDirectory(dir).swiftUIColor
-        }
+        TabColor.colorForDirectory(surfaceDirectories[surfaceID]).swiftUIColor
     }
 
-    private var badgeColor: Color {
+    private var resolvedTabColor: Color {
         switch tabColor {
         case .preset(let preset): return preset.swiftUIColor
-        case .auto: return .accentColor
-        }
-    }
-
-    private var borderColor: Color {
-        switch tabColor {
-        case .preset(let preset):
-            return preset.swiftUIColor.opacity(0.7)
         case .auto:
-            return Color.accentColor.opacity(0.5)
+            // Use focused surface's directory color for auto tabs
+            let dir = focusedLeafID
+                .flatMap { leafID in
+                    SplitTree.allLeaves(node: node)
+                        .first { $0.id == leafID }?.surfaceID
+                }
+                .flatMap { surfaceDirectories[$0] }
+            return TabColor.colorForDirectory(dir).swiftUIColor
         }
     }
+
+    private var badgeColor: Color { resolvedTabColor }
+
+    private var borderColor: Color { resolvedTabColor.opacity(0.7) }
 
     private func branchView(_ branch: SplitBranch) -> some View {
         BranchWrapper(
