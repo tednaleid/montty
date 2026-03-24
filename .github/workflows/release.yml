@@ -152,7 +152,7 @@ jobs:
       # -- Upload --
 
       - name: Extract release notes from tag
-        run: git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > /tmp/release-notes.txt
+        run: git cat-file tag "$GITHUB_REF_NAME" | sed '1,/^$/d' > /tmp/release-notes.txt
 
       - name: Upload DMG to GitHub Release
         uses: softprops/action-gh-release@v2

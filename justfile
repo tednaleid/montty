@@ -144,9 +144,9 @@ inspect-key key surface="":
 inspect-screen surface="":
     @curl -sf 'localhost:9876/screen{{ if surface != "" { "?surface=" + surface } else { "" } }}' | jq .
 
-# Capture terminal screenshot
+# Capture terminal screenshot (brings app to front for full-resolution capture)
 inspect-screenshot surface="" path=(".llm/inspect/screenshot-" + `date +%Y%m%d-%H%M%S` + ".png"):
-    @mkdir -p .llm/inspect && curl -sf 'localhost:9876/screenshot{{ if surface != "" { "?surface=" + surface } else { "" } }}' -o '{{path}}' && echo '{{path}}'
+    @osascript -e 'tell application "Montty" to activate' && sleep 0.3 && mkdir -p .llm/inspect && curl -sf 'localhost:9876/screenshot{{ if surface != "" { "?surface=" + surface } else { "" } }}' -o '{{path}}' && echo '{{path}}'
 
 # Get terminal state (title, pwd, size)
 inspect-state surface="":
