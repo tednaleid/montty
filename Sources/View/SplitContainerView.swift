@@ -43,7 +43,7 @@ struct SplitContainerView: View {
                 .border(isFocused ? borderColor : Color.clear, width: 2)
                 .overlay {
                     if let label = jumpLabels[leaf.id] {
-                        JumpBadge(label: label, color: badgeColor, large: true)
+                        JumpBadge(label: label, color: surfaceTintColor(for: leaf.surfaceID), large: true)
                     }
                 }
         } else {
@@ -69,8 +69,6 @@ struct SplitContainerView: View {
             return TabColor.colorForDirectory(dir).swiftUIColor
         }
     }
-
-    private var badgeColor: Color { resolvedTabColor }
 
     private var borderColor: Color { resolvedTabColor.opacity(0.7) }
 

@@ -5,6 +5,7 @@ struct MinimapView: View {
     let tabColor: Color
     let isActiveTab: Bool
     var jumpLabels: [UUID: String] = [:]
+    var surfaceDirectories: [UUID: String] = [:]
     var onPaneTap: ((UUID) -> Void)?
 
     private let gap: CGFloat = 4
@@ -23,7 +24,7 @@ struct MinimapView: View {
                                 .strokeBorder(paneBorder(pane), lineWidth: pane.isFocused ? 1.5 : 0.5)
                         )
                     if let label = jumpLabels[pane.leafID] {
-                        JumpBadge(label: label, color: tabColor, large: false)
+                        JumpBadge(label: label, color: paneColor(pane), large: false)
                     } else if let claude = pane.claudeCode {
                         ClaudeIndicatorView(state: claude.state)
                     }
@@ -50,18 +51,24 @@ struct MinimapView: View {
         return rawFrame.insetBy(dx: gap / 2, dy: gap / 2)
     }
 
+    private func paneColor(_ pane: MinimapPane) -> Color {
+        TabColor.colorForDirectory(surfaceDirectories[pane.surfaceID]).swiftUIColor
+    }
+
     private func paneFill(_ pane: MinimapPane) -> Color {
+        let color = paneColor(pane)
         if pane.isFocused {
-            return tabColor.opacity(isActiveTab ? 0.45 : 0.3)
+            return color.opacity(isActiveTab ? 0.45 : 0.3)
         }
-        return tabColor.opacity(isActiveTab ? 0.2 : 0.12)
+        return color.opacity(isActiveTab ? 0.2 : 0.12)
     }
 
     private func paneBorder(_ pane: MinimapPane) -> Color {
+        let color = paneColor(pane)
         if pane.isFocused {
-            return tabColor.opacity(isActiveTab ? 0.9 : 0.5)
+            return color.opacity(isActiveTab ? 0.9 : 0.5)
         }
-        return tabColor.opacity(isActiveTab ? 0.45 : 0.25)
+        return color.opacity(isActiveTab ? 0.45 : 0.25)
     }
 }
 

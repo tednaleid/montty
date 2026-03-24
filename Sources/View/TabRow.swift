@@ -83,6 +83,7 @@ struct TabRow: View {
                     tabColor: accentColor,
                     isActiveTab: isActive,
                     jumpLabels: jumpLabels,
+                    surfaceDirectories: tab.surfaceDirectories,
                     onPaneTap: onPaneTap
                 )
                 .padding(.top, 2)

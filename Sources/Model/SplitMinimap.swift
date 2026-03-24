@@ -9,6 +9,7 @@ struct MinimapRect: Equatable {
 
 struct MinimapPane: Equatable {
     let leafID: UUID
+    let surfaceID: UUID
     let rect: MinimapRect
     let isFocused: Bool
     let claudeCode: ClaudeCodeStatus?
@@ -62,7 +63,7 @@ struct SplitMinimap: Equatable {
                 claude = title.flatMap { TitleParser.claudeCodeStatus(from: $0) }
             }
             panes.append(MinimapPane(
-                leafID: leaf.id, rect: rect,
+                leafID: leaf.id, surfaceID: leaf.surfaceID, rect: rect,
                 isFocused: leaf.id == ctx.focusedLeafID, claudeCode: claude
             ))
         case .split(let branch):

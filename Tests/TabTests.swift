@@ -44,4 +44,34 @@ struct TabTests {
         let tab = Tab(surfaceID: surfaceID)
         #expect(tab.allSurfaceIDs == [surfaceID])
     }
+
+    // MARK: - Effective color
+
+    @Test func effectiveColorReturnsPresetWhenSet() {
+        let tab = Tab(color: .preset(.red))
+        #expect(tab.effectivePresetColor == .red)
+    }
+
+    @Test func effectiveColorDerivesFromDirectoryWhenAuto() {
+        let surfaceID = UUID()
+        let tab = Tab(color: .auto, surfaceID: surfaceID)
+        tab.surfaceDirectories[surfaceID] = "/Users/ted/projects/montty"
+        let color = tab.effectivePresetColor
+        // Should be deterministic
+        #expect(color == TabColor.colorForDirectory("/Users/ted/projects/montty"))
+    }
+
+    @Test func effectiveColorFallsToWorkingDirectory() {
+        // When surfaceDirectories doesn't have the focused surface,
+        // fall back to tab.workingDirectory
+        let tab = Tab(color: .auto)
+        tab.workingDirectory = "/tmp"
+        let color = tab.effectivePresetColor
+        #expect(color == TabColor.colorForDirectory("/tmp"))
+    }
+
+    @Test func effectiveColorReturnsGrayWhenNoDirectory() {
+        let tab = Tab(color: .auto)
+        #expect(tab.effectivePresetColor == .gray)
+    }
 }

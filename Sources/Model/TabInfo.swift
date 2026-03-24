@@ -25,7 +25,9 @@ struct TabInfo: Equatable {
             name = tab.name
         } else if let pwd = tab.workingDirectory, let dir = dirName {
             let home = NSHomeDirectory()
-            if pwd == home {
+            if pwd == "/" {
+                name = "/"
+            } else if pwd == home {
                 name = "~"
             } else if pwd.hasPrefix(home + "/") {
                 name = "~/\(dir)"

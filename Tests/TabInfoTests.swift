@@ -88,6 +88,18 @@ struct TabInfoTests {
         #expect(info.displayName == "/tmp")
     }
 
+    @Test func tabInfoShowsRootAsSlash() {
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: "/",
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.displayName == "/")
+    }
+
     // MARK: - Directory
 
     @Test func tabInfoExtractsDirectoryName() {
