@@ -46,7 +46,8 @@ struct MainWindow: View {
                 onFocusLeaf: { leafID in
                     appDelegate.setFocusedLeaf(leafID, in: activeTab)
                 },
-                jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:]
+                jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:],
+                surfaceDirectories: activeTab.surfaceDirectories
             )
             .id(activeTab.id)
         } else {

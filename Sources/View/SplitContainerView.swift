@@ -7,6 +7,7 @@ struct SplitContainerView: View {
     let surfaceLookup: (UUID) -> Ghostty.SurfaceView?
     let onFocusLeaf: (UUID) -> Void
     var jumpLabels: [UUID: String] = [:]
+    var surfaceDirectories: [UUID: String] = [:]
 
     // Tweak this to control how much unfocused panes are dimmed.
     // 0.0 = no dimming, 0.3 = heavy dimming.
@@ -29,6 +30,11 @@ struct SplitContainerView: View {
         if let surfaceView = surfaceLookup(leaf.surfaceID) {
             Ghostty.SurfaceWrapper(surfaceView: surfaceView)
                 .overlay(
+                    surfaceTintColor(for: leaf.surfaceID)
+                        .opacity(0.06)
+                        .allowsHitTesting(false)
+                )
+                .overlay(
                     isFocused
                         ? nil
                         : Color.black.opacity(Self.unfocusedDimOpacity)
@@ -42,6 +48,14 @@ struct SplitContainerView: View {
                 }
         } else {
             Color(nsColor: .windowBackgroundColor)
+        }
+    }
+
+    private func surfaceTintColor(for surfaceID: UUID) -> Color {
+        let dir = surfaceDirectories[surfaceID]
+        switch tabColor {
+        case .preset(let preset): return preset.swiftUIColor
+        case .auto: return TabColor.colorForDirectory(dir).swiftUIColor
         }
     }
 
@@ -68,7 +82,8 @@ struct SplitContainerView: View {
             tabColor: tabColor,
             surfaceLookup: surfaceLookup,
             onFocusLeaf: onFocusLeaf,
-            jumpLabels: jumpLabels
+            jumpLabels: jumpLabels,
+            surfaceDirectories: surfaceDirectories
         )
     }
 }
@@ -81,6 +96,7 @@ private struct BranchWrapper: View {
     let surfaceLookup: (UUID) -> Ghostty.SurfaceView?
     let onFocusLeaf: (UUID) -> Void
     var jumpLabels: [UUID: String] = [:]
+    var surfaceDirectories: [UUID: String] = [:]
 
     @State private var ratio: CGFloat
 
@@ -90,7 +106,8 @@ private struct BranchWrapper: View {
         tabColor: TabColor,
         surfaceLookup: @escaping (UUID) -> Ghostty.SurfaceView?,
         onFocusLeaf: @escaping (UUID) -> Void,
-        jumpLabels: [UUID: String] = [:]
+        jumpLabels: [UUID: String] = [:],
+        surfaceDirectories: [UUID: String] = [:]
     ) {
         self.branch = branch
         self.focusedLeafID = focusedLeafID
@@ -98,6 +115,7 @@ private struct BranchWrapper: View {
         self.surfaceLookup = surfaceLookup
         self.onFocusLeaf = onFocusLeaf
         self.jumpLabels = jumpLabels
+        self.surfaceDirectories = surfaceDirectories
         self._ratio = State(initialValue: branch.ratio)
     }
 
@@ -112,7 +130,8 @@ private struct BranchWrapper: View {
                 tabColor: tabColor,
                 surfaceLookup: surfaceLookup,
                 onFocusLeaf: onFocusLeaf,
-                jumpLabels: jumpLabels
+                jumpLabels: jumpLabels,
+                surfaceDirectories: surfaceDirectories
             )
         } second: {
             SplitContainerView(
@@ -121,7 +140,8 @@ private struct BranchWrapper: View {
                 tabColor: tabColor,
                 surfaceLookup: surfaceLookup,
                 onFocusLeaf: onFocusLeaf,
-                jumpLabels: jumpLabels
+                jumpLabels: jumpLabels,
+                surfaceDirectories: surfaceDirectories
             )
         }
     }

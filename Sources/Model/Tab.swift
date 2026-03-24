@@ -16,6 +16,8 @@ final class Tab: Identifiable {
     var claudeStates: [String: ClaudeCodeStatus.State] = [:]
     /// Maps Ghostty surfaceID -> MONTTY_SURFACE_ID for hook routing.
     var surfaceToMonttyID: [UUID: String] = [:]
+    /// Per-surface working directories, keyed by surfaceID.
+    var surfaceDirectories: [UUID: String] = [:]
 
     var displayName: String {
         name.isEmpty ? autoName : name

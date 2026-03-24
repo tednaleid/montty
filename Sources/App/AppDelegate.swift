@@ -321,8 +321,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         surfaceView.$pwd
             .compactMap { $0 }
             .receive(on: DispatchQueue.main)
-            .sink { [weak tab] pwd in
+            .sink { [weak tab, id = surfaceView.id] pwd in
                 tab?.workingDirectory = pwd
+                tab?.surfaceDirectories[id] = pwd
             }
             .store(in: &cancellables)
 
