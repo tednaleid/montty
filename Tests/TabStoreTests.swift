@@ -171,6 +171,26 @@ struct TabStoreTests {
         #expect(store.activeTab?.id == tabB.id)
     }
 
+    @Test func activeTabIDIsNilOnlyWhenNoTabsExist() {
+        let store = TabStore()
+        let tabA = Tab(name: "a")
+        let tabB = Tab(name: "b")
+        store.append(tab: tabA)
+        store.append(tab: tabB)
+
+        // Active tab should exist when tabs exist
+        #expect(store.activeTabID != nil)
+
+        // Close one tab — active should still exist
+        store.close(id: tabA.id)
+        #expect(store.activeTabID != nil)
+
+        // Close last tab — active should be nil
+        store.close(id: tabB.id)
+        #expect(store.activeTabID == nil)
+        #expect(store.tabs.isEmpty)
+    }
+
     @Test func positionInvariantHoldsAfterMutations() {
         let store = TabStore()
         for idx in 0..<5 {
