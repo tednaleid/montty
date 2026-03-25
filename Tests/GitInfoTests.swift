@@ -84,6 +84,47 @@ struct GitInfoTests {
         return (mainRepoPath, worktreePath)
     }
 
+    /// Create a submodule (`.git` is a file pointing to parent's `.git/modules/`).
+    private func makeSubmodule(
+        parentRepoName: String = "parent-repo",
+        submoduleName: String = "child-module"
+    ) throws -> (parentRepoPath: String, submodulePath: String) {
+        let tmp = NSTemporaryDirectory()
+        let base = (tmp as NSString).appendingPathComponent(
+            "montty-test-\(UUID().uuidString)"
+        )
+        let fileManager = FileManager.default
+
+        // Create parent repo
+        let parentRepoPath = (base as NSString).appendingPathComponent(parentRepoName)
+        try fileManager.createDirectory(atPath: parentRepoPath, withIntermediateDirectories: true)
+        let parentGitDir = (parentRepoPath as NSString).appendingPathComponent(".git")
+        try fileManager.createDirectory(atPath: parentGitDir, withIntermediateDirectories: true)
+        let parentHead = (parentGitDir as NSString).appendingPathComponent("HEAD")
+        try "ref: refs/heads/main\n".write(
+            toFile: parentHead, atomically: true, encoding: .utf8
+        )
+
+        // Create .git/modules/<submodule> directory with HEAD
+        let modulesDir = (parentGitDir as NSString).appendingPathComponent("modules")
+        let moduleGitDir = (modulesDir as NSString).appendingPathComponent(submoduleName)
+        try fileManager.createDirectory(atPath: moduleGitDir, withIntermediateDirectories: true)
+        let moduleHead = (moduleGitDir as NSString).appendingPathComponent("HEAD")
+        try "abc123def456789\n".write(
+            toFile: moduleHead, atomically: true, encoding: .utf8
+        )
+
+        // Create the submodule directory with .git file
+        let submodulePath = (parentRepoPath as NSString).appendingPathComponent(submoduleName)
+        try fileManager.createDirectory(atPath: submodulePath, withIntermediateDirectories: true)
+        let subGitFile = (submodulePath as NSString).appendingPathComponent(".git")
+        try "gitdir: \(moduleGitDir)\n".write(
+            toFile: subGitFile, atomically: true, encoding: .utf8
+        )
+
+        return (parentRepoPath, submodulePath)
+    }
+
     private func cleanup(_ path: String) {
         // Find the montty-test-UUID parent to clean up the whole tree
         let components = path.split(separator: "/")
@@ -144,6 +185,23 @@ struct GitInfoTests {
 
         let info = GitInfo.from(path: repoPath)
         #expect(info?.repoName == "cool-app")
+    }
+
+    @Test func gitInfoSubmoduleUsesParentRepo() throws {
+        let (parentRepoPath, submodulePath) = try makeSubmodule(
+            parentRepoName: "montty",
+            submoduleName: "ghostty"
+        )
+        defer {
+            cleanup(parentRepoPath)
+        }
+
+        let info = GitInfo.from(path: submodulePath)
+        #expect(info != nil)
+        // Submodule should use parent repo's identity for coloring
+        #expect(info?.repoName == "montty")
+        #expect(info?.repoPath == parentRepoPath)
+        #expect(info?.worktreeName == nil)
     }
 
     @Test func gitInfoWorktree() throws {

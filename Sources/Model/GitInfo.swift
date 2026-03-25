@@ -34,9 +34,8 @@ struct GitInfo: Equatable {
                     repoPath: current
                 )
             } else {
-                // .git is a file -- this is a linked worktree
-                // File contents: "gitdir: /path/to/main-repo/.git/worktrees/wt-name\n"
-                return parseWorktree(gitFilePath: gitPath, worktreeRoot: current)
+                // .git is a file -- linked worktree or submodule
+                return parseGitFile(gitFilePath: gitPath, currentRoot: current)
             }
         }
 
@@ -58,10 +57,11 @@ struct GitInfo: Equatable {
         return nil
     }
 
-    /// Parse a worktree .git file to extract repo info.
-    /// The .git file contains: "gitdir: /path/to/main-repo/.git/worktrees/wt-name"
-    private static func parseWorktree(
-        gitFilePath: String, worktreeRoot: String
+    /// Parse a .git file (worktree or submodule) to extract repo info.
+    /// Worktree format: "gitdir: /path/to/main-repo/.git/worktrees/wt-name"
+    /// Submodule format: "gitdir: /path/to/parent-repo/.git/modules/sub-name"
+    private static func parseGitFile(
+        gitFilePath: String, currentRoot: String
     ) -> GitInfo? {
         guard let contents = try? String(contentsOfFile: gitFilePath, encoding: .utf8) else {
             return nil
@@ -69,27 +69,46 @@ struct GitInfo: Equatable {
         let trimmed = contents.trimmingCharacters(in: .whitespacesAndNewlines)
         let prefix = "gitdir: "
         guard trimmed.hasPrefix(prefix) else { return nil }
-        let gitDir = String(trimmed.dropFirst(prefix.count))
+        var gitDir = String(trimmed.dropFirst(prefix.count))
 
-        // gitDir looks like: /path/to/main-repo/.git/worktrees/wt-name
-        // Walk up to find the main .git directory (parent of "worktrees")
-        let worktreeName = (gitDir as NSString).lastPathComponent
-        let worktreesDir = (gitDir as NSString).deletingLastPathComponent
-        guard (worktreesDir as NSString).lastPathComponent == "worktrees" else {
-            return nil
+        // Resolve relative paths (e.g. "../.git/modules/ghostty")
+        if !gitDir.hasPrefix("/") {
+            let base = (gitFilePath as NSString).deletingLastPathComponent
+            gitDir = ((base as NSString).appendingPathComponent(gitDir) as NSString)
+                .standardizingPath
         }
-        let mainGitDir = (worktreesDir as NSString).deletingLastPathComponent
-        let mainRepoPath = (mainGitDir as NSString).deletingLastPathComponent
 
-        // Read branch from the worktree's HEAD file
-        let headPath = (gitDir as NSString).appendingPathComponent("HEAD")
-        let branch = readBranch(headPath: headPath)
+        let parentDir = (gitDir as NSString).deletingLastPathComponent
+        let parentName = (parentDir as NSString).lastPathComponent
 
-        return GitInfo(
-            repoName: (mainRepoPath as NSString).lastPathComponent,
-            branchName: branch,
-            worktreeName: worktreeName,
-            repoPath: mainRepoPath
-        )
+        if parentName == "worktrees" {
+            // Linked worktree: .git/worktrees/<wt-name>
+            let worktreeName = (gitDir as NSString).lastPathComponent
+            let mainGitDir = (parentDir as NSString).deletingLastPathComponent
+            let mainRepoPath = (mainGitDir as NSString).deletingLastPathComponent
+            let headPath = (gitDir as NSString).appendingPathComponent("HEAD")
+            let branch = readBranch(headPath: headPath)
+            return GitInfo(
+                repoName: (mainRepoPath as NSString).lastPathComponent,
+                branchName: branch,
+                worktreeName: worktreeName,
+                repoPath: mainRepoPath
+            )
+        } else if parentName == "modules" {
+            // Submodule: .git/modules/<sub-name>
+            // Use parent repo's identity so submodules get the same color
+            let mainGitDir = (parentDir as NSString).deletingLastPathComponent
+            let parentRepoPath = (mainGitDir as NSString).deletingLastPathComponent
+            let parentHeadPath = (mainGitDir as NSString).appendingPathComponent("HEAD")
+            let branch = readBranch(headPath: parentHeadPath)
+            return GitInfo(
+                repoName: (parentRepoPath as NSString).lastPathComponent,
+                branchName: branch,
+                worktreeName: nil,
+                repoPath: parentRepoPath
+            )
+        }
+
+        return nil
     }
 }
