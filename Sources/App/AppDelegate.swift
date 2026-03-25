@@ -30,6 +30,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Indexed by TabColor.orderedCases position. Empty before config loads.
     var tabPalette: [NSColor] = []
 
+    /// Resolve the AppDelegate through SwiftUI's @NSApplicationDelegateAdaptor wrapper.
+    static func shared() -> AppDelegate? {
+        guard let delegate = NSApp?.delegate else { return nil }
+        if let appDel = delegate as? AppDelegate { return appDel }
+        for child in Mirror(reflecting: delegate).children {
+            if let appDel = child.value as? AppDelegate { return appDel }
+        }
+        return nil
+    }
+
     /// UndoManager accessed by Ghostty.App.swift for undo/redo routing
     let undoManager: UndoManager? = nil
 

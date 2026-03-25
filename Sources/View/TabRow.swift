@@ -139,22 +139,11 @@ extension TabColor {
     var swiftUIColor: Color {
         if self == .gray { return .gray }
         if let idx = Self.orderedCases.firstIndex(of: self),
-           let appDel = Self.resolveAppDelegate(),
+           let appDel = AppDelegate.shared(),
            idx < appDel.tabPalette.count {
             return Color(nsColor: appDel.tabPalette[idx])
         }
         return catppuccinFallback
-    }
-
-    /// Find AppDelegate through SwiftUI's delegate adaptor wrapper.
-    private static func resolveAppDelegate() -> AppDelegate? {
-        guard let delegate = NSApp?.delegate else { return nil }
-        if let appDel = delegate as? AppDelegate { return appDel }
-        // @NSApplicationDelegateAdaptor wraps the real delegate
-        for child in Mirror(reflecting: delegate).children {
-            if let appDel = child.value as? AppDelegate { return appDel }
-        }
-        return nil
     }
 
     /// Catppuccin Mocha fallback for when the Ghostty palette isn't available

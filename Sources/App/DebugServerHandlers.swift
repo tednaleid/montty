@@ -55,11 +55,11 @@ extension DebugServer {
     /// Find a surface by UUID string, or return the focused/first surface.
     static func surface(forID id: String?) -> Ghostty.SurfaceView? {
         if let id = id, let uuid = UUID(uuidString: id) {
-            return appDelegate()?.surfaceView(for: uuid)
+            return AppDelegate.shared()?.surfaceView(for: uuid)
                 ?? findSurfaces().first { $0.id == uuid }
         }
         // Use the tab model's focused surface, not AppKit's
-        if let appDel = appDelegate(),
+        if let appDel = AppDelegate.shared(),
            let tab = appDel.tabStore.activeTab,
            let surfaceID = tab.focusedSurfaceID {
             return appDel.surfaceView(for: surfaceID)
@@ -68,22 +68,10 @@ extension DebugServer {
     }
 
     // MARK: - Handlers
-    private static func appDelegate() -> AppDelegate? {
-        // With @NSApplicationDelegateAdaptor, NSApp.delegate is a SwiftUI
-        // wrapper. Walk its properties to find our actual AppDelegate.
-        guard let delegate = NSApp?.delegate else { return nil }
-        if let appDel = delegate as? AppDelegate { return appDel }
-        // SwiftUI stores the adaptee in a property
-        let mirror = Mirror(reflecting: delegate)
-        for child in mirror.children {
-            if let appDel = child.value as? AppDelegate { return appDel }
-        }
-        return nil
-    }
 
     private static func handleSurfaces(connection: NWConnection) {
         DispatchQueue.main.async {
-            guard let appDelegate = appDelegate() else {
+            guard let appDelegate = AppDelegate.shared() else {
                 sendJSONArray([], connection: connection)
                 return
             }
@@ -407,7 +395,7 @@ extension DebugServer {
     // MARK: - Palette debug
 
     private static func handlePalette(connection: NWConnection) {
-        guard let appDel = appDelegate(),
+        guard let appDel = AppDelegate.shared(),
               let cfg = appDel.ghostty.config.config else {
             sendJSON(["error": "no config"], status: 500, connection: connection)
             return
