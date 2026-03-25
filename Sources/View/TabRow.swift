@@ -127,18 +127,60 @@ struct TabRow: View {
 }
 
 extension TabColor {
+    /// Catppuccin-themed color that adapts to dark (Mocha) / light (Latte) mode.
     var swiftUIColor: Color {
+        if self == .gray { return .gray }
+        return Color(nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let hex = isDark ? self.darkHex : self.lightHex
+            return NSColor(
+                red: CGFloat((hex >> 16) & 0xFF) / 255,
+                green: CGFloat((hex >> 8) & 0xFF) / 255,
+                blue: CGFloat(hex & 0xFF) / 255,
+                alpha: 1.0
+            )
+        })
+    }
+
+    // Catppuccin Mocha palette
+    private var darkHex: UInt {
         switch self {
-        case .red: return .red
-        case .orange: return .orange
-        case .yellow: return .yellow
-        case .green: return .green
-        case .blue: return .blue
-        case .indigo: return .indigo
-        case .purple: return .purple
-        case .pink: return .pink
-        case .brown: return .brown
-        case .gray: return .gray
+        case .rosewater: return 0xF5E0DC
+        case .flamingo:  return 0xF2CDCD
+        case .pink:      return 0xF5C2E7
+        case .mauve:     return 0xCBA6F7
+        case .red:       return 0xF38BA8
+        case .maroon:    return 0xEBA0AC
+        case .peach:     return 0xFAB387
+        case .yellow:    return 0xF9E2AF
+        case .green:     return 0xA6E3A1
+        case .teal:      return 0x94E2D5
+        case .sky:       return 0x89DCEB
+        case .sapphire:  return 0x74C7EC
+        case .blue:      return 0x89B4FA
+        case .lavender:  return 0xB4BEFE
+        case .gray:      return 0x8E8E93
+        }
+    }
+
+    // Catppuccin Latte palette
+    private var lightHex: UInt {
+        switch self {
+        case .rosewater: return 0xDC8A78
+        case .flamingo:  return 0xDD7878
+        case .pink:      return 0xEA76CB
+        case .mauve:     return 0x8839EF
+        case .red:       return 0xD20F39
+        case .maroon:    return 0xE64553
+        case .peach:     return 0xFE640B
+        case .yellow:    return 0xDF8E1D
+        case .green:     return 0x40A02B
+        case .teal:      return 0x179299
+        case .sky:       return 0x04A5E5
+        case .sapphire:  return 0x209FB5
+        case .blue:      return 0x1E66F5
+        case .lavender:  return 0x7287FD
+        case .gray:      return 0x8E8E93
         }
     }
 }

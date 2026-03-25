@@ -1,4 +1,30 @@
+import AppKit
 import SwiftUI
+
+/// Create a small colored circle image for use in menus.
+/// macOS menus force SF Symbols to template mode, so we draw our own.
+private func colorSwatch(_ color: Color, checked: Bool) -> NSImage {
+    let size: CGFloat = 14
+    let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
+        NSColor(color).setFill()
+        NSBezierPath(ovalIn: rect.insetBy(dx: 1, dy: 1)).fill()
+        if checked {
+            // Draw a small white checkmark
+            let checkmark = NSBezierPath()
+            checkmark.move(to: NSPoint(x: 4, y: 7))
+            checkmark.line(to: NSPoint(x: 6.5, y: 4.5))
+            checkmark.line(to: NSPoint(x: 10, y: 9.5))
+            NSColor.white.setStroke()
+            checkmark.lineWidth = 1.5
+            checkmark.lineCapStyle = .round
+            checkmark.lineJoinStyle = .round
+            checkmark.stroke()
+        }
+        return true
+    }
+    image.isTemplate = false
+    return image
+}
 
 struct TabColorPicker: View {
     let currentColor: TabColor
@@ -10,15 +36,13 @@ struct TabColorPicker: View {
             Button {
                 onSelect(color)
             } label: {
-                HStack {
-                    Circle()
-                        .fill(color.swiftUIColor)
-                        .frame(width: 12, height: 12)
+                Label {
                     Text(color.rawValue.capitalized)
-                    if color == currentColor {
-                        Spacer()
-                        Image(systemName: "checkmark")
-                    }
+                } icon: {
+                    Image(nsImage: colorSwatch(
+                        color.swiftUIColor,
+                        checked: color == currentColor
+                    ))
                 }
             }
         }
@@ -28,12 +52,7 @@ struct TabColorPicker: View {
         Button {
             onSelect(nil)
         } label: {
-            HStack {
-                Circle()
-                    .strokeBorder(Color.secondary, lineWidth: 1)
-                    .frame(width: 12, height: 12)
-                Text("Reset")
-            }
+            Label("Reset", systemImage: "arrow.counterclockwise")
         }
     }
 }

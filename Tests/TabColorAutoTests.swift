@@ -79,7 +79,7 @@ import Testing
             )
         }
         let colors = Set(infos.compactMap { TabColor.colorForGitInfo($0) })
-        #expect(colors.count >= 5, "Expected at least 5 distinct colors from 50 repos")
+        #expect(colors.count >= 8, "Expected at least 8 distinct colors from 50 repos")
     }
 
     // MARK: - Override resolution

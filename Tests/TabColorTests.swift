@@ -22,7 +22,8 @@ struct TabColorTests {
         #expect(TabColor.red != TabColor.blue)
     }
 
-    @Test func tenColorsExist() {
-        #expect(TabColor.allCases.count == 10)
+    @Test func fifteenColorsExist() {
+        // 14 Catppuccin colors + gray
+        #expect(TabColor.allCases.count == 15)
     }
 }
