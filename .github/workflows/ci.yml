@@ -23,7 +23,8 @@ jobs:
           path: |
             ghostty/macos/GhosttyKit.xcframework
             ghostty/zig-out/share/terminfo
-          key: ghosttykit-v2-${{ hashFiles('.git/modules/ghostty/HEAD') }}
+            ghostty/zig-out/share/ghostty/themes
+          key: ghosttykit-v3-${{ hashFiles('.git/modules/ghostty/HEAD') }}
 
       - name: Install zig 0.15.2
         if: steps.cache-ghosttykit.outputs.cache-hit != 'true'
