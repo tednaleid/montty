@@ -215,14 +215,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         }
     }
 
-    /// Update ghostty_surface_set_focus for all surfaces in the active tab
-    /// so only the focused pane has an active cursor.
+    /// Update focus state for all surfaces in a tab so only the focused
+    /// pane has an active cursor and accepts key equivalents.
     func updateSurfaceFocus(for tab: Tab) {
         let focusedSurfaceID = tab.focusedSurfaceID
         for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
-            guard let view = surfaces[leaf.surfaceID],
-                  let surface = view.surface else { continue }
-            ghostty_surface_set_focus(surface, leaf.surfaceID == focusedSurfaceID)
+            guard let view = surfaces[leaf.surfaceID] else { continue }
+            let shouldFocus = leaf.surfaceID == focusedSurfaceID
+            // Use focusDidChange to update both the Swift-side focused
+            // flag and the C-side ghostty_surface_set_focus.
+            view.focusDidChange(shouldFocus)
         }
     }
 
