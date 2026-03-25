@@ -11,9 +11,20 @@ struct TabSidebar: View {
 
     @State private var editingTabID: UUID?
 
+    private var selection: Binding<UUID?> {
+        Binding(
+            get: { tabStore.activeTabID },
+            set: { newValue in
+                if newValue != nil || tabStore.tabs.isEmpty {
+                    tabStore.activeTabID = newValue
+                }
+            }
+        )
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-                List(selection: $tabStore.activeTabID) {
+                List(selection: selection) {
                     ForEach(tabStore.tabs) { tab in
                         let isActive = tab.id == tabStore.activeTabID
                         TabRow(
