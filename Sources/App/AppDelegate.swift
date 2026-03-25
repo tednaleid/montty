@@ -179,6 +179,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
         let monttyID = UUID().uuidString
         var config = Ghostty.SurfaceConfiguration()
+        // Inherit the focused surface's working directory
+        if let focusedSurfaceID = tab.focusedSurfaceID,
+           let pwd = surfaces[focusedSurfaceID]?.pwd {
+            config.workingDirectory = pwd
+        }
         config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
         config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
         config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
