@@ -52,22 +52,25 @@ struct TabTests {
         #expect(tab.effectivePresetColor == .red)
     }
 
-    @Test func effectiveColorDerivesFromDirectoryWhenAuto() {
+    @Test func effectiveColorDerivesFromGitRepoWhenAuto() {
         let surfaceID = UUID()
         let tab = Tab(color: .auto, surfaceID: surfaceID)
-        tab.surfaceDirectories[surfaceID] = "/Users/ted/projects/montty"
+        // Use a path that's actually in a git repo (this project)
+        let repoPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().path
+        tab.surfaceDirectories[surfaceID] = repoPath
         let color = tab.effectivePresetColor
+        // Should derive a color from the git repo, not gray
+        #expect(color != .gray)
         // Should be deterministic
-        #expect(color == TabColor.colorForDirectory("/Users/ted/projects/montty"))
+        #expect(color == tab.effectivePresetColor)
     }
 
-    @Test func effectiveColorFallsToWorkingDirectory() {
-        // When surfaceDirectories doesn't have the focused surface,
-        // fall back to tab.workingDirectory
-        let tab = Tab(color: .auto)
-        tab.workingDirectory = "/tmp"
-        let color = tab.effectivePresetColor
-        #expect(color == TabColor.colorForDirectory("/tmp"))
+    @Test func effectiveColorReturnsGrayForNonGitDirectory() {
+        let surfaceID = UUID()
+        let tab = Tab(color: .auto, surfaceID: surfaceID)
+        tab.surfaceDirectories[surfaceID] = "/tmp"
+        #expect(tab.effectivePresetColor == .gray)
     }
 
     @Test func effectiveColorReturnsGrayWhenNoDirectory() {

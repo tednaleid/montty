@@ -27,10 +27,9 @@ struct MonttyApp: App {
             }
 
             CommandMenu("View") {
-                Toggle("Surface Tint", isOn: Binding(
-                    get: { appDelegate.surfaceTintEnabled },
-                    set: { appDelegate.surfaceTintEnabled = $0 }
-                ))
+                Button("Toggle Surface Tint") {
+                    appDelegate.surfaceTintEnabled.toggle()
+                }
             }
 
             CommandGroup(replacing: .appSettings) {

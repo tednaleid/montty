@@ -55,7 +55,7 @@ struct SplitContainerView: View {
     }
 
     private func surfaceTintColor(for surfaceID: UUID) -> Color {
-        TabColor.colorForDirectory(surfaceDirectories[surfaceID]).swiftUIColor
+        TabColor.colorForDirectory(surfaceDirectories[surfaceID])?.swiftUIColor ?? .clear
     }
 
     private var resolvedTabColor: Color {
@@ -69,7 +69,7 @@ struct SplitContainerView: View {
                         .first { $0.id == leafID }?.surfaceID
                 }
                 .flatMap { surfaceDirectories[$0] }
-            return TabColor.colorForDirectory(dir).swiftUIColor
+            return TabColor.colorForDirectory(dir)?.swiftUIColor ?? .gray
         }
     }
 

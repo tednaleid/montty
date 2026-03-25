@@ -52,7 +52,7 @@ struct MinimapView: View {
     }
 
     private func paneColor(_ pane: MinimapPane) -> Color {
-        TabColor.colorForDirectory(surfaceDirectories[pane.surfaceID]).swiftUIColor
+        TabColor.colorForDirectory(surfaceDirectories[pane.surfaceID])?.swiftUIColor ?? tabColor
     }
 
     private func paneFill(_ pane: MinimapPane) -> Color {

@@ -13,17 +13,24 @@ struct TabInfo: Equatable {
         tab: TabProperties,
         gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:)
     ) -> TabInfo {
-        let dirName = tab.workingDirectory.map {
+        // Use focused surface's directory if available, fall back to tab-level
+        let focusedDir: String? = tab.focusedLeafID.flatMap { leafID in
+            SplitTree.allLeaves(node: tab.splitRoot)
+                .first { $0.id == leafID }?.surfaceID
+        }.flatMap { tab.surfaceDirectories[$0] }
+            ?? tab.workingDirectory
+
+        let dirName = focusedDir.map {
             ($0 as NSString).lastPathComponent
         }
 
         // Display name: user-set name takes priority.
-        // Otherwise show ".../currentDir" (short, scannable).
+        // Otherwise show "dirname/" (short, scannable).
         // Falls back to autoName or "Terminal".
         let name: String
         if !tab.name.isEmpty {
             name = tab.name
-        } else if let pwd = tab.workingDirectory, let dir = dirName {
+        } else if let pwd = focusedDir, let dir = dirName {
             let home = NSHomeDirectory()
             if pwd == "/" {
                 name = "/"
@@ -44,7 +51,7 @@ struct TabInfo: Equatable {
             name = "Terminal"
         }
 
-        let gitInfo: GitInfo? = tab.workingDirectory.flatMap { pwd in
+        let gitInfo: GitInfo? = focusedDir.flatMap { pwd in
             gitInfoProvider(pwd)
         }
 
@@ -59,7 +66,7 @@ struct TabInfo: Equatable {
 
         return TabInfo(
             displayName: name,
-            workingDirectory: tab.workingDirectory,
+            workingDirectory: focusedDir,
             directoryName: dirName,
             gitInfo: gitInfo,
             claudeCode: claudeCode,
@@ -89,6 +96,8 @@ struct TabProperties: Equatable {
     let workingDirectory: String?
     let splitRoot: SplitNode
     let focusedLeafID: UUID?
+    /// Per-surface working directories, keyed by surfaceID.
+    var surfaceDirectories: [UUID: String] = [:]
     /// Per-surface terminal titles, keyed by surfaceID.
     var surfaceTitles: [UUID: String] = [:]
     /// Per-surface Claude Code state from hooks, keyed by MONTTY_SURFACE_ID.

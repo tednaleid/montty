@@ -32,7 +32,7 @@ final class Tab: Identifiable {
         case .auto:
             let dir = focusedSurfaceID.flatMap { surfaceDirectories[$0] }
                 ?? workingDirectory
-            return TabColor.colorForDirectory(dir)
+            return TabColor.colorForDirectory(dir) ?? .gray
         }
     }
 
@@ -44,6 +44,7 @@ final class Tab: Identifiable {
             workingDirectory: workingDirectory,
             splitRoot: splitRoot,
             focusedLeafID: focusedLeafID,
+            surfaceDirectories: surfaceDirectories,
             surfaceTitles: surfaceTitles,
             claudeStates: claudeStates,
             surfaceToMonttyID: surfaceToMonttyID
