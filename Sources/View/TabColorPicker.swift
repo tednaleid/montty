@@ -1,24 +1,20 @@
 import AppKit
 import SwiftUI
 
-/// Create a small colored circle image for use in menus.
+/// Create a colored rounded rectangle for use in menus.
 /// macOS menus force SF Symbols to template mode, so we draw our own.
 private func colorSwatch(_ color: Color, checked: Bool) -> NSImage {
-    let size: CGFloat = 14
-    let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
+    let width: CGFloat = 48
+    let height: CGFloat = 14
+    let image = NSImage(size: NSSize(width: width, height: height), flipped: false) { rect in
+        let inset = rect.insetBy(dx: 1, dy: 1)
+        let path = NSBezierPath(roundedRect: inset, xRadius: 3, yRadius: 3)
         NSColor(color).setFill()
-        NSBezierPath(ovalIn: rect.insetBy(dx: 1, dy: 1)).fill()
+        path.fill()
         if checked {
-            // Draw a small white checkmark
-            let checkmark = NSBezierPath()
-            checkmark.move(to: NSPoint(x: 4, y: 7))
-            checkmark.line(to: NSPoint(x: 6.5, y: 4.5))
-            checkmark.line(to: NSPoint(x: 10, y: 9.5))
             NSColor.white.setStroke()
-            checkmark.lineWidth = 1.5
-            checkmark.lineCapStyle = .round
-            checkmark.lineJoinStyle = .round
-            checkmark.stroke()
+            path.lineWidth = 4
+            path.stroke()
         }
         return true
     }
@@ -36,14 +32,10 @@ struct TabColorPicker: View {
             Button {
                 onSelect(color)
             } label: {
-                Label {
-                    Text(color.rawValue.capitalized)
-                } icon: {
-                    Image(nsImage: colorSwatch(
-                        color.swiftUIColor,
-                        checked: color == currentColor
-                    ))
-                }
+                Image(nsImage: colorSwatch(
+                    color.swiftUIColor,
+                    checked: color == currentColor
+                ))
             }
         }
 

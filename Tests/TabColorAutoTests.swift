@@ -115,9 +115,9 @@ import Testing
             repoName: "montty", branchName: "feature",
             worktreeName: "montty-feature", repoPath: "/Users/ted/montty"
         )
-        let overrides = ["/Users/ted/monttymontty-feature": TabColor.pink]
+        let overrides = ["/Users/ted/monttymontty-feature": TabColor.magenta]
         // Override applies to worktree
-        #expect(TabColor.colorForGitInfo(worktree, overrides: overrides) == .pink)
+        #expect(TabColor.colorForGitInfo(worktree, overrides: overrides) == .magenta)
         // Base repo uses normal hash
         #expect(TabColor.colorForGitInfo(base, overrides: overrides)
             == TabColor.colorForGitInfo(base))

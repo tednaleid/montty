@@ -63,6 +63,13 @@ targets:
             done
           fi
 
+          # Copy theme files so GhosttyKit can resolve theme= config entries.
+          THEMES_SRC="${SRCROOT}/ghostty/zig-out/share/ghostty/themes"
+          if [ -d "${THEMES_SRC}" ]; then
+            mkdir -p "${GHOST_RES}/themes"
+            cp -R "${THEMES_SRC}/"* "${GHOST_RES}/themes/"
+          fi
+
           # Append montty's claude() wrapper to zsh integration.
           # Injects hooks via --settings so montty receives state callbacks.
           ZSH_ENV="${GHOST_RES}/shell-integration/zsh/.zshenv"

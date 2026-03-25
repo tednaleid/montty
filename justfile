@@ -156,6 +156,10 @@ inspect-state surface="":
 inspect-action action surface="":
     @curl -sf -X POST 'localhost:9876/action{{ if surface != "" { "?surface=" + surface } else { "" } }}' -d '{{action}}' | jq .
 
+# Debug: show tab palette colors and API status
+inspect-palette:
+    @curl -sf 'localhost:9876/palette' | jq .
+
 # Bump version in Info.plist, commit, tag with release notes, and push
 bump version:
     #!/usr/bin/env bash

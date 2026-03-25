@@ -124,7 +124,7 @@ struct TabTests {
         #expect(defaultColor != .gray)
 
         // Override to a different color
-        let overrideColor: TabColor = (defaultColor == .pink) ? .blue : .pink
+        let overrideColor: TabColor = (defaultColor == .magenta) ? .blue : .magenta
         let identity = TabColor.repoIdentity(for: repoPath)!
         let overrides = [identity: overrideColor]
         #expect(tab.effectiveColor(overrides: overrides) == overrideColor)

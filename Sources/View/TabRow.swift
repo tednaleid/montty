@@ -127,60 +127,65 @@ struct TabRow: View {
 }
 
 extension TabColor {
-    /// Catppuccin-themed color that adapts to dark (Mocha) / light (Latte) mode.
+    /// Tab palette order: maps each case to a position in the 14-color
+    /// ANSI palette extracted from the Ghostty config.
+    static let orderedCases: [TabColor] = [
+        .blue, .red, .green, .yellow, .magenta, .cyan, .neutral,
+        .brightBlue, .brightRed, .brightGreen, .brightYellow,
+        .brightMagenta, .brightCyan, .neutralBright
+    ]
+
+    /// Color from the user's Ghostty theme palette, with Catppuccin fallback.
     var swiftUIColor: Color {
         if self == .gray { return .gray }
-        return Color(nsColor: NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            let hex = isDark ? self.darkHex : self.lightHex
-            return NSColor(
-                red: CGFloat((hex >> 16) & 0xFF) / 255,
-                green: CGFloat((hex >> 8) & 0xFF) / 255,
-                blue: CGFloat(hex & 0xFF) / 255,
-                alpha: 1.0
-            )
-        })
-    }
-
-    // Catppuccin Mocha palette
-    private var darkHex: UInt {
-        switch self {
-        case .rosewater: return 0xF5E0DC
-        case .flamingo:  return 0xF2CDCD
-        case .pink:      return 0xF5C2E7
-        case .mauve:     return 0xCBA6F7
-        case .red:       return 0xF38BA8
-        case .maroon:    return 0xEBA0AC
-        case .peach:     return 0xFAB387
-        case .yellow:    return 0xF9E2AF
-        case .green:     return 0xA6E3A1
-        case .teal:      return 0x94E2D5
-        case .sky:       return 0x89DCEB
-        case .sapphire:  return 0x74C7EC
-        case .blue:      return 0x89B4FA
-        case .lavender:  return 0xB4BEFE
-        case .gray:      return 0x8E8E93
+        if let idx = Self.orderedCases.firstIndex(of: self),
+           let appDel = Self.resolveAppDelegate(),
+           idx < appDel.tabPalette.count {
+            return Color(nsColor: appDel.tabPalette[idx])
         }
+        return catppuccinFallback
     }
 
-    // Catppuccin Latte palette
-    private var lightHex: UInt {
+    /// Find AppDelegate through SwiftUI's delegate adaptor wrapper.
+    private static func resolveAppDelegate() -> AppDelegate? {
+        guard let delegate = NSApp?.delegate else { return nil }
+        if let appDel = delegate as? AppDelegate { return appDel }
+        // @NSApplicationDelegateAdaptor wraps the real delegate
+        for child in Mirror(reflecting: delegate).children {
+            if let appDel = child.value as? AppDelegate { return appDel }
+        }
+        return nil
+    }
+
+    /// Catppuccin Mocha fallback for when the Ghostty palette isn't available
+    /// (tests, or before config loads).
+    private var catppuccinFallback: Color {
+        let hex = catppuccinHex
+        return Color(
+            red: Double((hex >> 16) & 0xFF) / 255,
+            green: Double((hex >> 8) & 0xFF) / 255,
+            blue: Double(hex & 0xFF) / 255
+        )
+    }
+
+    // Catppuccin Mocha ANSI colors in palette order
+    private var catppuccinHex: UInt {
         switch self {
-        case .rosewater: return 0xDC8A78
-        case .flamingo:  return 0xDD7878
-        case .pink:      return 0xEA76CB
-        case .mauve:     return 0x8839EF
-        case .red:       return 0xD20F39
-        case .maroon:    return 0xE64553
-        case .peach:     return 0xFE640B
-        case .yellow:    return 0xDF8E1D
-        case .green:     return 0x40A02B
-        case .teal:      return 0x179299
-        case .sky:       return 0x04A5E5
-        case .sapphire:  return 0x209FB5
-        case .blue:      return 0x1E66F5
-        case .lavender:  return 0x7287FD
-        case .gray:      return 0x8E8E93
+        case .blue:           return 0x89B4FA  // ANSI 4
+        case .red:            return 0xF38BA8  // ANSI 1
+        case .green:          return 0xA6E3A1  // ANSI 2
+        case .yellow:         return 0xF9E2AF  // ANSI 3
+        case .magenta:        return 0xCBA6F7  // ANSI 5
+        case .cyan:           return 0x94E2D5  // ANSI 6
+        case .neutral:        return 0xBAC2DE  // ANSI 7 (white)
+        case .brightBlue:     return 0x89DCEB  // ANSI 12
+        case .brightRed:      return 0xEBA0AC  // ANSI 9
+        case .brightGreen:    return 0xA6E3A1  // ANSI 10
+        case .brightYellow:   return 0xF9E2AF  // ANSI 11
+        case .brightMagenta:  return 0xF5C2E7  // ANSI 13
+        case .brightCyan:     return 0x94E2D5  // ANSI 14
+        case .neutralBright:  return 0xA6ADC8  // ANSI 15 (bright white)
+        case .gray:           return 0x8E8E93
         }
     }
 }

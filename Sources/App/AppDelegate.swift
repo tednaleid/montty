@@ -26,6 +26,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     @Published var surfaceTintEnabled = true
     /// Per-repo/worktree color overrides, keyed by repo identity string.
     @Published var repoColorOverrides: [String: TabColor] = [:]
+    /// ANSI palette colors from the Ghostty config (14 colors, reordered).
+    /// Indexed by TabColor.orderedCases position. Empty before config loads.
+    var tabPalette: [NSColor] = []
 
     /// UndoManager accessed by Ghostty.App.swift for undo/redo routing
     let undoManager: UndoManager? = nil
@@ -68,6 +71,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         // Start the Ghostty event loop tick timer
         tickTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
             self?.ghostty.appTick()
+        }
+
+        // Load ANSI palette from Ghostty config for tab colors
+        loadTabPalette()
+        NotificationCenter.default.addObserver(
+            forName: .ghosttyConfigDidChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.loadTabPalette()
         }
 
         // Restore previous session or create a fresh tab
@@ -348,6 +359,46 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     }
 
     // MARK: - Ghostty action routing
+
+    // MARK: - Tab palette
+
+    /// Read the ANSI-16 palette from Ghostty config and build a 14-color
+    /// tab palette by dropping black/white variants based on theme brightness.
+    func loadTabPalette() {
+        guard let cfg = ghostty.config.config else { return }
+
+        // Read the full 256-color palette via the C API
+        var palette = ghostty_config_palette_s()
+        let key = "palette"
+        if ghostty_config_get(cfg, &palette, key, UInt(key.utf8.count)) {
+            // Extract the first 16 ANSI colors from the C tuple
+            let all16: [NSColor] = withUnsafeBytes(of: palette.colors) { buf in
+                let bound = buf.bindMemory(to: ghostty_config_color_s.self)
+                return Array(bound.prefix(16)).map { NSColor(ghostty: $0) }
+            }
+
+            // Determine if the theme is dark or light from the background color
+            var background = ghostty_config_color_s()
+            let bgKey = "background"
+            let isDark: Bool
+            if ghostty_config_get(cfg, &background, bgKey, UInt(bgKey.utf8.count)) {
+                let lum = 0.299 * Double(background.r) + 0.587 * Double(background.g)
+                    + 0.114 * Double(background.b)
+                isDark = lum < 128
+            } else {
+                isDark = true
+            }
+
+            // ANSI indices reordered for maximum hue diversity.
+            // Dark: drop 0 (black) and 8 (bright black), use 7 and 15.
+            // Light: drop 7 (white) and 15 (bright white), use 0 and 8.
+            let indices = isDark
+                ? [4, 1, 2, 3, 5, 6, 7, 12, 9, 10, 11, 13, 14, 15]
+                : [4, 1, 2, 3, 5, 6, 0, 12, 9, 10, 11, 13, 14, 8]
+
+            tabPalette = indices.map { all16[$0] }
+        }
+    }
 
     // MARK: - Session persistence
 
