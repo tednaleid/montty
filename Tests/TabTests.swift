@@ -45,6 +45,24 @@ struct TabTests {
         #expect(tab.allSurfaceIDs == [surfaceID])
     }
 
+    // MARK: - Focused surface ID edge cases
+
+    @Test func focusedSurfaceIDFallsBackWhenLeafIDMissing() {
+        let surfaceID = UUID()
+        let tab = Tab(surfaceID: surfaceID)
+        // Set focusedLeafID to a UUID that doesn't exist in the tree
+        tab.focusedLeafID = UUID()
+        // Should fall back to the first leaf's surfaceID
+        #expect(tab.focusedSurfaceID == surfaceID)
+    }
+
+    @Test func focusedSurfaceIDFallsBackWhenLeafIDNil() {
+        let surfaceID = UUID()
+        let tab = Tab(surfaceID: surfaceID)
+        tab.focusedLeafID = nil
+        #expect(tab.focusedSurfaceID == surfaceID)
+    }
+
     // MARK: - Effective color
 
     @Test func effectiveColorReturnsPresetWhenSet() {
@@ -64,6 +82,34 @@ struct TabTests {
         #expect(color != .gray)
         // Should be deterministic
         #expect(color == tab.effectivePresetColor)
+    }
+
+    @Test func effectiveColorUseFocusedSurfaceDirectory() {
+        // Two surfaces: one in a git repo, one not. Color should follow focus.
+        let surfaceA = UUID()
+        let surfaceB = UUID()
+        let leafA = SurfaceLeaf(surfaceID: surfaceA)
+        let leafB = SurfaceLeaf(surfaceID: surfaceB)
+        let tab = Tab()
+        tab.color = .auto
+        tab.splitRoot = .split(SplitBranch(
+            orientation: .horizontal,
+            first: .leaf(leafA),
+            second: .leaf(leafB)
+        ))
+        let repoPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().path
+        tab.surfaceDirectories[surfaceA] = repoPath
+        tab.surfaceDirectories[surfaceB] = "/tmp"
+
+        // Focus surface A (git repo) -- should get a real color
+        tab.focusedLeafID = leafA.id
+        let colorA = tab.effectivePresetColor
+        #expect(colorA != .gray)
+
+        // Focus surface B (non-git) -- should get gray
+        tab.focusedLeafID = leafB.id
+        #expect(tab.effectivePresetColor == .gray)
     }
 
     @Test func effectiveColorReturnsGrayForNonGitDirectory() {

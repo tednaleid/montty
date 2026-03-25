@@ -338,7 +338,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             .compactMap { $0 }
             .receive(on: DispatchQueue.main)
             .sink { [weak tab, id = surfaceView.id] pwd in
-                tab?.workingDirectory = pwd
                 tab?.surfaceDirectories[id] = pwd
             }
             .store(in: &cancellables)
@@ -449,10 +448,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             tab.surfaceToMonttyID[surfaceView.id] = monttyID
             surfaces[surfaceView.id] = surfaceView
             observeSurface(surfaceView, tab: tab)
-            // Set tab directory for immediate UI display (surface will
+            // Set surface directory for immediate UI display (surface will
             // update it via observer once the shell reports its pwd)
             if let dir = directories[leaf.id] {
-                tab.workingDirectory = dir
+                tab.surfaceDirectories[surfaceView.id] = dir
             }
             return .leaf(SurfaceLeaf(id: leaf.id, surfaceID: surfaceView.id))
         case .split(let branch):

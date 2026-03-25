@@ -7,7 +7,6 @@ final class Tab: Identifiable {
     var autoName: String
     var color: TabColor
     var position: Int
-    var workingDirectory: String?
     var splitRoot: SplitNode
     var focusedLeafID: UUID?
     /// Per-surface terminal titles, keyed by surfaceID.
@@ -31,7 +30,6 @@ final class Tab: Identifiable {
         case .preset(let preset): return preset
         case .auto:
             let dir = focusedSurfaceID.flatMap { surfaceDirectories[$0] }
-                ?? workingDirectory
             return TabColor.colorForDirectory(dir) ?? .gray
         }
     }
@@ -41,7 +39,7 @@ final class Tab: Identifiable {
         TabInfo.from(tab: TabProperties(
             name: name,
             autoName: autoName,
-            workingDirectory: workingDirectory,
+            workingDirectory: nil,
             splitRoot: splitRoot,
             focusedLeafID: focusedLeafID,
             surfaceDirectories: surfaceDirectories,
@@ -72,7 +70,6 @@ final class Tab: Identifiable {
         autoName: String = "",
         color: TabColor = .auto,
         position: Int = 0,
-        workingDirectory: String? = nil,
         surfaceID: UUID = UUID()
     ) {
         self.id = id
@@ -80,7 +77,6 @@ final class Tab: Identifiable {
         self.autoName = autoName
         self.color = color
         self.position = position
-        self.workingDirectory = workingDirectory
         let leaf = SurfaceLeaf(surfaceID: surfaceID)
         self.splitRoot = .leaf(leaf)
         self.focusedLeafID = leaf.id
@@ -98,7 +94,6 @@ final class Tab: Identifiable {
         self.autoName = ""
         self.color = color
         self.position = position
-        self.workingDirectory = nil
         self.splitRoot = .leaf(SurfaceLeaf())
         self.focusedLeafID = nil
     }

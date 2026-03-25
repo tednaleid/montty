@@ -57,6 +57,20 @@ import Testing
         #expect(TabColor.colorForGitInfo(worktree) != nil)
     }
 
+    @Test func gitRepoNeverHashesToGray() {
+        // Gray is reserved for "not in a git repo" -- no repo should hash to it
+        let infos = (0..<200).map { idx in
+            GitInfo(
+                repoName: "repo-\(idx)", branchName: "main",
+                worktreeName: nil, repoPath: "/repos/repo-\(idx)"
+            )
+        }
+        for info in infos {
+            let color = TabColor.colorForGitInfo(info)
+            #expect(color != .gray, "Repo \(info.repoName) hashed to gray")
+        }
+    }
+
     @Test func hashCoversMultipleColors() {
         let infos = (0..<50).map { idx in
             GitInfo(

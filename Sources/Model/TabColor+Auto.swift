@@ -8,7 +8,8 @@ extension TabColor {
         guard let gitInfo else { return nil }
         let identity = gitInfo.repoPath + (gitInfo.worktreeName ?? "")
         let hash = identity.utf8.reduce(UInt64(0)) { ($0 &+ UInt64($1)) &* 31 }
-        let colors = PresetColor.allCases
+        // Gray is reserved for "no git repo" -- exclude it from the hash palette
+        let colors = PresetColor.allCases.filter { $0 != .gray }
         return colors[Int(hash % UInt64(colors.count))]
     }
 

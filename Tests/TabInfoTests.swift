@@ -168,6 +168,39 @@ struct TabInfoTests {
         #expect(info.workingDirectory == nil)
     }
 
+    // MARK: - Surface directories
+
+    @Test func tabInfoUsesFocusedSurfaceDirectory() {
+        // Focused leaf's directory should win over tab-level workingDirectory
+        let leaf = SurfaceLeaf()
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: "/Users/ted/old-dir",
+            splitRoot: .leaf(leaf),
+            focusedLeafID: leaf.id,
+            surfaceDirectories: [leaf.surfaceID: "/Users/ted/projects/montty"]
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.workingDirectory == "/Users/ted/projects/montty")
+        #expect(info.directoryName == "montty")
+    }
+
+    @Test func tabInfoFallsBackToWorkingDirectoryWhenNoSurfaceDir() {
+        let leaf = SurfaceLeaf()
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: "/Users/ted/fallback",
+            splitRoot: .leaf(leaf),
+            focusedLeafID: leaf.id,
+            surfaceDirectories: [:]
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.workingDirectory == "/Users/ted/fallback")
+        #expect(info.directoryName == "fallback")
+    }
+
     // MARK: - Git info integration
 
     @Test func tabInfoIncludesGitInfo() {

@@ -71,9 +71,6 @@ struct MainWindow: View {
                 focusedLeafID: activeTab.focusedLeafID,
                 tabColor: activeTab.color,
                 surfaceLookup: { appDelegate.surfaceView(for: $0) },
-                onFocusLeaf: { leafID in
-                    appDelegate.setFocusedLeaf(leafID, in: activeTab)
-                },
                 jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:],
                 surfaceDirectories: activeTab.surfaceDirectories,
                 surfaceTintEnabled: appDelegate.surfaceTintEnabled

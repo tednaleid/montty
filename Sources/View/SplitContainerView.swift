@@ -5,7 +5,6 @@ struct SplitContainerView: View {
     let focusedLeafID: UUID?
     let tabColor: TabColor
     let surfaceLookup: (UUID) -> Ghostty.SurfaceView?
-    let onFocusLeaf: (UUID) -> Void
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
     var surfaceTintEnabled: Bool = true
@@ -81,7 +80,6 @@ struct SplitContainerView: View {
             focusedLeafID: focusedLeafID,
             tabColor: tabColor,
             surfaceLookup: surfaceLookup,
-            onFocusLeaf: onFocusLeaf,
             jumpLabels: jumpLabels,
             surfaceDirectories: surfaceDirectories,
             surfaceTintEnabled: surfaceTintEnabled
@@ -95,7 +93,6 @@ private struct BranchWrapper: View {
     let focusedLeafID: UUID?
     let tabColor: TabColor
     let surfaceLookup: (UUID) -> Ghostty.SurfaceView?
-    let onFocusLeaf: (UUID) -> Void
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
     var surfaceTintEnabled: Bool = true
@@ -107,7 +104,6 @@ private struct BranchWrapper: View {
         focusedLeafID: UUID?,
         tabColor: TabColor,
         surfaceLookup: @escaping (UUID) -> Ghostty.SurfaceView?,
-        onFocusLeaf: @escaping (UUID) -> Void,
         jumpLabels: [UUID: String] = [:],
         surfaceDirectories: [UUID: String] = [:],
         surfaceTintEnabled: Bool = true
@@ -116,7 +112,6 @@ private struct BranchWrapper: View {
         self.focusedLeafID = focusedLeafID
         self.tabColor = tabColor
         self.surfaceLookup = surfaceLookup
-        self.onFocusLeaf = onFocusLeaf
         self.jumpLabels = jumpLabels
         self.surfaceDirectories = surfaceDirectories
         self.surfaceTintEnabled = surfaceTintEnabled
@@ -133,7 +128,6 @@ private struct BranchWrapper: View {
                 focusedLeafID: focusedLeafID,
                 tabColor: tabColor,
                 surfaceLookup: surfaceLookup,
-                onFocusLeaf: onFocusLeaf,
                 jumpLabels: jumpLabels,
                 surfaceDirectories: surfaceDirectories,
                 surfaceTintEnabled: surfaceTintEnabled
@@ -144,7 +138,6 @@ private struct BranchWrapper: View {
                 focusedLeafID: focusedLeafID,
                 tabColor: tabColor,
                 surfaceLookup: surfaceLookup,
-                onFocusLeaf: onFocusLeaf,
                 jumpLabels: jumpLabels,
                 surfaceDirectories: surfaceDirectories,
                 surfaceTintEnabled: surfaceTintEnabled
