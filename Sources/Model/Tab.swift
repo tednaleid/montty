@@ -33,7 +33,6 @@ final class Tab: Identifiable {
         TabInfo.from(tab: TabProperties(
             name: name,
             autoName: autoName,
-            workingDirectory: nil,
             splitRoot: splitRoot,
             focusedLeafID: focusedLeafID,
             surfaceDirectories: surfaceDirectories,

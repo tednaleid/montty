@@ -13,12 +13,11 @@ struct TabInfo: Equatable {
         tab: TabProperties,
         gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:)
     ) -> TabInfo {
-        // Use focused surface's directory if available, fall back to tab-level
+        // Use the focused surface's directory
         let focusedDir: String? = tab.focusedLeafID.flatMap { leafID in
             SplitTree.allLeaves(node: tab.splitRoot)
                 .first { $0.id == leafID }?.surfaceID
         }.flatMap { tab.surfaceDirectories[$0] }
-            ?? tab.workingDirectory
 
         let dirName = focusedDir.map {
             ($0 as NSString).lastPathComponent
@@ -93,7 +92,6 @@ struct ClaudeCodeStatus: Equatable {
 struct TabProperties: Equatable {
     let name: String
     let autoName: String
-    let workingDirectory: String?
     let splitRoot: SplitNode
     let focusedLeafID: UUID?
     /// Per-surface working directories, keyed by surfaceID.
