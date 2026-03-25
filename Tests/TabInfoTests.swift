@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import montty_unit
 
@@ -73,7 +74,7 @@ struct TabInfoTests {
             focusedLeafID: nil
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
-        #expect(info.displayName == ".../montty")
+        #expect(info.displayName == "montty/")
     }
 
     @Test func tabInfoShowsRootDirWithoutPrefix() {
@@ -86,6 +87,45 @@ struct TabInfoTests {
         )
         let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
         #expect(info.displayName == "/tmp")
+    }
+
+    @Test func tabInfoShowsHomeDirAsTilde() {
+        let home = NSHomeDirectory()
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: home,
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.displayName == "~")
+    }
+
+    @Test func tabInfoShowsDirectChildOfHomeWithTilde() {
+        let home = NSHomeDirectory()
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: home + "/Documents",
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.displayName == "~/Documents")
+    }
+
+    @Test func tabInfoShowsNestedHomeDirWithEllipsis() {
+        let home = NSHomeDirectory()
+        let props = TabProperties(
+            name: "",
+            autoName: "zsh",
+            workingDirectory: home + "/Documents/projects/montty",
+            splitRoot: singleLeaf(),
+            focusedLeafID: nil
+        )
+        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
+        #expect(info.displayName == "montty/")
     }
 
     @Test func tabInfoShowsRootAsSlash() {

@@ -29,11 +29,14 @@ struct TabInfo: Equatable {
                 name = "/"
             } else if pwd == home {
                 name = "~"
-            } else if pwd.hasPrefix(home + "/") {
+            } else if pwd == home + "/" + dir {
+                // Direct child of home: ~/dirname
                 name = "~/\(dir)"
+            } else if pwd.hasPrefix(home + "/") {
+                name = "\(dir)/"
             } else {
                 let parent = (pwd as NSString).deletingLastPathComponent
-                name = (parent == "/" || parent.isEmpty) ? "/\(dir)" : ".../\(dir)"
+                name = (parent == "/" || parent.isEmpty) ? "/\(dir)" : "\(dir)/"
             }
         } else if !tab.autoName.isEmpty {
             name = tab.autoName
