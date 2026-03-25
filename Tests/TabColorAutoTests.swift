@@ -4,12 +4,12 @@ import Testing
 
 @Suite struct TabColorAutoTests {
     @Test func nilDirectoryReturnsNil() {
-        let color = TabColor.colorForDirectory(nil)
+        let color = TabColor.colorForWorktree(nil)
         #expect(color == nil)
     }
 
     @Test func nonGitDirectoryReturnsNil() {
-        let color = TabColor.colorForDirectory("/tmp")
+        let color = TabColor.colorForWorktree("/tmp")
         #expect(color == nil)
     }
 
@@ -80,5 +80,46 @@ import Testing
         }
         let colors = Set(infos.compactMap { TabColor.colorForGitInfo($0) })
         #expect(colors.count >= 5, "Expected at least 5 distinct colors from 50 repos")
+    }
+
+    // MARK: - Override resolution
+
+    @Test func overrideReturnsOverrideColor() {
+        let info = GitInfo(
+            repoName: "montty", branchName: "main",
+            worktreeName: nil, repoPath: "/Users/ted/montty"
+        )
+        let overrides = ["/Users/ted/montty": TabColor.blue]
+        let color = TabColor.colorForGitInfo(info, overrides: overrides)
+        #expect(color == .blue)
+    }
+
+    @Test func overrideForDifferentRepoDoesNotApply() {
+        let info = GitInfo(
+            repoName: "montty", branchName: "main",
+            worktreeName: nil, repoPath: "/Users/ted/montty"
+        )
+        let overrides = ["/Users/ted/other-repo": TabColor.blue]
+        let color = TabColor.colorForGitInfo(info, overrides: overrides)
+        // Should return the hash result, not the override
+        #expect(color != nil)
+        #expect(color != .blue || color == TabColor.colorForGitInfo(info))
+    }
+
+    @Test func worktreeOverrideDoesNotAffectBaseRepo() {
+        let base = GitInfo(
+            repoName: "montty", branchName: "main",
+            worktreeName: nil, repoPath: "/Users/ted/montty"
+        )
+        let worktree = GitInfo(
+            repoName: "montty", branchName: "feature",
+            worktreeName: "montty-feature", repoPath: "/Users/ted/montty"
+        )
+        let overrides = ["/Users/ted/monttymontty-feature": TabColor.pink]
+        // Override applies to worktree
+        #expect(TabColor.colorForGitInfo(worktree, overrides: overrides) == .pink)
+        // Base repo uses normal hash
+        #expect(TabColor.colorForGitInfo(base, overrides: overrides)
+            == TabColor.colorForGitInfo(base))
     }
 }

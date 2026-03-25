@@ -112,7 +112,7 @@ extension DebugServer {
             "tab_id": tab.id.uuidString,
             "tab_name": info.displayName,
             "tab_position": tab.position,
-            "tab_color": colorString(tab.color),
+            "tab_color": tab.effectiveColor().rawValue,
             "active": isActiveTab,
             "focused_in_tab": leaf.id == tab.focusedLeafID,
             "split_count": info.splitCount
@@ -149,13 +149,6 @@ extension DebugServer {
                 "rows": size.rows, "cols": size.columns,
                 "width_px": size.width_px, "height_px": size.height_px
             ]
-        }
-    }
-
-    private static func colorString(_ color: TabColor) -> String {
-        switch color {
-        case .preset(let preset): return preset.rawValue
-        case .auto: return "auto"
         }
     }
 

@@ -3,10 +3,10 @@ import SwiftUI
 struct SplitContainerView: View {
     let node: SplitNode
     let focusedLeafID: UUID?
-    let tabColor: TabColor
     let surfaceLookup: (UUID) -> Ghostty.SurfaceView?
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
+    var repoColorOverrides: [String: TabColor] = [:]
     var surfaceTintEnabled: Bool = true
 
     // Tweak this to control how much unfocused panes are dimmed.
@@ -54,22 +54,21 @@ struct SplitContainerView: View {
     }
 
     private func surfaceTintColor(for surfaceID: UUID) -> Color {
-        TabColor.colorForDirectory(surfaceDirectories[surfaceID])?.swiftUIColor ?? .clear
+        TabColor.colorForWorktree(
+            surfaceDirectories[surfaceID], overrides: repoColorOverrides
+        )?.swiftUIColor ?? .clear
     }
 
     private var resolvedTabColor: Color {
-        switch tabColor {
-        case .preset(let preset): return preset.swiftUIColor
-        case .auto:
-            // Use focused surface's directory color for auto tabs
-            let dir = focusedLeafID
-                .flatMap { leafID in
-                    SplitTree.allLeaves(node: node)
-                        .first { $0.id == leafID }?.surfaceID
-                }
-                .flatMap { surfaceDirectories[$0] }
-            return TabColor.colorForDirectory(dir)?.swiftUIColor ?? .gray
-        }
+        let dir = focusedLeafID
+            .flatMap { leafID in
+                SplitTree.allLeaves(node: node)
+                    .first { $0.id == leafID }?.surfaceID
+            }
+            .flatMap { surfaceDirectories[$0] }
+        return TabColor.colorForWorktree(
+            dir, overrides: repoColorOverrides
+        )?.swiftUIColor ?? .gray
     }
 
     private var borderColor: Color { resolvedTabColor.opacity(0.7) }
@@ -78,10 +77,10 @@ struct SplitContainerView: View {
         BranchWrapper(
             branch: branch,
             focusedLeafID: focusedLeafID,
-            tabColor: tabColor,
             surfaceLookup: surfaceLookup,
             jumpLabels: jumpLabels,
             surfaceDirectories: surfaceDirectories,
+            repoColorOverrides: repoColorOverrides,
             surfaceTintEnabled: surfaceTintEnabled
         )
     }
@@ -91,10 +90,10 @@ struct SplitContainerView: View {
 private struct BranchWrapper: View {
     let branch: SplitBranch
     let focusedLeafID: UUID?
-    let tabColor: TabColor
     let surfaceLookup: (UUID) -> Ghostty.SurfaceView?
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
+    var repoColorOverrides: [String: TabColor] = [:]
     var surfaceTintEnabled: Bool = true
 
     @State private var ratio: CGFloat
@@ -102,18 +101,18 @@ private struct BranchWrapper: View {
     init(
         branch: SplitBranch,
         focusedLeafID: UUID?,
-        tabColor: TabColor,
         surfaceLookup: @escaping (UUID) -> Ghostty.SurfaceView?,
         jumpLabels: [UUID: String] = [:],
         surfaceDirectories: [UUID: String] = [:],
+        repoColorOverrides: [String: TabColor] = [:],
         surfaceTintEnabled: Bool = true
     ) {
         self.branch = branch
         self.focusedLeafID = focusedLeafID
-        self.tabColor = tabColor
         self.surfaceLookup = surfaceLookup
         self.jumpLabels = jumpLabels
         self.surfaceDirectories = surfaceDirectories
+        self.repoColorOverrides = repoColorOverrides
         self.surfaceTintEnabled = surfaceTintEnabled
         self._ratio = State(initialValue: branch.ratio)
     }
@@ -126,20 +125,20 @@ private struct BranchWrapper: View {
             SplitContainerView(
                 node: branch.first,
                 focusedLeafID: focusedLeafID,
-                tabColor: tabColor,
                 surfaceLookup: surfaceLookup,
                 jumpLabels: jumpLabels,
                 surfaceDirectories: surfaceDirectories,
+                repoColorOverrides: repoColorOverrides,
                 surfaceTintEnabled: surfaceTintEnabled
             )
         } second: {
             SplitContainerView(
                 node: branch.second,
                 focusedLeafID: focusedLeafID,
-                tabColor: tabColor,
                 surfaceLookup: surfaceLookup,
                 jumpLabels: jumpLabels,
                 surfaceDirectories: surfaceDirectories,
+                repoColorOverrides: repoColorOverrides,
                 surfaceTintEnabled: surfaceTintEnabled
             )
         }

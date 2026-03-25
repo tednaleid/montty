@@ -1,22 +1,36 @@
 import Foundation
 
 extension TabColor {
-    /// Derive a preset color from git repo identity.
+    /// Derive a color from git repo identity, checking overrides first.
     /// Same repo+worktree always produces the same color.
     /// Returns nil if not in a git repo (no tinting).
-    static func colorForGitInfo(_ gitInfo: GitInfo?) -> PresetColor? {
+    static func colorForGitInfo(
+        _ gitInfo: GitInfo?,
+        overrides: [String: TabColor] = [:]
+    ) -> TabColor? {
         guard let gitInfo else { return nil }
         let identity = gitInfo.repoPath + (gitInfo.worktreeName ?? "")
+        if let override = overrides[identity] { return override }
         let hash = identity.utf8.reduce(UInt64(0)) { ($0 &+ UInt64($1)) &* 31 }
         // Gray is reserved for "no git repo" -- exclude it from the hash palette
-        let colors = PresetColor.allCases.filter { $0 != .gray }
+        let colors = TabColor.allCases.filter { $0 != .gray }
         return colors[Int(hash % UInt64(colors.count))]
     }
 
-    /// Derive a preset color from a directory path via its git repo.
+    /// Derive a color from a directory path via its git repo.
     /// Returns nil if not in a git repo.
-    static func colorForDirectory(_ dir: String?) -> PresetColor? {
+    static func colorForWorktree(
+        _ dir: String?,
+        overrides: [String: TabColor] = [:]
+    ) -> TabColor? {
         guard let dir else { return nil }
-        return colorForGitInfo(GitInfo.from(path: dir))
+        return colorForGitInfo(GitInfo.from(path: dir), overrides: overrides)
+    }
+
+    /// The repo identity string for a directory, used as the key in overrides.
+    /// Returns nil if not in a git repo.
+    static func repoIdentity(for dir: String?) -> String? {
+        guard let dir, let gitInfo = GitInfo.from(path: dir) else { return nil }
+        return gitInfo.repoPath + (gitInfo.worktreeName ?? "")
     }
 }

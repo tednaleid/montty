@@ -3,7 +3,7 @@ import SwiftUI
 struct TabRow: View {
     let tab: Tab
     let isActive: Bool
-    let activeTabColor: Color
+    var repoColorOverrides: [String: TabColor] = [:]
     @Binding var editingTabID: UUID?
     var jumpLabels: [UUID: String] = [:]
     var onPaneTap: ((UUID) -> Void)?
@@ -84,6 +84,7 @@ struct TabRow: View {
                     isActiveTab: isActive,
                     jumpLabels: jumpLabels,
                     surfaceDirectories: tab.surfaceDirectories,
+                    repoColorOverrides: repoColorOverrides,
                     onPaneTap: onPaneTap
                 )
                 .padding(.top, 2)
@@ -110,30 +111,22 @@ struct TabRow: View {
         }
     }
 
-    private var isAutoColor: Bool {
-        if case .auto = tab.color { return true }
-        return false
+    private var tabColor: Color {
+        tab.effectiveColor(overrides: repoColorOverrides).swiftUIColor
     }
 
-    private var accentColor: Color {
-        let preset = tab.effectivePresetColor
-        return isAutoColor ? preset.desaturatedColor : preset.swiftUIColor
-    }
+    private var accentColor: Color { tabColor }
 
     private var colorBarColor: Color {
-        let preset = tab.effectivePresetColor
-        if isAutoColor {
-            return isActive ? preset.desaturatedColor : .gray.opacity(0.3)
-        }
-        return preset.swiftUIColor
+        isActive ? tabColor : .gray.opacity(0.3)
     }
 
     private var activeBackground: Color {
-        tab.effectivePresetColor.swiftUIColor.opacity(isAutoColor ? 0.07 : 0.15)
+        tabColor.opacity(0.15)
     }
 }
 
-extension TabColor.PresetColor {
+extension TabColor {
     var swiftUIColor: Color {
         switch self {
         case .red: return .red
@@ -147,10 +140,5 @@ extension TabColor.PresetColor {
         case .brown: return .brown
         case .gray: return .gray
         }
-    }
-
-    /// Desaturated variant for auto-derived tab colors.
-    var desaturatedColor: Color {
-        swiftUIColor.opacity(0.55)
     }
 }

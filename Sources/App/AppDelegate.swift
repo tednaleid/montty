@@ -24,6 +24,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     /// Whether surface background tinting is enabled.
     @Published var surfaceTintEnabled = true
+    /// Per-repo/worktree color overrides, keyed by repo identity string.
+    @Published var repoColorOverrides: [String: TabColor] = [:]
 
     /// UndoManager accessed by Ghostty.App.swift for undo/redo routing
     let undoManager: UndoManager? = nil
@@ -361,7 +363,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             return TabSnapshot(
                 tabID: tab.id,
                 name: tab.name,
-                color: tab.color,
                 position: tab.position,
                 focusedLeafID: tab.focusedLeafID,
                 splitLayout: tab.splitRoot,
@@ -376,7 +377,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             sidebarWidth: sidebarWidth,
             surfaceTintEnabled: surfaceTintEnabled,
             activeTabID: tabStore.activeTabID,
-            tabs: tabSnapshots
+            tabs: tabSnapshots,
+            repoColorOverrides: repoColorOverrides
         )
     }
 
@@ -388,12 +390,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
         sidebarWidth = snapshot.sidebarWidth
         surfaceTintEnabled = snapshot.surfaceTintEnabled
+        repoColorOverrides = snapshot.repoColorOverrides
 
         for tabSnap in snapshot.tabs.sorted(by: { $0.position < $1.position }) {
             let tab = Tab(
                 id: tabSnap.tabID,
                 name: tabSnap.name,
-                color: tabSnap.color,
                 position: tabSnap.position
             )
             // Rebuild the split tree with fresh surfaces

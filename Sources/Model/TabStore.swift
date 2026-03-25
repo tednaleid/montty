@@ -63,11 +63,6 @@ final class TabStore {
         tab.name = name
     }
 
-    func setColor(id: UUID, color: TabColor) {
-        guard let tab = tabs.first(where: { $0.id == id }) else { return }
-        tab.color = color
-    }
-
     // MARK: - Position invariant
 
     private func reindex() {

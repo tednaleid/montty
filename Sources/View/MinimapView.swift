@@ -6,6 +6,7 @@ struct MinimapView: View {
     let isActiveTab: Bool
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
+    var repoColorOverrides: [String: TabColor] = [:]
     var onPaneTap: ((UUID) -> Void)?
 
     private let gap: CGFloat = 4
@@ -52,7 +53,9 @@ struct MinimapView: View {
     }
 
     private func paneColor(_ pane: MinimapPane) -> Color {
-        TabColor.colorForDirectory(surfaceDirectories[pane.surfaceID])?.swiftUIColor ?? tabColor
+        TabColor.colorForWorktree(
+            surfaceDirectories[pane.surfaceID], overrides: repoColorOverrides
+        )?.swiftUIColor ?? tabColor
     }
 
     private func paneFill(_ pane: MinimapPane) -> Color {

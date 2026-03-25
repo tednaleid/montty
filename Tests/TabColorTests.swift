@@ -2,36 +2,27 @@ import Foundation
 import Testing
 
 struct TabColorTests {
-    @Test func presetColorCodableRoundTrip() throws {
-        let color = TabColor.preset(.red)
+    @Test func colorCodableRoundTrip() throws {
+        let color = TabColor.red
         let data = try JSONEncoder().encode(color)
         let decoded = try JSONDecoder().decode(TabColor.self, from: data)
         #expect(decoded == color)
     }
 
-    @Test func autoColorCodableRoundTrip() throws {
-        let color = TabColor.auto
-        let data = try JSONEncoder().encode(color)
-        let decoded = try JSONDecoder().decode(TabColor.self, from: data)
-        #expect(decoded == .auto)
-    }
-
-    @Test func allPresetColorsRoundTrip() throws {
-        for preset in TabColor.PresetColor.allCases {
-            let color = TabColor.preset(preset)
+    @Test func allColorsRoundTrip() throws {
+        for color in TabColor.allCases {
             let data = try JSONEncoder().encode(color)
             let decoded = try JSONDecoder().decode(TabColor.self, from: data)
             #expect(decoded == color)
         }
     }
 
-    @Test func presetColorEquality() {
-        #expect(TabColor.preset(.red) == TabColor.preset(.red))
-        #expect(TabColor.preset(.red) != TabColor.preset(.blue))
-        #expect(TabColor.auto != TabColor.preset(.red))
+    @Test func colorEquality() {
+        #expect(TabColor.red == TabColor.red)
+        #expect(TabColor.red != TabColor.blue)
     }
 
-    @Test func tenPresetColorsExist() {
-        #expect(TabColor.PresetColor.allCases.count == 10)
+    @Test func tenColorsExist() {
+        #expect(TabColor.allCases.count == 10)
     }
 }

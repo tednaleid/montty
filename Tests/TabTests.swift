@@ -19,11 +19,6 @@ struct TabTests {
         #expect(tab.displayName == "")
     }
 
-    @Test func defaultColorIsAuto() {
-        let tab = Tab()
-        #expect(tab.color == .auto)
-    }
-
     @Test func surfaceIDIsAssigned() {
         let surfaceID = UUID()
         let tab = Tab(surfaceID: surfaceID)
@@ -65,23 +60,18 @@ struct TabTests {
 
     // MARK: - Effective color
 
-    @Test func effectiveColorReturnsPresetWhenSet() {
-        let tab = Tab(color: .preset(.red))
-        #expect(tab.effectivePresetColor == .red)
-    }
-
     @Test func effectiveColorDerivesFromGitRepoWhenAuto() {
         let surfaceID = UUID()
-        let tab = Tab(color: .auto, surfaceID: surfaceID)
+        let tab = Tab(surfaceID: surfaceID)
         // Use a path that's actually in a git repo (this project)
         let repoPath = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().path
         tab.surfaceDirectories[surfaceID] = repoPath
-        let color = tab.effectivePresetColor
+        let color = tab.effectiveColor()
         // Should derive a color from the git repo, not gray
         #expect(color != .gray)
         // Should be deterministic
-        #expect(color == tab.effectivePresetColor)
+        #expect(color == tab.effectiveColor())
     }
 
     @Test func effectiveColorUseFocusedSurfaceDirectory() {
@@ -91,7 +81,6 @@ struct TabTests {
         let leafA = SurfaceLeaf(surfaceID: surfaceA)
         let leafB = SurfaceLeaf(surfaceID: surfaceB)
         let tab = Tab()
-        tab.color = .auto
         tab.splitRoot = .split(SplitBranch(
             orientation: .horizontal,
             first: .leaf(leafA),
@@ -104,23 +93,40 @@ struct TabTests {
 
         // Focus surface A (git repo) -- should get a real color
         tab.focusedLeafID = leafA.id
-        let colorA = tab.effectivePresetColor
+        let colorA = tab.effectiveColor()
         #expect(colorA != .gray)
 
         // Focus surface B (non-git) -- should get gray
         tab.focusedLeafID = leafB.id
-        #expect(tab.effectivePresetColor == .gray)
+        #expect(tab.effectiveColor() == .gray)
     }
 
     @Test func effectiveColorReturnsGrayForNonGitDirectory() {
         let surfaceID = UUID()
-        let tab = Tab(color: .auto, surfaceID: surfaceID)
+        let tab = Tab(surfaceID: surfaceID)
         tab.surfaceDirectories[surfaceID] = "/tmp"
-        #expect(tab.effectivePresetColor == .gray)
+        #expect(tab.effectiveColor() == .gray)
     }
 
     @Test func effectiveColorReturnsGrayWhenNoDirectory() {
-        let tab = Tab(color: .auto)
-        #expect(tab.effectivePresetColor == .gray)
+        let tab = Tab()
+        #expect(tab.effectiveColor() == .gray)
+    }
+
+    @Test func effectiveColorRespectsOverride() {
+        let surfaceID = UUID()
+        let tab = Tab(surfaceID: surfaceID)
+        let repoPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().path
+        tab.surfaceDirectories[surfaceID] = repoPath
+
+        let defaultColor = tab.effectiveColor()
+        #expect(defaultColor != .gray)
+
+        // Override to a different color
+        let overrideColor: TabColor = (defaultColor == .pink) ? .blue : .pink
+        let identity = TabColor.repoIdentity(for: repoPath)!
+        let overrides = [identity: overrideColor]
+        #expect(tab.effectiveColor(overrides: overrides) == overrideColor)
     }
 }

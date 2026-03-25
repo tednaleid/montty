@@ -127,16 +127,6 @@ struct TabStoreTests {
         #expect(tab.displayName == "new")
     }
 
-    @Test func setColorUpdatesColor() {
-        let store = TabStore()
-        let tab = Tab()
-        store.append(tab: tab)
-
-        store.setColor(id: tab.id, color: .preset(.red))
-
-        #expect(tab.color == .preset(.red))
-    }
-
     @Test func tabAtIndexReturnsCorrectTab() {
         let store = TabStore()
         let tabA = Tab(name: "a")

@@ -4,20 +4,12 @@ struct TabSidebar: View {
     @Bindable var tabStore: TabStore
     let onNewTab: () -> Void
     let onCloseTab: (UUID) -> Void
-    let onSetColor: (UUID, TabColor) -> Void
+    let onSetRepoColor: (String, TabColor?) -> Void
+    var repoColorOverrides: [String: TabColor] = [:]
     var jumpLabels: [UUID: String] = [:]
     var onJumpToSurface: ((UUID, UUID) -> Void)?
 
     @State private var editingTabID: UUID?
-
-    private var activeTabColor: Color {
-        guard let tab = tabStore.activeTab else { return .accentColor }
-        let preset = tab.effectivePresetColor
-        if case .auto = tab.color {
-            return preset.desaturatedColor
-        }
-        return preset.swiftUIColor
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,7 +19,7 @@ struct TabSidebar: View {
                         TabRow(
                             tab: tab,
                             isActive: isActive,
-                            activeTabColor: activeTabColor,
+                            repoColorOverrides: repoColorOverrides,
                             editingTabID: $editingTabID,
                             jumpLabels: jumpLabels,
                             onPaneTap: { leafID in
@@ -56,12 +48,11 @@ struct TabSidebar: View {
                         .contextMenu {
                             TabContextMenu(
                                 tab: tab,
+                                repoColorOverrides: repoColorOverrides,
                                 onRename: {
                                     editingTabID = tab.id
                                 },
-                                onSetColor: { color in
-                                    onSetColor(tab.id, color)
-                                },
+                                onSetRepoColor: onSetRepoColor,
                                 onClose: {
                                     onCloseTab(tab.id)
                                 }

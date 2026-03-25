@@ -5,7 +5,6 @@ final class Tab: Identifiable {
     let id: UUID
     var name: String
     var autoName: String
-    var color: TabColor
     var position: Int
     var splitRoot: SplitNode
     var focusedLeafID: UUID?
@@ -22,16 +21,11 @@ final class Tab: Identifiable {
         name.isEmpty ? autoName : name
     }
 
-    /// The effective preset color for this tab. For user-set colors, returns
-    /// the preset directly. For auto tabs, derives from the focused surface's
-    /// working directory.
-    var effectivePresetColor: TabColor.PresetColor {
-        switch color {
-        case .preset(let preset): return preset
-        case .auto:
-            let dir = focusedSurfaceID.flatMap { surfaceDirectories[$0] }
-            return TabColor.colorForDirectory(dir) ?? .gray
-        }
+    /// The effective color for this tab, derived from the focused surface's
+    /// git repo with optional overrides.
+    func effectiveColor(overrides: [String: TabColor] = [:]) -> TabColor {
+        let dir = focusedSurfaceID.flatMap { surfaceDirectories[$0] }
+        return TabColor.colorForWorktree(dir, overrides: overrides) ?? .gray
     }
 
     /// Computed metadata for tab display, decoupled from AppKit/Ghostty.
@@ -68,14 +62,12 @@ final class Tab: Identifiable {
         id: UUID = UUID(),
         name: String = "",
         autoName: String = "",
-        color: TabColor = .auto,
         position: Int = 0,
         surfaceID: UUID = UUID()
     ) {
         self.id = id
         self.name = name
         self.autoName = autoName
-        self.color = color
         self.position = position
         let leaf = SurfaceLeaf(surfaceID: surfaceID)
         self.splitRoot = .leaf(leaf)
@@ -86,13 +78,11 @@ final class Tab: Identifiable {
     init(
         id: UUID,
         name: String,
-        color: TabColor,
         position: Int
     ) {
         self.id = id
         self.name = name
         self.autoName = ""
-        self.color = color
         self.position = position
         self.splitRoot = .leaf(SurfaceLeaf())
         self.focusedLeafID = nil

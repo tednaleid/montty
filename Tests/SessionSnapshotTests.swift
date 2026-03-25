@@ -13,7 +13,6 @@ struct SessionSnapshotTests {
                 TabSnapshot(
                     tabID: tabID,
                     name: "my project",
-                    color: .preset(.red),
                     position: 0,
                     focusedLeafID: leafID,
                     splitLayout: .leaf(SurfaceLeaf(id: leafID)),
@@ -25,10 +24,9 @@ struct SessionSnapshotTests {
         let data = try JSONEncoder().encode(snapshot)
         let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: data)
 
-        #expect(decoded.version == 1)
+        #expect(decoded.version == 2)
         #expect(decoded.tabs.count == 1)
         #expect(decoded.tabs[0].name == "my project")
-        #expect(decoded.tabs[0].color == .preset(.red))
         #expect(decoded.activeTabID == tabID)
         #expect(decoded.sidebarWidth == 220)
         #expect(decoded.tabs[0].leafDirectories[leafID] == "/Users/ted/projects")
@@ -52,7 +50,6 @@ struct SessionSnapshotTests {
                 TabSnapshot(
                     tabID: tabID,
                     name: "",
-                    color: .auto,
                     position: 0,
                     focusedLeafID: leaf1.id,
                     splitLayout: .split(split),
@@ -76,13 +73,11 @@ struct SessionSnapshotTests {
     }
 
     @Test func roundTripMultipleTabs() throws {
-        let presets = TabColor.PresetColor.allCases
         let tabs = (0..<5).map { idx in
             let leafID = UUID()
             return TabSnapshot(
                 tabID: UUID(),
                 name: "tab \(idx)",
-                color: .preset(presets[idx % presets.count]),
                 position: idx,
                 focusedLeafID: leafID,
                 splitLayout: .leaf(SurfaceLeaf(id: leafID)),
@@ -113,7 +108,6 @@ struct SessionSnapshotTests {
                 TabSnapshot(
                     tabID: UUID(),
                     name: "",
-                    color: .auto,
                     position: 0,
                     focusedLeafID: leafID,
                     splitLayout: .leaf(SurfaceLeaf(id: leafID)),
@@ -124,7 +118,63 @@ struct SessionSnapshotTests {
 
         let data = try JSONEncoder().encode(snapshot)
         let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: data)
-        #expect(decoded.version == 1)
+        #expect(decoded.version == 2)
+    }
+
+    @Test func roundTripRepoColorOverrides() throws {
+        let leafID = UUID()
+        let overrides: [String: TabColor] = [
+            "/Users/ted/montty": .blue,
+            "/Users/ted/limn": .red
+        ]
+        let snapshot = SessionSnapshot(
+            windowX: 0, windowY: 0, windowWidth: 800, windowHeight: 600,
+            sidebarWidth: 200,
+            tabs: [
+                TabSnapshot(
+                    tabID: UUID(),
+                    name: "",
+                    position: 0,
+                    focusedLeafID: leafID,
+                    splitLayout: .leaf(SurfaceLeaf(id: leafID)),
+                    leafDirectories: [:]
+                )
+            ],
+            repoColorOverrides: overrides
+        )
+
+        let data = try JSONEncoder().encode(snapshot)
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: data)
+        #expect(decoded.repoColorOverrides == overrides)
+    }
+
+    @Test func missingOverridesDecodesAsEmpty() throws {
+        // Encode a snapshot, strip repoColorOverrides, verify it decodes with empty
+        let leafID = UUID()
+        let snapshot = SessionSnapshot(
+            windowX: 0, windowY: 0, windowWidth: 800, windowHeight: 600,
+            sidebarWidth: 200,
+            tabs: [
+                TabSnapshot(
+                    tabID: UUID(),
+                    name: "",
+                    position: 0,
+                    focusedLeafID: leafID,
+                    splitLayout: .leaf(SurfaceLeaf(id: leafID)),
+                    leafDirectories: [:]
+                )
+            ],
+            repoColorOverrides: ["/some/path": .blue]
+        )
+        let data = try JSONEncoder().encode(snapshot)
+        guard var json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            Issue.record("Expected dictionary")
+            return
+        }
+        json.removeValue(forKey: "repoColorOverrides")
+        let strippedData = try JSONSerialization.data(withJSONObject: json)
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: strippedData)
+        #expect(decoded.repoColorOverrides.isEmpty)
     }
 }
 
@@ -146,7 +196,6 @@ struct SessionStoreTests {
                 TabSnapshot(
                     tabID: UUID(),
                     name: "",
-                    color: .auto,
                     position: 0,
                     focusedLeafID: leafID,
                     splitLayout: .leaf(SurfaceLeaf(id: leafID)),

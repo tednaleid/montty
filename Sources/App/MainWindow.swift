@@ -14,7 +14,14 @@ struct MainWindow: View {
                     tabStore: tabStore,
                     onNewTab: { appDelegate.createTab() },
                     onCloseTab: { appDelegate.closeTab(id: $0) },
-                    onSetColor: { tabStore.setColor(id: $0, color: $1) },
+                    onSetRepoColor: { identity, color in
+                        if let color {
+                            appDelegate.repoColorOverrides[identity] = color
+                        } else {
+                            appDelegate.repoColorOverrides.removeValue(forKey: identity)
+                        }
+                    },
+                    repoColorOverrides: appDelegate.repoColorOverrides,
                     jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:],
                     onJumpToSurface: { tabID, leafID in
                         appDelegate.exitJumpMode()
@@ -69,10 +76,10 @@ struct MainWindow: View {
             SplitContainerView(
                 node: activeTab.splitRoot,
                 focusedLeafID: activeTab.focusedLeafID,
-                tabColor: activeTab.color,
                 surfaceLookup: { appDelegate.surfaceView(for: $0) },
                 jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:],
                 surfaceDirectories: activeTab.surfaceDirectories,
+                repoColorOverrides: appDelegate.repoColorOverrides,
                 surfaceTintEnabled: appDelegate.surfaceTintEnabled
             )
             .id(activeTab.id)
