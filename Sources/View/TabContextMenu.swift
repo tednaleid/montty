@@ -38,9 +38,11 @@ struct TabContextMenu: View {
         // Only show color menu when focused surface is in a git repo
         if let identity = repoIdentity {
             let currentColor = tab.effectiveColor(overrides: repoColorOverrides)
+            let hasOverride = repoColorOverrides[identity] != nil
             Menu(colorMenuLabel) {
                 TabColorPicker(
                     currentColor: currentColor,
+                    hasOverride: hasOverride,
                     onSelect: { color in
                         onSetRepoColor(identity, color)
                     }

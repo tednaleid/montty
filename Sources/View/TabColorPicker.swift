@@ -24,6 +24,7 @@ private func colorSwatch(_ color: Color, checked: Bool) -> NSImage {
 
 struct TabColorPicker: View {
     let currentColor: TabColor
+    let hasOverride: Bool
     /// Called with a color to set an override, or nil to clear the override.
     let onSelect: (TabColor?) -> Void
 
@@ -39,12 +40,14 @@ struct TabColorPicker: View {
             }
         }
 
-        Divider()
+        if hasOverride {
+            Divider()
 
-        Button {
-            onSelect(nil)
-        } label: {
-            Label("Reset", systemImage: "arrow.counterclockwise")
+            Button {
+                onSelect(nil)
+            } label: {
+                Label("Reset", systemImage: "arrow.counterclockwise")
+            }
         }
     }
 }
