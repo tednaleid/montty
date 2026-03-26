@@ -5,6 +5,7 @@ struct TabSidebar: View {
     let onNewTab: () -> Void
     let onCloseTab: (UUID) -> Void
     let onSetRepoColor: (String, TabColor?) -> Void
+    let onSetTabColor: (Tab, TabColor?) -> Void
     var repoColorOverrides: [String: TabColor] = [:]
     var jumpLabels: [UUID: String] = [:]
     var onJumpToSurface: ((UUID, UUID) -> Void)?
@@ -64,6 +65,9 @@ struct TabSidebar: View {
                                     editingTabID = tab.id
                                 },
                                 onSetRepoColor: onSetRepoColor,
+                                onSetTabColor: { color in
+                                    onSetTabColor(tab, color)
+                                },
                                 onClose: {
                                     onCloseTab(tab.id)
                                 }

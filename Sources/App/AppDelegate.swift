@@ -427,7 +427,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
                 position: tab.position,
                 focusedLeafID: tab.focusedLeafID,
                 splitLayout: tab.splitRoot,
-                leafDirectories: dirs
+                leafDirectories: dirs,
+                colorOverride: tab.colorOverride
             )
         }
         return SessionSnapshot(
@@ -466,6 +467,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
                 app: app, tab: tab
             )
             tab.focusedLeafID = tabSnap.focusedLeafID
+            tab.colorOverride = tabSnap.colorOverride
             tabStore.append(tab: tab)
         }
 

@@ -129,4 +129,33 @@ struct TabTests {
         let overrides = [identity: overrideColor]
         #expect(tab.effectiveColor(overrides: overrides) == overrideColor)
     }
+
+    @Test func tabColorOverrideBeatsRepoOverride() {
+        let surfaceID = UUID()
+        let tab = Tab(surfaceID: surfaceID)
+        let repoPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().path
+        tab.surfaceDirectories[surfaceID] = repoPath
+
+        // Set tab-level override
+        tab.colorOverride = .cyan
+
+        // Tab override should beat both hashed color and repo override
+        #expect(tab.effectiveColor() == .cyan)
+        let identity = TabColor.repoIdentity(for: repoPath)!
+        let repoOverrides = [identity: TabColor.magenta]
+        #expect(tab.effectiveColor(overrides: repoOverrides) == .cyan)
+    }
+
+    @Test func tabColorOverrideNilFallsThrough() {
+        let surfaceID = UUID()
+        let tab = Tab(surfaceID: surfaceID)
+        let repoPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().path
+        tab.surfaceDirectories[surfaceID] = repoPath
+
+        tab.colorOverride = nil
+        // Should use the git-hashed color, not gray
+        #expect(tab.effectiveColor() != .gray)
+    }
 }

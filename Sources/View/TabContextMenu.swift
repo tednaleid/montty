@@ -5,6 +5,7 @@ struct TabContextMenu: View {
     var repoColorOverrides: [String: TabColor] = [:]
     let onRename: () -> Void
     let onSetRepoColor: (String, TabColor?) -> Void
+    let onSetTabColor: (TabColor?) -> Void
     let onClose: () -> Void
 
     /// The focused surface's directory, if any.
@@ -23,8 +24,8 @@ struct TabContextMenu: View {
         return info.repoPath + (info.worktreeName ?? "")
     }
 
-    /// Display label for the color menu (repo name, optionally with worktree).
-    private var colorMenuLabel: String {
+    /// Display label for the repo color menu.
+    private var repoColorLabel: String {
         guard let info = focusedGitInfo else { return "Color" }
         if let worktree = info.worktreeName {
             return "Color: \(info.repoName) (\(worktree))"
@@ -35,19 +36,29 @@ struct TabContextMenu: View {
     var body: some View {
         Button("Rename...") { onRename() }
 
-        // Only show color menu when focused surface is in a git repo
+        // Repo/worktree color (affects minimap and other tabs with this repo)
         if let identity = repoIdentity {
-            let currentColor = tab.effectiveColor(overrides: repoColorOverrides)
-            let hasOverride = repoColorOverrides[identity] != nil
-            Menu(colorMenuLabel) {
+            let repoColor = TabColor.colorForWorktree(
+                focusedDir, overrides: repoColorOverrides
+            ) ?? .gray
+            let hasRepoOverride = repoColorOverrides[identity] != nil
+            Menu(repoColorLabel) {
                 TabColorPicker(
-                    currentColor: currentColor,
-                    hasOverride: hasOverride,
-                    onSelect: { color in
-                        onSetRepoColor(identity, color)
-                    }
+                    currentColor: repoColor,
+                    hasOverride: hasRepoOverride,
+                    onSelect: { color in onSetRepoColor(identity, color) }
                 )
             }
+        }
+
+        // Tab-level color override (affects tab bar and surface borders)
+        let tabOverride = tab.colorOverride
+        Menu("Tab Color") {
+            TabColorPicker(
+                currentColor: tabOverride ?? tab.effectiveColor(overrides: repoColorOverrides),
+                hasOverride: tabOverride != nil,
+                onSelect: { color in onSetTabColor(color) }
+            )
         }
 
         Divider()

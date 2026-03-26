@@ -16,14 +16,16 @@ final class Tab: Identifiable {
     var surfaceToMonttyID: [UUID: String] = [:]
     /// Per-surface working directories, keyed by surfaceID.
     var surfaceDirectories: [UUID: String] = [:]
+    /// Tab-level color override. Beats repo/worktree colors for all surfaces in this tab.
+    var colorOverride: TabColor?
 
     var displayName: String {
         name.isEmpty ? autoName : name
     }
 
-    /// The effective color for this tab, derived from the focused surface's
-    /// git repo with optional overrides.
+    /// The effective color for this tab. Priority: tab override > repo override > git hash > gray.
     func effectiveColor(overrides: [String: TabColor] = [:]) -> TabColor {
+        if let colorOverride { return colorOverride }
         let dir = focusedSurfaceID.flatMap { surfaceDirectories[$0] }
         return TabColor.colorForWorktree(dir, overrides: overrides) ?? .gray
     }

@@ -7,6 +7,7 @@ struct SplitContainerView: View {
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
     var repoColorOverrides: [String: TabColor] = [:]
+    var tabColorOverride: TabColor?
     var surfaceTintEnabled: Bool = true
 
     // Tweak this to control how much unfocused panes are dimmed.
@@ -54,12 +55,14 @@ struct SplitContainerView: View {
     }
 
     private func surfaceTintColor(for surfaceID: UUID) -> Color {
-        TabColor.colorForWorktree(
+        if let tabColorOverride { return tabColorOverride.swiftUIColor }
+        return TabColor.colorForWorktree(
             surfaceDirectories[surfaceID], overrides: repoColorOverrides
         )?.swiftUIColor ?? .clear
     }
 
     private var resolvedTabColor: Color {
+        if let tabColorOverride { return tabColorOverride.swiftUIColor }
         let dir = focusedLeafID
             .flatMap { leafID in
                 SplitTree.allLeaves(node: node)
@@ -81,6 +84,7 @@ struct SplitContainerView: View {
             jumpLabels: jumpLabels,
             surfaceDirectories: surfaceDirectories,
             repoColorOverrides: repoColorOverrides,
+            tabColorOverride: tabColorOverride,
             surfaceTintEnabled: surfaceTintEnabled
         )
     }
@@ -94,6 +98,7 @@ private struct BranchWrapper: View {
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
     var repoColorOverrides: [String: TabColor] = [:]
+    var tabColorOverride: TabColor?
     var surfaceTintEnabled: Bool = true
 
     @State private var ratio: CGFloat
@@ -105,6 +110,7 @@ private struct BranchWrapper: View {
         jumpLabels: [UUID: String] = [:],
         surfaceDirectories: [UUID: String] = [:],
         repoColorOverrides: [String: TabColor] = [:],
+        tabColorOverride: TabColor? = nil,
         surfaceTintEnabled: Bool = true
     ) {
         self.branch = branch
@@ -113,6 +119,7 @@ private struct BranchWrapper: View {
         self.jumpLabels = jumpLabels
         self.surfaceDirectories = surfaceDirectories
         self.repoColorOverrides = repoColorOverrides
+        self.tabColorOverride = tabColorOverride
         self.surfaceTintEnabled = surfaceTintEnabled
         self._ratio = State(initialValue: branch.ratio)
     }
@@ -129,6 +136,7 @@ private struct BranchWrapper: View {
                 jumpLabels: jumpLabels,
                 surfaceDirectories: surfaceDirectories,
                 repoColorOverrides: repoColorOverrides,
+                tabColorOverride: tabColorOverride,
                 surfaceTintEnabled: surfaceTintEnabled
             )
         } second: {
@@ -139,6 +147,7 @@ private struct BranchWrapper: View {
                 jumpLabels: jumpLabels,
                 surfaceDirectories: surfaceDirectories,
                 repoColorOverrides: repoColorOverrides,
+                tabColorOverride: tabColorOverride,
                 surfaceTintEnabled: surfaceTintEnabled
             )
         }

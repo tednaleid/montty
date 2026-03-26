@@ -59,4 +59,6 @@ struct TabSnapshot: Codable {
     var splitLayout: SplitNode
     /// Working directory per leaf, keyed by leaf ID.
     var leafDirectories: [UUID: String]
+    /// Tab-level color override, if set.
+    var colorOverride: TabColor?
 }

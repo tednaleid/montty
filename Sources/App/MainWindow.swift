@@ -21,6 +21,9 @@ struct MainWindow: View {
                             appDelegate.repoColorOverrides.removeValue(forKey: identity)
                         }
                     },
+                    onSetTabColor: { tab, color in
+                        tab.colorOverride = color
+                    },
                     repoColorOverrides: appDelegate.repoColorOverrides,
                     jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:],
                     onJumpToSurface: { tabID, leafID in
@@ -80,6 +83,7 @@ struct MainWindow: View {
                 jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:],
                 surfaceDirectories: activeTab.surfaceDirectories,
                 repoColorOverrides: appDelegate.repoColorOverrides,
+                tabColorOverride: activeTab.colorOverride,
                 surfaceTintEnabled: appDelegate.surfaceTintEnabled
             )
             .id(activeTab.id)
