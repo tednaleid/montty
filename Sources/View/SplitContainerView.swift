@@ -9,6 +9,7 @@ struct SplitContainerView: View {
     var repoColorOverrides: [String: TabColor] = [:]
     var tabColorOverride: TabColor?
     var surfaceTintEnabled: Bool = true
+    var onRatioChange: ((UUID, CGFloat) -> Void)?
 
     // Tweak this to control how much unfocused panes are dimmed.
     // 0.0 = no dimming, 0.3 = heavy dimming.
@@ -85,7 +86,8 @@ struct SplitContainerView: View {
             surfaceDirectories: surfaceDirectories,
             repoColorOverrides: repoColorOverrides,
             tabColorOverride: tabColorOverride,
-            surfaceTintEnabled: surfaceTintEnabled
+            surfaceTintEnabled: surfaceTintEnabled,
+            onRatioChange: onRatioChange
         )
     }
 }
@@ -100,6 +102,7 @@ private struct BranchWrapper: View {
     var repoColorOverrides: [String: TabColor] = [:]
     var tabColorOverride: TabColor?
     var surfaceTintEnabled: Bool = true
+    var onRatioChange: ((UUID, CGFloat) -> Void)?
 
     @State private var ratio: CGFloat
 
@@ -111,7 +114,8 @@ private struct BranchWrapper: View {
         surfaceDirectories: [UUID: String] = [:],
         repoColorOverrides: [String: TabColor] = [:],
         tabColorOverride: TabColor? = nil,
-        surfaceTintEnabled: Bool = true
+        surfaceTintEnabled: Bool = true,
+        onRatioChange: ((UUID, CGFloat) -> Void)? = nil
     ) {
         self.branch = branch
         self.focusedLeafID = focusedLeafID
@@ -121,6 +125,7 @@ private struct BranchWrapper: View {
         self.repoColorOverrides = repoColorOverrides
         self.tabColorOverride = tabColorOverride
         self.surfaceTintEnabled = surfaceTintEnabled
+        self.onRatioChange = onRatioChange
         self._ratio = State(initialValue: branch.ratio)
     }
 
@@ -137,7 +142,8 @@ private struct BranchWrapper: View {
                 surfaceDirectories: surfaceDirectories,
                 repoColorOverrides: repoColorOverrides,
                 tabColorOverride: tabColorOverride,
-                surfaceTintEnabled: surfaceTintEnabled
+                surfaceTintEnabled: surfaceTintEnabled,
+                onRatioChange: onRatioChange
             )
         } second: {
             SplitContainerView(
@@ -148,8 +154,12 @@ private struct BranchWrapper: View {
                 surfaceDirectories: surfaceDirectories,
                 repoColorOverrides: repoColorOverrides,
                 tabColorOverride: tabColorOverride,
-                surfaceTintEnabled: surfaceTintEnabled
+                surfaceTintEnabled: surfaceTintEnabled,
+                onRatioChange: onRatioChange
             )
+        }
+        .onChange(of: ratio) { _, newRatio in
+            onRatioChange?(branch.id, newRatio)
         }
     }
 }
