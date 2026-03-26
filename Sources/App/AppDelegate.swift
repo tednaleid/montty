@@ -106,6 +106,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             self?.createSnapshot() ?? SessionSnapshot()
         }
 
+        // Build the main menu bar
+        MenuBuilder.buildMainMenu(config: ghostty.config, appDelegate: self)
+
         HookServer.start()
         #if DEBUG
         DebugServer.start()
@@ -366,6 +369,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             .store(in: &cancellables)
 
         surfaceObservers[surfaceView.id] = cancellables
+    }
+
+    // MARK: - Menu actions
+
+    /// Handle a menu item that triggers a Ghostty binding action.
+    @objc func handleMenuAction(_ sender: NSMenuItem) {
+        guard let action = sender.representedObject as? String,
+              let tab = tabStore.activeTab,
+              let surfaceID = tab.focusedSurfaceID,
+              let view = surfaceView(for: surfaceID),
+              let surface = view.surface else { return }
+        ghostty_surface_binding_action(surface, action, UInt(action.utf8.count))
+    }
+
+    /// Open the Ghostty config file in the default editor.
+    func openConfig() {
+        let configPath = NSHomeDirectory() + "/.config/ghostty/config"
+        NSWorkspace.shared.open(URL(fileURLWithPath: configPath))
     }
 
     // MARK: - Ghostty action routing

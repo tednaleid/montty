@@ -161,5 +161,11 @@ private struct BranchWrapper: View {
         .onChange(of: ratio) { _, newRatio in
             onRatioChange?(branch.id, newRatio)
         }
+        .onChange(of: branch.ratio) { _, newRatio in
+            // Sync view state when model changes externally (menu/keyboard resize)
+            if abs(ratio - newRatio) > 0.001 {
+                ratio = newRatio
+            }
+        }
     }
 }

@@ -180,7 +180,7 @@ extension AppDelegate {
         }
 
         // Convert pixel amount to a ratio delta (approximate)
-        let ratioDelta = CGFloat(amount) / 1000.0
+        let ratioDelta = CGFloat(amount) / 500.0
         if let updated = SplitTree.resizeLeaf(
             node: tab.splitRoot, leafID: focusedLeafID,
             direction: direction, amount: ratioDelta

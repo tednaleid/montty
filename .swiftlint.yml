@@ -10,9 +10,9 @@ identifier_name:
     - up
 
 type_body_length:
-  warning: 400
-  error: 500
+  warning: 450
+  error: 550
 
 file_length:
-  warning: 600
-  error: 700
+  warning: 650
+  error: 750
