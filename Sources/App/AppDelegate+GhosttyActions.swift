@@ -138,6 +138,55 @@ extension AppDelegate {
                 self.setFocusedLeaf(target.id, in: tab)
             }
         }
+
+        center.addObserver(
+            forName: Ghostty.Notification.didResizeSplit,
+            object: nil, queue: .main
+        ) { [weak self] notification in
+            self?.handleResizeSplit(notification)
+        }
+
+        center.addObserver(
+            forName: Ghostty.Notification.didEqualizeSplits,
+            object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let surfaceView = notification.object as? Ghostty.SurfaceView,
+                  let tab = self.tabStore.tab(forSurfaceID: surfaceView.id)
+            else { return }
+            tab.splitRoot = SplitTree.equalize(node: tab.splitRoot)
+        }
+    }
+
+    private func handleResizeSplit(_ notification: Foundation.Notification) {
+        guard let surfaceView = notification.object as? Ghostty.SurfaceView,
+              let tab = tabStore.tab(forSurfaceID: surfaceView.id),
+              let focusedLeafID = tab.focusedLeafID,
+              let directionRaw = notification.userInfo?[
+                  Ghostty.Notification.ResizeSplitDirectionKey
+              ] as? ghostty_action_resize_split_direction_e,
+              let amount = notification.userInfo?[
+                  Ghostty.Notification.ResizeSplitAmountKey
+              ] as? UInt16
+        else { return }
+
+        let direction: SplitDirection
+        switch directionRaw {
+        case GHOSTTY_RESIZE_SPLIT_LEFT: direction = .left
+        case GHOSTTY_RESIZE_SPLIT_RIGHT: direction = .right
+        case GHOSTTY_RESIZE_SPLIT_UP: direction = .up
+        case GHOSTTY_RESIZE_SPLIT_DOWN: direction = .down
+        default: return
+        }
+
+        // Convert pixel amount to a ratio delta (approximate)
+        let ratioDelta = CGFloat(amount) / 1000.0
+        if let updated = SplitTree.resizeLeaf(
+            node: tab.splitRoot, leafID: focusedLeafID,
+            direction: direction, amount: ratioDelta
+        ) {
+            tab.splitRoot = updated
+        }
     }
 
     /// Find the target leaf for a split focus navigation.

@@ -491,4 +491,82 @@ struct SplitTreeDirectionTests {
         }
         #expect(first.id == leaf.id)
     }
+
+    // MARK: - Resize
+
+    @Test func updateRatioChangesMatchingBranch() {
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let branch = SplitBranch(
+            orientation: .horizontal, first: .leaf(leafA), second: .leaf(leafB))
+        let root = SplitNode.split(branch)
+
+        let updated = SplitTree.updateRatio(node: root, branchID: branch.id, ratio: 0.7)
+        guard case .split(let newBranch) = updated else {
+            Issue.record("Expected split")
+            return
+        }
+        #expect(newBranch.ratio == 0.7)
+    }
+
+    @Test func updateRatioClampsToRange() {
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let branch = SplitBranch(
+            orientation: .horizontal, first: .leaf(leafA), second: .leaf(leafB))
+        let root = SplitNode.split(branch)
+
+        let tooHigh = SplitTree.updateRatio(node: root, branchID: branch.id, ratio: 1.5)
+        guard case .split(let high) = tooHigh else { return }
+        #expect(high.ratio == 0.9)
+
+        let tooLow = SplitTree.updateRatio(node: root, branchID: branch.id, ratio: -0.5)
+        guard case .split(let low) = tooLow else { return }
+        #expect(low.ratio == 0.1)
+    }
+
+    @Test func resizeLeafAdjustsParentRatio() {
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let branch = SplitBranch(
+            orientation: .horizontal, ratio: 0.5,
+            first: .leaf(leafA), second: .leaf(leafB))
+        let root = SplitNode.split(branch)
+
+        // Resize leaf A to the right (grow first child)
+        let result = SplitTree.resizeLeaf(
+            node: root, leafID: leafA.id, direction: .right, amount: 0.1)
+        guard case .split(let resized) = result else {
+            Issue.record("Expected split")
+            return
+        }
+        #expect(abs(resized.ratio - 0.6) < 0.001)
+    }
+
+    @Test func resizeLeafReturnsNilForSingleLeaf() {
+        let leaf = SurfaceLeaf()
+        let root = SplitNode.leaf(leaf)
+        let result = SplitTree.resizeLeaf(
+            node: root, leafID: leaf.id, direction: .right, amount: 0.1)
+        #expect(result == nil)
+    }
+
+    @Test func equalizeSetAllRatiosToHalf() {
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let leafC = SurfaceLeaf()
+        let inner = SplitBranch(
+            orientation: .vertical, ratio: 0.3,
+            first: .leaf(leafB), second: .leaf(leafC))
+        let outer = SplitBranch(
+            orientation: .horizontal, ratio: 0.7,
+            first: .leaf(leafA), second: .split(inner))
+        let root = SplitNode.split(outer)
+
+        let equalized = SplitTree.equalize(node: root)
+        guard case .split(let outerEq) = equalized else { return }
+        #expect(outerEq.ratio == 0.5)
+        guard case .split(let innerEq) = outerEq.second else { return }
+        #expect(innerEq.ratio == 0.5)
+    }
 }

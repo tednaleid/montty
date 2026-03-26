@@ -1161,12 +1161,23 @@ extension Ghostty {
             return false
         }
 
-        // MONTTY: Stubbed -- no split tree yet. Will be implemented in Phase 3.
+        // MONTTY: Post notification for AppDelegate to handle split resize.
         private static func resizeSplit(
             _ app: ghostty_app_t,
             target: ghostty_target_s,
             resize: ghostty_action_resize_split_s) -> Bool {
-            return false
+            guard target.tag == GHOSTTY_TARGET_SURFACE,
+                  let surface = target.target.surface,
+                  let surfaceView = self.surfaceView(from: surface) else { return false }
+            NotificationCenter.default.post(
+                name: Notification.didResizeSplit,
+                object: surfaceView,
+                userInfo: [
+                    Notification.ResizeSplitDirectionKey: resize.direction,
+                    Notification.ResizeSplitAmountKey: resize.amount
+                ]
+            )
+            return true
         }
 
         private static func equalizeSplits(

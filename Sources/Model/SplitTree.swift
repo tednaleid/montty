@@ -182,6 +182,86 @@ enum SplitTree {
         )
     }
 
+    // MARK: - Resize
+
+    /// Update the ratio of a branch by its ID.
+    static func updateRatio(
+        node: SplitNode, branchID: UUID, ratio: CGFloat
+    ) -> SplitNode {
+        switch node {
+        case .leaf:
+            return node
+        case .split(let branch):
+            if branch.id == branchID {
+                return .split(SplitBranch(
+                    id: branch.id,
+                    orientation: branch.orientation,
+                    ratio: min(0.9, max(0.1, ratio)),
+                    first: branch.first,
+                    second: branch.second
+                ))
+            }
+            return .split(SplitBranch(
+                id: branch.id,
+                orientation: branch.orientation,
+                ratio: branch.ratio,
+                first: updateRatio(node: branch.first, branchID: branchID, ratio: ratio),
+                second: updateRatio(node: branch.second, branchID: branchID, ratio: ratio)
+            ))
+        }
+    }
+
+    /// Resize the split containing a leaf in the given direction.
+    /// The amount is a ratio delta (e.g. 0.02 for a small step).
+    /// Returns the updated tree, or nil if the leaf has no parent branch
+    /// matching the resize direction.
+    static func resizeLeaf(
+        node: SplitNode, leafID: UUID,
+        direction: SplitDirection, amount: CGFloat
+    ) -> SplitNode? {
+        guard let path = pathToLeaf(node: node, leafID: leafID),
+              !path.isEmpty else { return nil }
+
+        // Walk up from the leaf to find the nearest branch matching
+        // the resize direction's orientation.
+        for idx in stride(from: path.count - 1, through: 0, by: -1) {
+            let step = path[idx]
+            guard step.branch.orientation == direction.orientation else { continue }
+
+            // Positive amount grows the first child. If the leaf is in the
+            // second child and resizing left/up, or in first and right/down,
+            // the sign flips.
+            let sign: CGFloat
+            switch (step.position, direction) {
+            case (.first, .right), (.first, .down): sign = 1
+            case (.first, .left), (.first, .up): sign = -1
+            case (.second, .right), (.second, .down): sign = -1
+            case (.second, .left), (.second, .up): sign = 1
+            }
+
+            let newRatio = step.branch.ratio + sign * amount
+            return updateRatio(node: node, branchID: step.branch.id, ratio: newRatio)
+        }
+
+        return nil
+    }
+
+    /// Set all branch ratios to 0.5 (equal sizing).
+    static func equalize(node: SplitNode) -> SplitNode {
+        switch node {
+        case .leaf:
+            return node
+        case .split(let branch):
+            return .split(SplitBranch(
+                id: branch.id,
+                orientation: branch.orientation,
+                ratio: 0.5,
+                first: equalize(node: branch.first),
+                second: equalize(node: branch.second)
+            ))
+        }
+    }
+
     // MARK: - Private helpers
 
     private enum ChildPosition {
