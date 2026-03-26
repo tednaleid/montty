@@ -5,6 +5,9 @@ options:
     macOS: "14.0"
   xcodeVersion: "16.0"
   generateEmptyDirectories: true
+  fileTypes:
+    "icon":
+      file: true
 
 settings:
   base:
@@ -17,9 +20,11 @@ targets:
     platform: macOS
     sources:
       - path: Sources
+      - path: AppIcon.icon
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.montty.app
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: Resources/montty.entitlements
         INFOPLIST_FILE: Resources/Info.plist
         PRODUCT_NAME: Montty

@@ -227,6 +227,27 @@ retag tag:
     git tag -a "{{tag}}" -F "$notes_file"
     git push && git push --tags
 
+# Nuke the macOS icon cache. Run after changing app icons if the Dock
+# or Finder still shows the old icon. Pass --force to actually delete.
+nuke-icon-cache force="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Commands to clear macOS icon caches:"
+    echo "  sudo rm -rf /Library/Caches/com.apple.iconservices.store"
+    echo "  sudo find /private/var/folders/ -name com.apple.dock.iconcache or com.apple.iconservices -exec rm -rf"
+    echo "  killall Dock Finder"
+    echo
+    if [ "{{force}}" = "--force" ]; then
+        echo "Clearing caches (requires sudo)..."
+        sudo rm -rf /Library/Caches/com.apple.iconservices.store
+        sudo find /private/var/folders/ \( -name com.apple.dock.iconcache -or -name com.apple.iconservices \) -exec rm -rf {} \; 2>/dev/null || true
+        killall Dock; killall Finder
+        echo "Done. Dock and Finder restarted."
+    else
+        echo "Dry run. To execute, run:"
+        echo "  just nuke-icon-cache --force"
+    fi
+
 # Remove build artifacts
 clean:
     rm -rf {{build_dir}} DerivedData
