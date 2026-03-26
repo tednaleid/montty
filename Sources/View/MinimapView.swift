@@ -80,16 +80,21 @@ struct ClaudeIndicatorView: View {
     let state: ClaudeCodeStatus.State
 
     // Cycle through star characters when working
-    private static let thinkingChars: [String] = ["*", "\u{2736}", "\u{273B}", "\u{2733}", "\u{2722}", "\u{00B7}"]
+    private static let thinkingChars: [String] = [
+        "*", "\u{2736}", "\u{273B}", "\u{2733}", "\u{2722}", "\u{00B7}"
+    ]
 
     @State private var charIndex = 0
+    private let timer = Timer.publish(every: 0.3, on: .main, in: .common).autoconnect()
 
     var body: some View {
         Group {
             switch state {
             case .working:
                 Text(Self.thinkingChars[charIndex % Self.thinkingChars.count])
-                    .onAppear { startAnimation() }
+                    .onReceive(timer) { _ in
+                        charIndex = (charIndex + 1) % Self.thinkingChars.count
+                    }
             case .waiting:
                 Text("*?")
             case .idle, .unknown:
@@ -99,11 +104,4 @@ struct ClaudeIndicatorView: View {
         .font(.system(size: 32))
         .foregroundStyle(.orange)
     }
-
-    private func startAnimation() {
-        Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
-            charIndex = (charIndex + 1) % Self.thinkingChars.count
-        }
-    }
-
 }
