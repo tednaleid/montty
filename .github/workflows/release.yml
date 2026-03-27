@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-15
+    runs-on: macos-26
     env:
       APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
     steps:
@@ -30,7 +30,7 @@ jobs:
             ghostty/macos/GhosttyKit.xcframework
             ghostty/zig-out/share/terminfo
             ghostty/zig-out/share/ghostty/themes
-          key: ghosttykit-v3-${{ hashFiles('.git/modules/ghostty/HEAD') }}
+          key: ghosttykit-v4-${{ hashFiles('.git/modules/ghostty/HEAD') }}
 
       - name: Install zig 0.15.2
         if: steps.cache-ghosttykit.outputs.cache-hit != 'true'
