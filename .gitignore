@@ -21,3 +21,4 @@ GhosttyKit.xcframework
 # macOS
 .DS_Store
 .llm
+.claude/settings.local.json
