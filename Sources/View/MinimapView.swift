@@ -79,29 +79,40 @@ struct MinimapView: View {
 struct ClaudeIndicatorView: View {
     let state: ClaudeCodeStatus.State
 
-    // Cycle through star characters when working
-    private static let thinkingChars: [String] = [
-        "*", "\u{2736}", "\u{273B}", "\u{2733}", "\u{2722}", "\u{00B7}"
+    // Cycle through star characters when working, with per-character scale
+    // factors so each symbol appears roughly the same visual size as "*".
+    private static let thinkingChars: [(char: String, scale: CGFloat)] = [
+        ("*", 1.0),
+        ("\u{2736}", 1.0),   // ✶ six pointed black star
+        ("\u{273B}", 1.0),   // ✻ eight pointed pinwheel star
+        ("\u{2733}", 1.0),   // ✳ eight pointed rectilinear star
+        ("\u{2722}", 1.0),   // ✢ four pointed star
+        ("\u{00B7}", 1.0),   // · middle dot
     ]
 
     @State private var charIndex = 0
-    private let timer = Timer.publish(every: 0.3, on: .main, in: .common).autoconnect()
+    private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         Group {
             switch state {
             case .working:
-                Text(Self.thinkingChars[charIndex % Self.thinkingChars.count])
+                let entry = Self.thinkingChars[charIndex % Self.thinkingChars.count]
+                Text(entry.char)
+                    .frame(width: 24, height: 24)
+                    .scaleEffect(entry.scale)
                     .onReceive(timer) { _ in
                         charIndex = (charIndex + 1) % Self.thinkingChars.count
                     }
             case .waiting:
                 Text("*?")
+                    .frame(width: 48, height: 24)
             case .idle, .unknown:
                 Text("*")
+                    .frame(width: 24, height: 24)
             }
         }
-        .font(.system(size: 32))
+        .font(.system(size: 24, design: .monospaced))
         .foregroundStyle(.orange)
     }
 }
