@@ -13,6 +13,7 @@ jobs:
     runs-on: macos-26
     env:
       APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -162,6 +163,55 @@ jobs:
         with:
           body_path: /tmp/release-notes.txt
           files: ${{ env.DMG_PATH }}
+
+      # -- Update Homebrew cask --
+
+      - name: Compute DMG SHA-256
+        id: sha256
+        run: echo "sha256=$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Update Homebrew cask
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SHA256="${{ steps.sha256.outputs.sha256 }}"
+
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/tednaleid/homebrew-montty.git" /tmp/homebrew-montty
+          cd /tmp/homebrew-montty
+
+          cat > Casks/montty.rb << 'CASK'
+          cask "montty" do
+            version "VERSION_PLACEHOLDER"
+            sha256 "SHA256_PLACEHOLDER"
+
+            url "https://github.com/tednaleid/montty/releases/download/#{version}/montty-#{version}.dmg"
+            name "Montty"
+            desc "macOS terminal app with vertical tabs, splits, and session persistence"
+            homepage "https://github.com/tednaleid/montty"
+
+            depends_on macos: ">= :tahoe"
+
+            app "Montty.app"
+
+            zap trash: [
+              "~/Library/Application Support/montty",
+              "~/Library/Preferences/com.montty.app.plist",
+              "~/Library/Caches/com.montty.app",
+            ]
+          end
+          CASK
+
+          sed -i '' "s/VERSION_PLACEHOLDER/${VERSION}/" Casks/montty.rb
+          sed -i '' "s/SHA256_PLACEHOLDER/${SHA256}/" Casks/montty.rb
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/montty.rb
+          git diff --cached --quiet && echo "No cask changes" && exit 0
+          git commit -m "Update montty to ${VERSION}"
+          git push
 
       # -- Cleanup --
 

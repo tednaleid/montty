@@ -22,6 +22,14 @@ Easy Motion allows movement directly to any terminal surface across tabs:
 
 ## Install
 
+### Homebrew
+
+```bash
+brew install --cask tednaleid/montty/montty
+```
+
+### Manual download
+
 Download the latest DMG from [Releases](https://github.com/tednaleid/montty/releases).
 
 ## Build from source
