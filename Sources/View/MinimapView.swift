@@ -87,7 +87,7 @@ struct ClaudeIndicatorView: View {
         ("\u{273B}", 1.0),   // ✻ eight pointed pinwheel star
         ("\u{2733}", 1.0),   // ✳ eight pointed rectilinear star
         ("\u{2722}", 1.0),   // ✢ four pointed star
-        ("\u{00B7}", 1.0),   // · middle dot
+        ("\u{00B7}", 1.0)    // · middle dot
     ]
 
     @State private var charIndex = 0
