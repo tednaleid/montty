@@ -22,5 +22,7 @@
 	<string></string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>A program running within Montty would like to use your microphone.</string>
 </dict>
 </plist>
