@@ -81,6 +81,7 @@ struct TabRow: View {
                 MinimapView(
                     minimap: info.minimap,
                     tabColor: accentColor,
+                    tabColorOverride: tab.colorOverride,
                     isActiveTab: isActive,
                     jumpLabels: jumpLabels,
                     surfaceDirectories: tab.surfaceDirectories,
@@ -118,7 +119,7 @@ struct TabRow: View {
     private var accentColor: Color { tabColor }
 
     private var colorBarColor: Color {
-        isActive ? tabColor : .gray.opacity(0.3)
+        isActive ? tabColor : tabColor.opacity(0.3)
     }
 
     private var activeBackground: Color {

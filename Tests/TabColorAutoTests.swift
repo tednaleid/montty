@@ -122,4 +122,47 @@ import Testing
         #expect(TabColor.colorForGitInfo(base, overrides: overrides)
             == TabColor.colorForGitInfo(base))
     }
+
+    // MARK: - Pane color resolution
+
+    @Test func tabOverrideWinsOverSurfaceColor() {
+        let info = GitInfo(
+            repoName: "montty", branchName: "main",
+            worktreeName: nil, repoPath: "/Users/ted/montty"
+        )
+        let surfaceColor = TabColor.colorForGitInfo(info)
+        #expect(surfaceColor != nil)
+        #expect(surfaceColor != .red, "Test assumes montty doesn't hash to red")
+
+        let resolved = TabColor.resolvedPaneColor(
+            tabColorOverride: .red,
+            surfaceDirectory: "/Users/ted/montty",
+            repoColorOverrides: [:]
+        )
+        #expect(resolved == .red)
+    }
+
+    @Test func noOverrideFallsBackToSurfaceColor() {
+        // Use the actual repo directory so GitInfo.from(path:) resolves
+        let repoDir = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().path
+        let expected = TabColor.colorForWorktree(repoDir)
+        #expect(expected != nil, "Test must run inside a git repo")
+
+        let resolved = TabColor.resolvedPaneColor(
+            tabColorOverride: nil,
+            surfaceDirectory: repoDir,
+            repoColorOverrides: [:]
+        )
+        #expect(resolved == expected)
+    }
+
+    @Test func noOverrideNoRepoReturnsNil() {
+        let resolved = TabColor.resolvedPaneColor(
+            tabColorOverride: nil,
+            surfaceDirectory: nil,
+            repoColorOverrides: [:]
+        )
+        #expect(resolved == nil)
+    }
 }

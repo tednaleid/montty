@@ -27,6 +27,17 @@ extension TabColor {
         return colorForGitInfo(GitInfo.from(path: dir), overrides: overrides)
     }
 
+    /// Resolve the display color for a minimap pane.
+    /// Tab-level override wins over per-surface directory color.
+    static func resolvedPaneColor(
+        tabColorOverride: TabColor?,
+        surfaceDirectory: String?,
+        repoColorOverrides: [String: TabColor]
+    ) -> TabColor? {
+        if let tabColorOverride { return tabColorOverride }
+        return colorForWorktree(surfaceDirectory, overrides: repoColorOverrides)
+    }
+
     /// The repo identity string for a directory, used as the key in overrides.
     /// Returns nil if not in a git repo.
     static func repoIdentity(for dir: String?) -> String? {

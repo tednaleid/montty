@@ -3,6 +3,7 @@ import SwiftUI
 struct MinimapView: View {
     let minimap: SplitMinimap
     let tabColor: Color
+    var tabColorOverride: TabColor?
     let isActiveTab: Bool
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
@@ -53,8 +54,10 @@ struct MinimapView: View {
     }
 
     private func paneColor(_ pane: MinimapPane) -> Color {
-        TabColor.colorForWorktree(
-            surfaceDirectories[pane.surfaceID], overrides: repoColorOverrides
+        TabColor.resolvedPaneColor(
+            tabColorOverride: tabColorOverride,
+            surfaceDirectory: surfaceDirectories[pane.surfaceID],
+            repoColorOverrides: repoColorOverrides
         )?.swiftUIColor ?? tabColor
     }
 
