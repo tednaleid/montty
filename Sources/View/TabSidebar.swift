@@ -12,70 +12,61 @@ struct TabSidebar: View {
 
     @State private var editingTabID: UUID?
 
-    private var selection: Binding<UUID?> {
-        Binding(
-            get: { tabStore.activeTabID },
-            set: { newValue in
-                if newValue != nil || tabStore.tabs.isEmpty {
-                    tabStore.activeTabID = newValue
-                }
-            }
-        )
-    }
-
     var body: some View {
         VStack(spacing: 0) {
-                List(selection: selection) {
-                    ForEach(tabStore.tabs) { tab in
-                        let isActive = tab.id == tabStore.activeTabID
-                        TabRow(
-                            tab: tab,
-                            isActive: isActive,
-                            repoColorOverrides: repoColorOverrides,
-                            editingTabID: $editingTabID,
-                            jumpLabels: jumpLabels,
-                            onPaneTap: { leafID in
-                                onJumpToSurface?(tab.id, leafID)
-                            }
-                        )
-                        .tag(tab.id)
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .draggable(tab.id.uuidString) {
-                            Text(tab.tabInfo.displayName)
-                                .padding(4)
-                        }
-                        .dropDestination(for: String.self) { items, _ in
-                            guard let draggedIDString = items.first,
-                                  let draggedID = UUID(uuidString: draggedIDString),
-                                  let fromIndex = tabStore.tabs.firstIndex(
-                                      where: { $0.id == draggedID }),
-                                  let toIndex = tabStore.tabs.firstIndex(
-                                      where: { $0.id == tab.id }),
-                                  fromIndex != toIndex
-                            else { return false }
-                            tabStore.move(fromIndex: fromIndex, toIndex: toIndex)
-                            return true
-                        }
-                        .contextMenu {
-                            TabContextMenu(
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(tabStore.tabs) { tab in
+                            let isActive = tab.id == tabStore.activeTabID
+                            TabRow(
                                 tab: tab,
+                                isActive: isActive,
                                 repoColorOverrides: repoColorOverrides,
-                                onRename: {
-                                    editingTabID = tab.id
-                                },
-                                onSetRepoColor: onSetRepoColor,
-                                onSetTabColor: { color in
-                                    onSetTabColor(tab, color)
-                                },
-                                onClose: {
-                                    onCloseTab(tab.id)
+                                editingTabID: $editingTabID,
+                                jumpLabels: jumpLabels,
+                                onPaneTap: { leafID in
+                                    onJumpToSurface?(tab.id, leafID)
                                 }
                             )
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                tabStore.activeTabID = tab.id
+                            }
+                            .draggable(tab.id.uuidString) {
+                                Text(tab.tabInfo.displayName)
+                                    .padding(4)
+                            }
+                            .dropDestination(for: String.self) { items, _ in
+                                guard let draggedIDString = items.first,
+                                      let draggedID = UUID(uuidString: draggedIDString),
+                                      let fromIndex = tabStore.tabs.firstIndex(
+                                          where: { $0.id == draggedID }),
+                                      let toIndex = tabStore.tabs.firstIndex(
+                                          where: { $0.id == tab.id }),
+                                      fromIndex != toIndex
+                                else { return false }
+                                tabStore.move(fromIndex: fromIndex, toIndex: toIndex)
+                                return true
+                            }
+                            .contextMenu {
+                                TabContextMenu(
+                                    tab: tab,
+                                    repoColorOverrides: repoColorOverrides,
+                                    onRename: {
+                                        editingTabID = tab.id
+                                    },
+                                    onSetRepoColor: onSetRepoColor,
+                                    onSetTabColor: { color in
+                                        onSetTabColor(tab, color)
+                                    },
+                                    onClose: {
+                                        onCloseTab(tab.id)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
-                .listStyle(.plain)
 
                 Divider()
 
