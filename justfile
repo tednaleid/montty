@@ -248,6 +248,18 @@ nuke-icon-cache force="":
         echo "  just nuke-icon-cache --force"
     fi
 
+# Install git pre-commit hook that runs all checks before each commit
+install-hooks:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    hook=".git/hooks/pre-commit"
+    cat > "$hook" << 'HOOK'
+#!/bin/sh
+just check
+HOOK
+    chmod +x "$hook"
+    echo "Installed pre-commit hook: $hook"
+
 # Remove build artifacts
 clean:
     rm -rf {{build_dir}} DerivedData

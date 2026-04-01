@@ -14,6 +14,10 @@ just build      # compile the app
 just run        # build and launch
 just test       # run unit tests
 just lint       # run SwiftLint
+just check      # run tests, lint, and build (used by CI and pre-commit hook)
+just clean      # remove build artifacts and caches
+just bump       # bump version, generate release notes, tag, and push
+just retag      # re-trigger release workflow for an existing version
 ```
 
 ## Debug server
