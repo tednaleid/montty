@@ -28,6 +28,12 @@ Easy Motion allows movement directly to any terminal surface across tabs:
 brew install --cask tednaleid/montty/montty
 ```
 
+To upgrade to the latest version:
+
+```bash
+brew update && brew upgrade --cask montty
+```
+
 ### Manual download
 
 Download the latest DMG from [Releases](https://github.com/tednaleid/montty/releases).
