@@ -253,10 +253,7 @@ install-hooks:
     #!/usr/bin/env bash
     set -euo pipefail
     hook=".git/hooks/pre-commit"
-    cat > "$hook" << 'HOOK'
-#!/bin/sh
-just check
-HOOK
+    printf '#!/bin/sh\njust check\n' > "$hook"
     chmod +x "$hook"
     echo "Installed pre-commit hook: $hook"
 
