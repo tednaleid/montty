@@ -168,16 +168,25 @@ inspect-jump leaf_id="":
 inspect-jump-state:
     @curl -sf localhost:9876/jump-state | jq .
 
-# Bump version in Info.plist, commit, tag with release notes, and push
-bump version:
+# Bump version in Info.plist, commit, tag with release notes, and push.
+# If no version given, increments the patch version from the last tag.
+bump version="":
     #!/usr/bin/env bash
     set -euo pipefail
-    test -n "{{version}}" || { echo "Usage: just bump 0.2.0"; exit 1; }
+    if [ -n "{{version}}" ]; then
+        version="{{version}}"
+    else
+        prev=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+        IFS='.' read -r major minor patch <<< "$prev"
+        version="${major}.${minor}.$((patch + 1))"
+    fi
+
+    echo "Bumping to version $version"
 
     # Update version in Info.plist
-    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString {{version}}" Resources/Info.plist
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" Resources/Info.plist
     git add Resources/Info.plist
-    git commit -m "Bump version to {{version}}"
+    git commit -m "Bump version to $version"
 
     # Generate release notes from commits since last tag
     prev_tag=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
@@ -191,7 +200,7 @@ bump version:
     trap 'rm -f "$notes_file"' EXIT
 
     if command -v claude &>/dev/null; then
-        prompt="Generate concise release notes for version {{version}} of montty (a macOS terminal app).
+        prompt="Generate concise release notes for version $version of montty (a macOS terminal app).
     Here are the commits since ${prev_tag:-the beginning}:
 
     ${commit_log}
@@ -216,7 +225,7 @@ bump version:
     fi
     cat "$notes_file"
 
-    git tag -a "{{version}}" -F "$notes_file"
+    git tag -a "$version" -F "$notes_file"
     git push && git push --tags
 
 # Delete a GitHub release and re-tag the current commit to re-trigger release workflow
