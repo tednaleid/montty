@@ -109,6 +109,26 @@ Trigger a Ghostty keybind action.
 curl -s -X POST localhost:9876/action -d 'copy_to_clipboard'
 ```
 
+### POST /jump
+
+Enter jump mode or jump directly to a surface by leaf ID.
+
+```bash
+# Enter jump mode (assigns labels, installs key monitor)
+curl -s -X POST localhost:9876/jump | jq .
+
+# Jump directly to a specific surface
+curl -s -X POST localhost:9876/jump -d '<leaf_id>'
+```
+
+### GET /jump-state
+
+Get current jump mode state (labels, buffer, active status).
+
+```bash
+curl -s localhost:9876/jump-state | jq .
+```
+
 ## justfile recipes
 
 | Recipe | Description |
@@ -119,8 +139,11 @@ curl -s -X POST localhost:9876/action -d 'copy_to_clipboard'
 | `just inspect-screen` | Read terminal text |
 | `just inspect-screenshot` | Save screenshot to `.llm/inspect/` |
 | `just inspect-state` | Get terminal state |
+| `just inspect-jump` | Enter jump mode |
+| `just inspect-jump <leaf_id>` | Jump to a specific surface |
+| `just inspect-jump-state` | Show jump mode state |
 
-All inspect recipes accept an optional `surface=<uuid>` parameter to target a specific surface.
+All inspect recipes except `inspect-jump` and `inspect-jump-state` accept an optional `surface=<uuid>` parameter to target a specific surface.
 
 ## Example workflow
 

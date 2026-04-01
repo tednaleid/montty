@@ -46,6 +46,12 @@ enum MenuBuilder {
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)
 
+        // Navigate menu
+        mainMenu.addItem(buildNavigateMenu(ctx))
+
+        // View menu
+        mainMenu.addItem(buildViewMenu(ctx))
+
         // Window menu
         mainMenu.addItem(buildWindowMenu(ctx))
 
@@ -75,6 +81,38 @@ enum MenuBuilder {
         menu.addItem(.separator())
         addItem(to: menu, title: "Open Config", key: ",", mods: [.command]) {
             ctx.appDelegate.openConfig()
+        }
+
+        let item = NSMenuItem()
+        item.submenu = menu
+        return item
+    }
+
+    // MARK: - Navigate menu
+
+    private static func buildNavigateMenu(_ ctx: MenuContext) -> NSMenuItem {
+        let menu = NSMenu(title: "Navigate")
+
+        addItem(to: menu, title: "Jump to Surface", key: ";", mods: [.command]) {
+            ctx.appDelegate.enterJumpMode()
+        }
+        menu.addItem(.separator())
+        addItem(to: menu, title: "Toggle Sidebar", key: "\r", mods: [.command, .shift]) {
+            ctx.appDelegate.sidebarVisible.toggle()
+        }
+
+        let item = NSMenuItem()
+        item.submenu = menu
+        return item
+    }
+
+    // MARK: - View menu
+
+    private static func buildViewMenu(_ ctx: MenuContext) -> NSMenuItem {
+        let menu = NSMenu(title: "View")
+
+        addItem(to: menu, title: "Toggle Surface Tint", key: "", mods: []) {
+            ctx.appDelegate.surfaceTintEnabled.toggle()
         }
 
         let item = NSMenuItem()

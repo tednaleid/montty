@@ -160,6 +160,14 @@ inspect-action action surface="":
 inspect-palette:
     @curl -sf 'localhost:9876/palette' | jq .
 
+# Jump to a surface by leaf ID, or enter jump mode (no arg)
+inspect-jump leaf_id="":
+    @curl -sf -X POST localhost:9876/jump -d '{{leaf_id}}' | jq .
+
+# Show current jump mode state (labels, buffer)
+inspect-jump-state:
+    @curl -sf localhost:9876/jump-state | jq .
+
 # Bump version in Info.plist, commit, tag with release notes, and push
 bump version:
     #!/usr/bin/env bash

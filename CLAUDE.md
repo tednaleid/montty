@@ -32,6 +32,9 @@ just inspect-key return             # send key event
 just inspect-screen                 # read terminal text
 just inspect-screenshot             # save PNG to .llm/inspect/
 just inspect-state                  # get terminal metadata
+just inspect-jump                   # enter jump mode
+just inspect-jump <leaf_id>         # jump to specific surface
+just inspect-jump-state             # show jump mode state
 ```
 
 ## Testing philosophy

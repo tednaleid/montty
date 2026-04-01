@@ -1,5 +1,5 @@
 // ABOUTME: Route handlers for DebugServer HTTP endpoints.
-// ABOUTME: Handles /surfaces, /type, /key, /screen, /screenshot, /state, /action requests.
+// ABOUTME: Handles /surfaces, /type, /key, /screen, /screenshot, /state, /action, /jump requests.
 #if DEBUG
 import AppKit
 import GhosttyKit
@@ -7,6 +7,7 @@ import Network
 
 extension DebugServer {
     // MARK: - Routing
+    // swiftlint:disable:next cyclomatic_complexity
     static func routeRequest(_ request: HTTPRequest, connection: NWConnection) {
         let surfaceID = request.query["surface"]
 
@@ -27,6 +28,10 @@ extension DebugServer {
             handleAction(body: request.body, surfaceID: surfaceID, connection: connection)
         case ("GET", "/palette"):
             handlePalette(connection: connection)
+        case ("POST", "/jump"):
+            handleJump(body: request.body, connection: connection)
+        case ("GET", "/jump-state"):
+            handleJumpState(connection: connection)
         default:
             sendJSON(["error": "Not found: \(request.method) \(request.path)"], status: 404, connection: connection)
         }
@@ -389,6 +394,71 @@ extension DebugServer {
             }
             let result = ghostty_surface_binding_action(surface, action, UInt(action.utf8.count))
             sendJSON(["ok": result, "action": action], connection: connection)
+        }
+    }
+
+    // MARK: - Jump mode
+
+    private static func handleJump(body: String, connection: NWConnection) {
+        let leafIDStr = body.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        DispatchQueue.main.async {
+            guard let appDel = AppDelegate.shared() else {
+                sendJSON(["error": "No app delegate"], status: 500, connection: connection)
+                return
+            }
+
+            if leafIDStr.isEmpty {
+                // Enter jump mode (assign labels, install key monitor)
+                appDel.enterJumpMode()
+                let labels = appDel.jumpState?.leafToLabel.map { (key, value) in
+                    ["leaf_id": key.uuidString, "label": value]
+                } ?? []
+                sendJSON(["ok": true, "mode": "enter", "labels": labels], connection: connection)
+            } else {
+                // Jump directly to a specific leaf
+                guard let leafID = UUID(uuidString: leafIDStr) else {
+                    sendJSON(["error": "Invalid UUID: \(leafIDStr)"], status: 400, connection: connection)
+                    return
+                }
+                // Find which tab contains this leaf
+                guard let tab = appDel.tabStore.tabs.first(where: {
+                    SplitTree.allLeaves(node: $0.splitRoot).contains { $0.id == leafID }
+                }) else {
+                    sendJSON(["error": "Leaf not found: \(leafIDStr)"], status: 404, connection: connection)
+                    return
+                }
+                appDel.exitJumpMode()
+                appDel.jumpToSurface(tabID: tab.id, leafID: leafID)
+                sendJSON(["ok": true, "mode": "jump", "tab_id": tab.id.uuidString, "leaf_id": leafIDStr],
+                         connection: connection)
+            }
+        }
+    }
+
+    private static func handleJumpState(connection: NWConnection) {
+        DispatchQueue.main.async {
+            guard let appDel = AppDelegate.shared() else {
+                sendJSON(["error": "No app delegate"], status: 500, connection: connection)
+                return
+            }
+            guard let state = appDel.jumpState else {
+                sendJSON(["active": false], connection: connection)
+                return
+            }
+            let labels = state.leafToLabel.map { (key, value) in
+                ["leaf_id": key.uuidString, "label": value]
+            }
+            var result: [String: Any] = [
+                "active": true,
+                "buffer": state.buffer,
+                "label_count": state.labelToTarget.count,
+                "labels": labels
+            ]
+            if !state.prefixes.isEmpty {
+                result["prefixes"] = state.prefixes.map { String($0) }
+            }
+            sendJSON(result, connection: connection)
         }
     }
 
