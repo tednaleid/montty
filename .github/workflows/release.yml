@@ -21,7 +21,9 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - uses: extractions/setup-just@v3
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
 
       - name: Cache GhosttyKit
         id: cache-ghosttykit
