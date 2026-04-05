@@ -7,12 +7,43 @@ import os
 
 private let log = Logger(subsystem: "montty", category: "HookServer")
 
+/// A recorded hook event, for diagnostics.
+struct HookLogEntry {
+    let timestamp: Date
+    let event: String
+    let surface: String
+    let matched: Bool
+    /// Resulting state after the event, or nil for rejection / session-end (entry removed).
+    let newState: String?
+}
+
 /// Lightweight Unix domain socket listener for Claude Code hook callbacks.
 /// Runs in all builds (debug and release) so hooks work in shipped versions.
 enum HookServer {
     static let socketPath = "/tmp/montty-hook.sock"
     private nonisolated(unsafe) static var serverFD: Int32 = -1
     private nonisolated(unsafe) static var running = false
+
+    // Ring buffer of recent events for diagnostics (exposed via /hook-log).
+    private static let logCapacity = 200
+    private static let logLock = NSLock()
+    private nonisolated(unsafe) static var logBuffer: [HookLogEntry] = []
+
+    /// Returns a snapshot of the most recent hook events (oldest first).
+    static func recentEvents() -> [HookLogEntry] {
+        logLock.lock()
+        defer { logLock.unlock() }
+        return logBuffer
+    }
+
+    private static func record(_ entry: HookLogEntry) {
+        logLock.lock()
+        defer { logLock.unlock() }
+        logBuffer.append(entry)
+        if logBuffer.count > logCapacity {
+            logBuffer.removeFirst(logBuffer.count - logCapacity)
+        }
+    }
 
     static func start() {
         // Remove stale socket from a previous crash
@@ -89,37 +120,60 @@ enum HookServer {
     }
 
     /// Parse a hook JSON message and update tab state.
-    /// Body is JSON: {"event": "prompt-submit|notification|stop", "surface": "MONTTY_SURFACE_ID"}
+    /// Body is JSON: {"event": "<name>", "surface": "MONTTY_SURFACE_ID"}
     private static func processHook(_ body: String) {
-        guard let data = body.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let event = json["event"] as? String,
-              let surfaceID = json["surface"] as? String else { return }
-
-        let state: ClaudeCodeStatus.State
-        switch event {
-        case "prompt-submit": state = .working
-        case "notification": state = .waiting
-        case "stop": state = .idle
-        default: return
+        guard let message = ClaudeHookMessage.parse(json: body) else {
+            log.info("dropped malformed hook body=\(body, privacy: .public)")
+            return
         }
 
         DispatchQueue.main.async {
-            guard let delegate = NSApp?.delegate else { return }
-            let appDelegate: AppDelegate?
-            if let appDel = delegate as? AppDelegate {
-                appDelegate = appDel
-            } else {
-                // With @NSApplicationDelegateAdaptor, NSApp.delegate is a SwiftUI
-                // wrapper. Walk its properties to find our actual AppDelegate.
-                let mirror = Mirror(reflecting: delegate)
-                appDelegate = mirror.children.lazy
-                    .compactMap { $0.value as? AppDelegate }.first
+            guard let appDelegate = findAppDelegate() else { return }
+
+            // Find the tab that owns this MONTTY_SURFACE_ID (check before mutating).
+            let owningTab = appDelegate.tabStore.tabs.first { tab in
+                tab.surfaceToMonttyID.values.contains(message.surface)
             }
-            guard let appDelegate else { return }
-            for tab in appDelegate.tabStore.tabs {
-                tab.claudeStates[surfaceID] = state
+
+            var newStateLabel: String?
+            if let tab = owningTab {
+                let outcome = HookStateMachine.apply(
+                    message.event,
+                    surfaceID: message.surface,
+                    to: &tab.claudeStates,
+                    waitingSince: &tab.claudeWaitingSince,
+                    isKnownSurface: true
+                )
+                if case .applied(let newState) = outcome {
+                    newStateLabel = newState.map { String(describing: $0) }
+                }
             }
+
+            let matched = owningTab != nil
+            log.info("""
+                event=\(message.event.rawValue, privacy: .public) \
+                surface=\(message.surface, privacy: .public) \
+                matched=\(matched, privacy: .public) \
+                newState=\(newStateLabel ?? "nil", privacy: .public)
+                """)
+            record(HookLogEntry(
+                timestamp: Date(),
+                event: message.event.rawValue,
+                surface: message.surface,
+                matched: matched,
+                newState: newStateLabel
+            ))
         }
+    }
+
+    /// Find the real AppDelegate, walking through SwiftUI's delegate adapter if needed.
+    private static func findAppDelegate() -> AppDelegate? {
+        guard let delegate = NSApp?.delegate else { return nil }
+        if let appDelegate = delegate as? AppDelegate { return appDelegate }
+        // With @NSApplicationDelegateAdaptor, NSApp.delegate is a SwiftUI wrapper.
+        // Walk its properties to find our actual AppDelegate.
+        let mirror = Mirror(reflecting: delegate)
+        return mirror.children.lazy
+            .compactMap { $0.value as? AppDelegate }.first
     }
 }

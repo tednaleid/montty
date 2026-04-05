@@ -12,6 +12,9 @@ final class Tab: Identifiable {
     var surfaceTitles: [UUID: String] = [:]
     /// Per-surface Claude Code state, keyed by MONTTY_SURFACE_ID.
     var claudeStates: [String: ClaudeCodeStatus.State] = [:]
+    /// Timestamps for when each surface entered `.waiting`, keyed by MONTTY_SURFACE_ID.
+    /// Used for the timeout sweep that clears stuck `*?` indicators.
+    var claudeWaitingSince: [String: Date] = [:]
     /// Maps Ghostty surfaceID -> MONTTY_SURFACE_ID for hook routing.
     var surfaceToMonttyID: [UUID: String] = [:]
     /// Per-surface working directories, keyed by surfaceID.
@@ -57,6 +60,36 @@ final class Tab: Identifiable {
     /// All surface IDs in this tab's split tree.
     var allSurfaceIDs: [UUID] {
         SplitTree.allLeaves(node: splitRoot).map(\.surfaceID)
+    }
+
+    /// Safety net: if the given surface is currently `.waiting`, transition to `.working`.
+    /// Called when a new title arrives — a title change is strong evidence Claude is active.
+    /// Returns true if the state changed.
+    @discardableResult
+    func clearWaitingOnTitleChange(for surfaceID: UUID) -> Bool {
+        guard let monttyID = surfaceToMonttyID[surfaceID],
+              claudeStates[monttyID] == .waiting else { return false }
+        claudeStates[monttyID] = .working
+        claudeWaitingSince.removeValue(forKey: monttyID)
+        return true
+    }
+
+    /// Safety net: transition any surfaces stuck in `.waiting` for more than
+    /// `threshold` seconds back to `.idle`. Protects against lost hook events.
+    /// Returns the MONTTY_SURFACE_IDs that were transitioned.
+    @discardableResult
+    func sweepStaleWaiting(threshold: TimeInterval = 60, now: Date = Date()) -> [String] {
+        var transitioned: [String] = []
+        for (monttyID, since) in claudeWaitingSince
+        where claudeStates[monttyID] == .waiting
+            && now.timeIntervalSince(since) > threshold {
+            claudeStates[monttyID] = .idle
+            transitioned.append(monttyID)
+        }
+        for monttyID in transitioned {
+            claudeWaitingSince.removeValue(forKey: monttyID)
+        }
+        return transitioned
     }
 
     init(

@@ -144,9 +144,9 @@ struct SplitMinimapTests {
         #expect(minimap.panes[1].isFocused == false)
     }
 
-    // MARK: - Claude Code detection per pane
+    // MARK: - Claude Code detection per pane (hooks-only)
 
-    @Test func paneDetectsClaudeCodeFromTitle() {
+    @Test func paneReflectsClaudeHookState() {
         let left = SurfaceLeaf()
         let right = SurfaceLeaf()
         let node = SplitNode.split(SplitBranch(
@@ -154,22 +154,42 @@ struct SplitMinimapTests {
             first: .leaf(left),
             second: .leaf(right)
         ))
-        // Only the right pane is running Claude Code
-        let titles: [UUID: String] = [
-            left.surfaceID: "zsh",
-            right.surfaceID: "✳ Fix auth bug"
-        ]
+        // Only the right pane has Claude running (with a hook state)
+        let surfaceToMonttyID: [UUID: String] = [right.surfaceID: "mid-right"]
+        let claudeStates: [String: ClaudeCodeStatus.State] = ["mid-right": .waiting]
+        let titles: [UUID: String] = [right.surfaceID: "✳ Fix auth bug"]
         let minimap = SplitMinimap.from(
-            node: node, focusedLeafID: nil, surfaceTitles: titles
+            node: node, focusedLeafID: nil,
+            surfaceTitles: titles,
+            claudeStates: claudeStates,
+            surfaceToMonttyID: surfaceToMonttyID
         )
         #expect(minimap.panes[0].claudeCode == nil)
-        #expect(minimap.panes[1].claudeCode != nil)
-        #expect(minimap.panes[1].claudeCode?.sessionName == "Fix auth bug")
+        #expect(minimap.panes[1].claudeCode?.state == .waiting)
+        #expect(minimap.panes[1].claudeCode?.sessionName == "✳ Fix auth bug")
     }
 
-    @Test func paneWithNoTitlesHasNoClaudeCode() {
-        let leaf = SurfaceLeaf()
-        let minimap = SplitMinimap.from(node: .leaf(leaf), focusedLeafID: nil)
+    @Test func paneWithNoHookStateHasNoClaudeCode() {
+        let left = SurfaceLeaf()
+        // Even with a title that matches the old prefix, no hook state -> no indicator.
+        let titles: [UUID: String] = [left.surfaceID: "✳ Fix auth bug"]
+        let minimap = SplitMinimap.from(
+            node: .leaf(left), focusedLeafID: nil,
+            surfaceTitles: titles
+        )
         #expect(minimap.panes[0].claudeCode == nil)
+    }
+
+    @Test func paneUsesDefaultSessionNameWithoutTitle() {
+        let leaf = SurfaceLeaf()
+        let surfaceToMonttyID: [UUID: String] = [leaf.surfaceID: "mid-1"]
+        let claudeStates: [String: ClaudeCodeStatus.State] = ["mid-1": .working]
+        let minimap = SplitMinimap.from(
+            node: .leaf(leaf), focusedLeafID: nil,
+            claudeStates: claudeStates,
+            surfaceToMonttyID: surfaceToMonttyID
+        )
+        #expect(minimap.panes[0].claudeCode?.state == .working)
+        #expect(minimap.panes[0].claudeCode?.sessionName == "Claude Code")
     }
 }

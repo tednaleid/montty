@@ -32,6 +32,10 @@ extension DebugServer {
             handleJump(body: request.body, connection: connection)
         case ("GET", "/jump-state"):
             handleJumpState(connection: connection)
+        case ("GET", "/hook-log"):
+            handleHookLog(connection: connection)
+        case ("GET", "/claude-states"):
+            handleClaudeStates(connection: connection)
         default:
             sendJSON(["error": "Not found: \(request.method) \(request.path)"], status: 404, connection: connection)
         }
@@ -124,13 +128,63 @@ extension DebugServer {
             if let worktree = gitInfo.worktreeName { git["worktree"] = worktree }
             entry["git"] = git
         }
-        if let claude = info.claudeCode {
+        if let monttyID = tab.surfaceToMonttyID[leaf.surfaceID],
+           let state = tab.claudeStates[monttyID] {
             entry["claude_code"] = [
-                "session_name": claude.sessionName,
-                "state": String(describing: claude.state)
+                "montty_surface_id": monttyID,
+                "state": String(describing: state)
             ]
         }
         return entry
+    }
+
+    // MARK: - Claude hook diagnostics
+
+    private static func handleHookLog(connection: NWConnection) {
+        // Ring buffer is thread-safe; read from any queue.
+        let entries = HookServer.recentEvents()
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let results: [[String: Any]] = entries.map { logEntry in
+            var entry: [String: Any] = [
+                "timestamp": formatter.string(from: logEntry.timestamp),
+                "event": logEntry.event,
+                "surface": logEntry.surface,
+                "matched": logEntry.matched
+            ]
+            if let state = logEntry.newState { entry["new_state"] = state }
+            return entry
+        }
+        sendJSONArray(results, connection: connection)
+    }
+
+    private static func handleClaudeStates(connection: NWConnection) {
+        DispatchQueue.main.async {
+            guard let appDelegate = AppDelegate.shared() else {
+                sendJSONArray([], connection: connection)
+                return
+            }
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            var results: [[String: Any]] = []
+            for tab in appDelegate.tabStore.tabs {
+                for (surfaceID, monttyID) in tab.surfaceToMonttyID {
+                    guard let state = tab.claudeStates[monttyID] else { continue }
+                    var entry: [String: Any] = [
+                        "tab_id": tab.id.uuidString,
+                        "surface_id": surfaceID.uuidString,
+                        "montty_surface_id": monttyID,
+                        "state": String(describing: state)
+                    ]
+                    if let since = tab.claudeWaitingSince[monttyID] {
+                        entry["waiting_since"] = formatter.string(from: since)
+                        entry["waiting_seconds"] = Date().timeIntervalSince(since)
+                    }
+                    results.append(entry)
+                }
+            }
+            sendJSONArray(results, connection: connection)
+        }
     }
 
     private static func addSurfaceViewData(

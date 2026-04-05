@@ -81,10 +81,34 @@ targets:
           if [ -f "${ZSH_ENV}" ]; then
             cat >> "${ZSH_ENV}" << 'MONTTY_HOOKS'
 
-          # montty: wrap claude to inject hook callbacks for status tracking
-          if [[ -n "$MONTTY_SURFACE_ID" && -n "$MONTTY_SOCKET" ]]; then
+          # montty: wrap claude to inject hook callbacks for status tracking.
+          # Six hooks map to state transitions:
+          #   SessionStart/Stop      -> .idle
+          #   UserPromptSubmit/PreToolUse -> .working
+          #   Notification           -> .waiting
+          #   SessionEnd             -> entry removed
+          # Events are sent as JSON over MONTTY_SOCKET. Built with jq so the
+          # JSON structure is legible and escaping is handled correctly.
+          if [[ -n "$MONTTY_SURFACE_ID" && -n "$MONTTY_SOCKET" ]] && command -v jq >/dev/null 2>&1; then
             claude() {
-              command claude --settings "{\"hooks\":{\"UserPromptSubmit\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"echo '{\\\"event\\\":\\\"prompt-submit\\\",\\\"surface\\\":\\\"${MONTTY_SURFACE_ID}\\\"}' | nc -U '${MONTTY_SOCKET}' -w 1 2>/dev/null &\"}]}],\"Notification\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"echo '{\\\"event\\\":\\\"notification\\\",\\\"surface\\\":\\\"${MONTTY_SURFACE_ID}\\\"}' | nc -U '${MONTTY_SOCKET}' -w 1 2>/dev/null &\"}]}],\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"echo '{\\\"event\\\":\\\"stop\\\",\\\"surface\\\":\\\"${MONTTY_SURFACE_ID}\\\"}' | nc -U '${MONTTY_SOCKET}' -w 1 2>/dev/null &\"}]}]}}" "$@"
+              local settings
+              settings=$(jq -nc \
+                --arg surface "$MONTTY_SURFACE_ID" \
+                --arg socket "$MONTTY_SOCKET" '
+                def cmd($event):
+                  "echo \u0027{\"event\":\"" + $event + "\",\"surface\":\"" + $surface + "\"}\u0027 | nc -U \u0027" + $socket + "\u0027 -w 1 2>/dev/null &";
+                def entry($event):
+                  [{"hooks": [{"type": "command", "command": cmd($event)}]}];
+                {hooks: {
+                  SessionStart:      entry("session-start"),
+                  UserPromptSubmit:  entry("prompt-submit"),
+                  PreToolUse:        entry("pre-tool-use"),
+                  Notification:      entry("notification"),
+                  Stop:              entry("stop"),
+                  SessionEnd:        entry("session-end")
+                }}
+              ')
+              command claude --settings "$settings" "$@"
             }
           fi
           MONTTY_HOOKS

@@ -172,18 +172,4 @@ struct TabInfoTests {
         #expect(info.splitCount == 3)
     }
 
-    // MARK: - Claude Code detection (stub)
-
-    @Test func tabInfoDetectsClaudeCode() {
-        let props = propsNoDir(autoName: "✳ fixing the BCI toggle")
-        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
-        #expect(info.claudeCode?.sessionName == "fixing the BCI toggle")
-        #expect(info.claudeCode?.state == .unknown)
-    }
-
-    @Test func tabInfoNoClaudeCodeForNormalTitle() {
-        let props = propsNoDir()
-        let info = TabInfo.from(tab: props, gitInfoProvider: { _ in nil })
-        #expect(info.claudeCode == nil)
-    }
 }

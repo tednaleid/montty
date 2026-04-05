@@ -168,6 +168,14 @@ inspect-jump leaf_id="":
 inspect-jump-state:
     @curl -sf localhost:9876/jump-state | jq .
 
+# Show Claude hook event log (last 200 events received by montty)
+inspect-hook-log:
+    @curl -sf localhost:9876/hook-log | jq .
+
+# Show current per-surface Claude Code state
+inspect-claude-states:
+    @curl -sf localhost:9876/claude-states | jq .
+
 # Bump version in Info.plist, commit, tag with release notes, and push.
 # If no version given, increments the patch version from the last tag.
 bump version="":

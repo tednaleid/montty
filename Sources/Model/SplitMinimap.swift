@@ -51,16 +51,14 @@ struct SplitMinimap: Equatable {
     ) {
         switch node {
         case .leaf(let leaf):
-            // Prefer hook-based state over title-based detection
+            // Claude state comes exclusively from hook events routed by MONTTY_SURFACE_ID.
             let claude: ClaudeCodeStatus?
             if let monttyID = ctx.surfaceToMonttyID[leaf.surfaceID],
                let hookState = ctx.claudeStates[monttyID] {
-                let title = ctx.surfaceTitles[leaf.surfaceID] ?? ""
-                let sessionName = TitleParser.claudeCodeStatus(from: title)?.sessionName ?? "Claude Code"
+                let sessionName = ctx.surfaceTitles[leaf.surfaceID] ?? "Claude Code"
                 claude = ClaudeCodeStatus(sessionName: sessionName, state: hookState)
             } else {
-                let title = ctx.surfaceTitles[leaf.surfaceID]
-                claude = title.flatMap { TitleParser.claudeCodeStatus(from: $0) }
+                claude = nil
             }
             panes.append(MinimapPane(
                 leafID: leaf.id, surfaceID: leaf.surfaceID, rect: rect,

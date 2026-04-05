@@ -147,6 +147,116 @@ struct TabTests {
         #expect(tab.effectiveColor(overrides: repoOverrides) == .cyan)
     }
 
+    // MARK: - Claude waiting-state safety nets
+
+    @Test func titleChangeClearsWaitingState() {
+        let surfaceID = UUID()
+        let monttyID = "mid-1"
+        let tab = Tab(surfaceID: surfaceID)
+        tab.surfaceToMonttyID[surfaceID] = monttyID
+        tab.claudeStates[monttyID] = .waiting
+        tab.claudeWaitingSince[monttyID] = Date()
+
+        let changed = tab.clearWaitingOnTitleChange(for: surfaceID)
+
+        #expect(changed == true)
+        #expect(tab.claudeStates[monttyID] == .working)
+        #expect(tab.claudeWaitingSince[monttyID] == nil)
+    }
+
+    @Test func titleChangeDoesNotDowngradeIdle() {
+        let surfaceID = UUID()
+        let monttyID = "mid-1"
+        let tab = Tab(surfaceID: surfaceID)
+        tab.surfaceToMonttyID[surfaceID] = monttyID
+        tab.claudeStates[monttyID] = .idle
+
+        let changed = tab.clearWaitingOnTitleChange(for: surfaceID)
+
+        #expect(changed == false)
+        #expect(tab.claudeStates[monttyID] == .idle)
+    }
+
+    @Test func titleChangeDoesNotUpgradeWorking() {
+        let surfaceID = UUID()
+        let monttyID = "mid-1"
+        let tab = Tab(surfaceID: surfaceID)
+        tab.surfaceToMonttyID[surfaceID] = monttyID
+        tab.claudeStates[monttyID] = .working
+
+        let changed = tab.clearWaitingOnTitleChange(for: surfaceID)
+
+        #expect(changed == false)
+        #expect(tab.claudeStates[monttyID] == .working)
+    }
+
+    @Test func titleChangeNoopForUnknownSurface() {
+        let surfaceID = UUID()
+        let tab = Tab(surfaceID: surfaceID)
+        // No surfaceToMonttyID mapping, no claudeStates entry
+        let changed = tab.clearWaitingOnTitleChange(for: surfaceID)
+        #expect(changed == false)
+    }
+
+    @Test func sweepClearsWaitingOlderThanThreshold() {
+        let monttyID = "mid-1"
+        let tab = Tab()
+        tab.claudeStates[monttyID] = .waiting
+        let now = Date()
+        tab.claudeWaitingSince[monttyID] = now.addingTimeInterval(-120) // 2 minutes ago
+
+        let transitioned = tab.sweepStaleWaiting(threshold: 60, now: now)
+
+        #expect(transitioned == [monttyID])
+        #expect(tab.claudeStates[monttyID] == .idle)
+        #expect(tab.claudeWaitingSince[monttyID] == nil)
+    }
+
+    @Test func sweepLeavesRecentWaiting() {
+        let monttyID = "mid-1"
+        let tab = Tab()
+        tab.claudeStates[monttyID] = .waiting
+        let now = Date()
+        tab.claudeWaitingSince[monttyID] = now.addingTimeInterval(-30) // 30s ago
+
+        let transitioned = tab.sweepStaleWaiting(threshold: 60, now: now)
+
+        #expect(transitioned.isEmpty)
+        #expect(tab.claudeStates[monttyID] == .waiting)
+        #expect(tab.claudeWaitingSince[monttyID] != nil)
+    }
+
+    @Test func sweepIgnoresNonWaitingSurfaces() {
+        let monttyID = "mid-1"
+        let tab = Tab()
+        tab.claudeStates[monttyID] = .working
+        let now = Date()
+        // Stale waitingSince but state is .working (shouldn't happen, but safe)
+        tab.claudeWaitingSince[monttyID] = now.addingTimeInterval(-120)
+
+        let transitioned = tab.sweepStaleWaiting(threshold: 60, now: now)
+
+        #expect(transitioned.isEmpty)
+        #expect(tab.claudeStates[monttyID] == .working)
+    }
+
+    @Test func sweepHandlesMultipleSurfaces() {
+        let tab = Tab()
+        let now = Date()
+        tab.claudeStates["a"] = .waiting
+        tab.claudeWaitingSince["a"] = now.addingTimeInterval(-120)  // stale
+        tab.claudeStates["b"] = .waiting
+        tab.claudeWaitingSince["b"] = now.addingTimeInterval(-10)   // fresh
+        tab.claudeStates["c"] = .working                             // not waiting
+
+        let transitioned = tab.sweepStaleWaiting(threshold: 60, now: now)
+
+        #expect(Set(transitioned) == Set(["a"]))
+        #expect(tab.claudeStates["a"] == .idle)
+        #expect(tab.claudeStates["b"] == .waiting)
+        #expect(tab.claudeStates["c"] == .working)
+    }
+
     @Test func tabColorOverrideNilFallsThrough() {
         let surfaceID = UUID()
         let tab = Tab(surfaceID: surfaceID)

@@ -5,7 +5,6 @@ struct TabInfo: Equatable {
     let workingDirectory: String?
     let directoryName: String?      // last path component
     let gitInfo: GitInfo?           // nil if not in a git repo
-    let claudeCode: ClaudeCodeStatus?  // nil if Claude Code not detected
     let splitCount: Int             // 1 = no splits
     let minimap: SplitMinimap
 
@@ -54,8 +53,6 @@ struct TabInfo: Equatable {
             gitInfoProvider(pwd)
         }
 
-        let claudeCode = TitleParser.claudeCodeStatus(from: tab.autoName)
-
         let minimap = SplitMinimap.from(
             node: tab.splitRoot, focusedLeafID: tab.focusedLeafID,
             surfaceTitles: tab.surfaceTitles,
@@ -68,7 +65,6 @@ struct TabInfo: Equatable {
             workingDirectory: focusedDir,
             directoryName: dirName,
             gitInfo: gitInfo,
-            claudeCode: claudeCode,
             splitCount: SplitTree.allLeaves(node: tab.splitRoot).count,
             minimap: minimap
         )
@@ -81,10 +77,9 @@ struct ClaudeCodeStatus: Equatable {
     let state: State
 
     enum State: Equatable {
-        case unknown    // detected via title, no hook state yet
         case working    // actively processing (hook: prompt-submit, pre-tool-use)
         case waiting    // needs user input (hook: notification)
-        case idle       // finished turn, session still open (hook: stop)
+        case idle       // session present, not actively working (hook: session-start, stop)
     }
 }
 

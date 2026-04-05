@@ -110,7 +110,7 @@ struct ClaudeIndicatorView: View {
             case .waiting:
                 Text("*?")
                     .frame(width: 48, height: 24)
-            case .idle, .unknown:
+            case .idle:
                 Text("*")
                     .frame(width: 24, height: 24)
             }
