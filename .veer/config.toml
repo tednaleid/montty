@@ -9,3 +9,43 @@ action = "reject"
 message = "Don't pipe curl to bash/sh -- download, inspect, then execute."
 [rule.match]
 command_all = ["curl", "bash"]
+
+[[rule]]
+id = "use-just-xcodebuild"
+name = "Redirect xcodebuild to just targets"
+action = "reject"
+message = "Use the Justfile instead of xcodebuild directly: 'just build' to build, 'just test' to test, 'just check' to run tests+lint+build, 'just clean' to clean."
+[rule.match]
+command = "xcodebuild"
+
+[[rule]]
+id = "use-just-swift"
+name = "Redirect swift CLI to just targets"
+action = "reject"
+message = "This is an Xcode project, not SPM. Use 'just build' to build, 'just test' to test."
+[rule.match]
+command = "swift"
+
+[[rule]]
+id = "use-just-lint"
+name = "Redirect swiftlint to just lint"
+action = "reject"
+message = "Use 'just lint' instead of invoking swiftlint directly."
+[rule.match]
+command = "swiftlint"
+
+[[rule]]
+id = "use-just-generate"
+name = "Redirect xcodegen to just generate"
+action = "reject"
+message = "Use 'just generate' instead of invoking xcodegen directly."
+[rule.match]
+command = "xcodegen"
+
+[[rule]]
+id = "use-just-setup"
+name = "Redirect zig to just setup"
+action = "reject"
+message = "Use 'just setup' to build GhosttyKit instead of invoking zig directly."
+[rule.match]
+command = "zig"
