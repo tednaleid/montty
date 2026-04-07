@@ -22,3 +22,6 @@ GhosttyKit.xcframework
 .DS_Store
 .llm
 .claude/settings.local.json
+
+# veer runtime database
+.veer/veer.db
