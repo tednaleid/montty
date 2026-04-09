@@ -30,14 +30,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Indexed by TabColor.orderedCases position. Empty before config loads.
     var tabPalette: [NSColor] = []
 
-    /// Resolve the AppDelegate through SwiftUI's @NSApplicationDelegateAdaptor wrapper.
+    /// The main application window, created in applicationDidFinishLaunching.
+    var window: NSWindow!
+
     static func shared() -> AppDelegate? {
-        guard let delegate = NSApp?.delegate else { return nil }
-        if let appDel = delegate as? AppDelegate { return appDel }
-        for child in Mirror(reflecting: delegate).children {
-            if let appDel = child.value as? AppDelegate { return appDel }
-        }
-        return nil
+        NSApp?.delegate as? AppDelegate
     }
 
     /// UndoManager accessed by Ghostty.App.swift for undo/redo routing
@@ -79,6 +76,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     // MARK: - NSApplicationDelegate
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Create the main window with SwiftUI content
+        let hostingView = NSHostingView(rootView:
+            MainWindow(tabStore: tabStore)
+                .environmentObject(ghostty)
+                .environmentObject(self)
+        )
+
+        window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = hostingView
+        window.title = "Montty"
+        window.makeKeyAndOrderFront(nil)
+
         // Start the Ghostty event loop tick timer
         tickTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
             self?.ghostty.appTick()
@@ -451,7 +465,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     // MARK: - Session persistence
 
     func createSnapshot() -> SessionSnapshot {
-        let frame = NSApp.mainWindow?.frame ?? .zero
+        let frame = window?.frame ?? .zero
         let tabSnapshots = tabStore.tabs.map { tab -> TabSnapshot in
             var dirs: [UUID: String] = [:]
             for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
@@ -523,7 +537,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
                     x: snapshot.windowX, y: snapshot.windowY,
                     width: snapshot.windowWidth, height: snapshot.windowHeight
                 )
-                NSApp.mainWindow?.setFrame(frame, display: true)
+                self.window?.setFrame(frame, display: true)
             }
             for tab in self.tabStore.tabs {
                 self.updateSurfaceFocus(for: tab)

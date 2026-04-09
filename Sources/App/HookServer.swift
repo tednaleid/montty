@@ -166,14 +166,7 @@ enum HookServer {
         }
     }
 
-    /// Find the real AppDelegate, walking through SwiftUI's delegate adapter if needed.
     private static func findAppDelegate() -> AppDelegate? {
-        guard let delegate = NSApp?.delegate else { return nil }
-        if let appDelegate = delegate as? AppDelegate { return appDelegate }
-        // With @NSApplicationDelegateAdaptor, NSApp.delegate is a SwiftUI wrapper.
-        // Walk its properties to find our actual AppDelegate.
-        let mirror = Mirror(reflecting: delegate)
-        return mirror.children.lazy
-            .compactMap { $0.value as? AppDelegate }.first
+        NSApp?.delegate as? AppDelegate
     }
 }
