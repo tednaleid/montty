@@ -118,9 +118,36 @@ run-bg: build
     @sleep 2
     @echo "Montty launched in background. Use 'just stop' to quit."
 
-# Quit the running app gracefully
+# Quit the running app gracefully. Never touches a host Montty that happens
+# to be an ancestor of the invoking shell -- that's the Montty you're sitting
+# inside, not the debug build you just launched with `just run-bg`.
 stop:
-    @osascript -e 'tell application "Montty" to quit' 2>/dev/null || echo "Montty is not running"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Walk the ancestor chain from our invoking shell to find a host Montty PID, if any.
+    host_pid=""
+    pid=$PPID
+    while [ -n "$pid" ] && [ "$pid" -gt 1 ]; do
+        name=$(ps -o comm= -p "$pid" 2>/dev/null | awk -F/ '{print $NF}' | tr -d ' \n' || true)
+        if [ "$name" = "Montty" ]; then
+            host_pid=$pid
+            break
+        fi
+        pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' \n' || true)
+    done
+    # List every running Montty process. Use ps rather than pgrep because
+    # macOS `pgrep Montty` silently misses the released build launched via
+    # Launch Services -- ps sees both. Match by comm basename == "Montty".
+    killed=0
+    for t in $(ps -eo pid=,comm= | awk '{n=split($2,a,"/"); if (a[n]=="Montty") print $1}'); do
+        [ "$t" = "$host_pid" ] && continue
+        kill -TERM "$t" 2>/dev/null && killed=$((killed+1)) || true
+    done
+    if [ "$killed" -eq 0 ]; then
+        echo "No debug Montty instance to stop (host PID: ${host_pid:-none})"
+    else
+        echo "Stopped $killed debug Montty instance(s) (host PID: ${host_pid:-none})"
+    fi
 
 # Force-kill the running app (no cleanup)
 kill:
