@@ -1,4 +1,4 @@
-// ABOUTME: Builds the main menu bar with File and Window menus.
+// ABOUTME: Builds the main menu bar (App, File, Edit, Navigate, View, Window, Help).
 // ABOUTME: Reads keybindings from Ghostty config for shortcut display.
 
 import AppKit
@@ -11,51 +11,110 @@ enum MenuBuilder {
         config: Ghostty.Config, appDelegate: AppDelegate
     ) {
         let mainMenu = NSMenu()
+        let ctx = MenuContext(config: config, appDelegate: appDelegate)
 
-        // App menu (Montty)
-        let appMenu = NSMenu()
-        appMenu.addItem(
+        mainMenu.addItem(buildAppMenu())
+        mainMenu.addItem(buildFileMenu(ctx))
+        mainMenu.addItem(buildEditMenu())
+        mainMenu.addItem(buildNavigateMenu(ctx))
+        mainMenu.addItem(buildViewMenu(ctx))
+
+        let windowMenuItem = buildWindowMenu(ctx)
+        mainMenu.addItem(windowMenuItem)
+        if let windowSubmenu = windowMenuItem.submenu {
+            NSApp.windowsMenu = windowSubmenu
+        }
+
+        let helpMenuItem = NSMenuItem()
+        let helpMenu = NSMenu(title: "Help")
+        helpMenuItem.submenu = helpMenu
+        mainMenu.addItem(helpMenuItem)
+        NSApp.helpMenu = helpMenu
+
+        NSApp.mainMenu = mainMenu
+    }
+
+    // MARK: - App menu
+
+    private static func buildAppMenu() -> NSMenuItem {
+        let menu = NSMenu()
+        menu.addItem(
             withTitle: "About Montty",
             action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
             keyEquivalent: "")
-        appMenu.addItem(.separator())
-        appMenu.addItem(
+        menu.addItem(.separator())
+
+        let servicesMenuItem = NSMenuItem(
+            title: "Services", action: nil, keyEquivalent: "")
+        let servicesMenu = NSMenu(title: "Services")
+        servicesMenuItem.submenu = servicesMenu
+        menu.addItem(servicesMenuItem)
+        NSApp.servicesMenu = servicesMenu
+        menu.addItem(.separator())
+
+        menu.addItem(
+            withTitle: "Hide Montty",
+            action: #selector(NSApplication.hide(_:)),
+            keyEquivalent: "h")
+        let hideOthers = NSMenuItem(
+            title: "Hide Others",
+            action: #selector(NSApplication.hideOtherApplications(_:)),
+            keyEquivalent: "h")
+        hideOthers.keyEquivalentModifierMask = [.command, .option]
+        menu.addItem(hideOthers)
+        menu.addItem(
+            withTitle: "Show All",
+            action: #selector(NSApplication.unhideAllApplications(_:)),
+            keyEquivalent: "")
+        menu.addItem(.separator())
+
+        menu.addItem(
             withTitle: "Quit Montty",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q")
-        let appMenuItem = NSMenuItem()
-        appMenuItem.submenu = appMenu
-        mainMenu.addItem(appMenuItem)
 
-        // File menu
-        let ctx = MenuContext(config: config, appDelegate: appDelegate)
-        mainMenu.addItem(buildFileMenu(ctx))
+        let item = NSMenuItem()
+        item.submenu = menu
+        return item
+    }
 
-        // Edit menu (standard)
-        let editMenu = NSMenu(title: "Edit")
-        editMenu.addItem(
+    // MARK: - Edit menu
+
+    private static func buildEditMenu() -> NSMenuItem {
+        let menu = NSMenu(title: "Edit")
+        menu.addItem(
+            withTitle: "Undo",
+            action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = NSMenuItem(
+            title: "Redo",
+            action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        menu.addItem(redo)
+        menu.addItem(.separator())
+        menu.addItem(
+            withTitle: "Cut",
+            action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        menu.addItem(
             withTitle: "Copy",
             action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        editMenu.addItem(
+        menu.addItem(
             withTitle: "Paste",
             action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        editMenu.addItem(
+        menu.addItem(.separator())
+        menu.addItem(
             withTitle: "Select All",
             action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
-        let editMenuItem = NSMenuItem()
-        editMenuItem.submenu = editMenu
-        mainMenu.addItem(editMenuItem)
+        menu.addItem(.separator())
+        let emoji = NSMenuItem(
+            title: "Emoji & Symbols",
+            action: #selector(NSApplication.orderFrontCharacterPalette(_:)),
+            keyEquivalent: " ")
+        emoji.keyEquivalentModifierMask = [.control, .command]
+        menu.addItem(emoji)
 
-        // Navigate menu
-        mainMenu.addItem(buildNavigateMenu(ctx))
-
-        // View menu
-        mainMenu.addItem(buildViewMenu(ctx))
-
-        // Window menu
-        mainMenu.addItem(buildWindowMenu(ctx))
-
-        NSApp.mainMenu = mainMenu
+        let item = NSMenuItem()
+        item.submenu = menu
+        return item
     }
 
     /// Bundles config + appDelegate to reduce parameter passing.
@@ -125,6 +184,16 @@ enum MenuBuilder {
     private static func buildWindowMenu(_ ctx: MenuContext) -> NSMenuItem {
         let menu = NSMenu(title: "Window")
 
+        menu.addItem(
+            withTitle: "Minimize",
+            action: #selector(NSWindow.performMiniaturize(_:)),
+            keyEquivalent: "m")
+        menu.addItem(
+            withTitle: "Zoom",
+            action: #selector(NSWindow.performZoom(_:)),
+            keyEquivalent: "")
+        menu.addItem(.separator())
+
         // Select split
         let selectMenu = NSMenu(title: "Select Split")
         addAction(to: selectMenu, title: "Previous", action: "goto_split:previous", ctx: ctx)
@@ -150,9 +219,14 @@ enum MenuBuilder {
 
         menu.addItem(.separator())
         addAction(to: menu, title: "Equalize Splits", action: "equalize_splits", ctx: ctx)
-        addAction(to: menu, title: "Toggle Zoom", action: "toggle_split_zoom", ctx: ctx)
+        addAction(to: menu, title: "Toggle Split Zoom", action: "toggle_split_zoom", ctx: ctx)
         menu.addItem(.separator())
         addAction(to: menu, title: "Toggle Fullscreen", action: "toggle_fullscreen", ctx: ctx)
+        menu.addItem(.separator())
+        menu.addItem(
+            withTitle: "Bring All to Front",
+            action: #selector(NSApplication.arrangeInFront(_:)),
+            keyEquivalent: "")
 
         let item = NSMenuItem()
         item.submenu = menu
