@@ -84,7 +84,7 @@ struct TabRow: View {
                     tabColorOverride: tab.colorOverride,
                     isActiveTab: isActive,
                     jumpLabels: jumpLabels,
-                    surfaceDirectories: tab.surfaceDirectories,
+                    surfaceDirectories: tab.effectiveSurfaceDirectories,
                     repoColorOverrides: repoColorOverrides,
                     onPaneTap: onPaneTap
                 )

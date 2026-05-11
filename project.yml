@@ -88,7 +88,11 @@ targets:
           #   Notification           -> .waiting
           #   SessionEnd             -> entry removed
           # Events are sent as JSON over MONTTY_SOCKET. Built with jq so the
-          # JSON structure is legible and escaping is handled correctly.
+          # JSON structure is legible and escaping is handled correctly. Each
+          # hook also forwards Claude Code's reported cwd so montty paints the
+          # pane with the worktree color when CC moves into one. Stdin (CC's
+          # hook payload) is read synchronously into INPUT first, then the
+          # network send is backgrounded so CC isn't blocked waiting on nc.
           if [[ -n "$MONTTY_SURFACE_ID" && -n "$MONTTY_SOCKET" ]] && command -v jq >/dev/null 2>&1; then
             claude() {
               local settings
@@ -96,7 +100,7 @@ targets:
                 --arg surface "$MONTTY_SURFACE_ID" \
                 --arg socket "$MONTTY_SOCKET" '
                 def cmd($event):
-                  "echo \u0027{\"event\":\"" + $event + "\",\"surface\":\"" + $surface + "\"}\u0027 | nc -U \u0027" + $socket + "\u0027 -w 1 2>/dev/null &";
+                  "INPUT=$(cat); (printf %s \"$INPUT\" | jq -c --arg surface \u0027" + $surface + "\u0027 --arg event \u0027" + $event + "\u0027 \u0027{event:$event,surface:$surface,cwd:.cwd}\u0027 | nc -U \u0027" + $socket + "\u0027 -w 1 2>/dev/null) &";
                 def entry($event):
                   [{"hooks": [{"type": "command", "command": cmd($event)}]}];
                 {hooks: {

@@ -53,6 +53,79 @@ struct HookEventTests {
         #expect(ClaudeHookMessage.parse(json: "") == nil)
     }
 
+    // MARK: - cwd field
+
+    @Test func parsesCwdWhenPresent() {
+        let msg = ClaudeHookMessage.parse(
+            json: "{\"event\":\"session-start\",\"surface\":\"s1\",\"cwd\":\"/Users/me/proj\"}"
+        )
+        #expect(msg?.cwd == "/Users/me/proj")
+    }
+
+    @Test func cwdAbsentParsesAsNil() {
+        // Backward compat: pre-fix wrappers don't send cwd. Message must still parse.
+        let msg = ClaudeHookMessage.parse(
+            json: "{\"event\":\"stop\",\"surface\":\"s1\"}"
+        )
+        #expect(msg != nil)
+        #expect(msg?.cwd == nil)
+    }
+
+    @Test func emptyCwdParsesAsNil() {
+        let msg = ClaudeHookMessage.parse(
+            json: "{\"event\":\"stop\",\"surface\":\"s1\",\"cwd\":\"\"}"
+        )
+        #expect(msg?.cwd == nil)
+    }
+
+    // MARK: - Directory tracker
+
+    @Test func trackerRecordsCwdOnSessionStart() {
+        var dirs: [String: String] = [:]
+        HookDirectoryTracker.apply(
+            event: .sessionStart, surfaceID: "s1",
+            cwd: "/path/to/worktree", to: &dirs
+        )
+        #expect(dirs["s1"] == "/path/to/worktree")
+    }
+
+    @Test func trackerUpdatesCwdOnPreToolUse() {
+        var dirs: [String: String] = ["s1": "/old"]
+        HookDirectoryTracker.apply(
+            event: .preToolUse, surfaceID: "s1",
+            cwd: "/new", to: &dirs
+        )
+        #expect(dirs["s1"] == "/new")
+    }
+
+    @Test func trackerClearsCwdOnSessionEnd() {
+        var dirs: [String: String] = ["s1": "/path", "s2": "/other"]
+        HookDirectoryTracker.apply(
+            event: .sessionEnd, surfaceID: "s1",
+            cwd: nil, to: &dirs
+        )
+        #expect(dirs["s1"] == nil)
+        #expect(dirs["s2"] == "/other")
+    }
+
+    @Test func trackerLeavesExistingValueWhenCwdMissing() {
+        var dirs: [String: String] = ["s1": "/old"]
+        HookDirectoryTracker.apply(
+            event: .notification, surfaceID: "s1",
+            cwd: nil, to: &dirs
+        )
+        #expect(dirs["s1"] == "/old")
+    }
+
+    @Test func trackerIgnoresEmptyCwd() {
+        var dirs: [String: String] = ["s1": "/old"]
+        HookDirectoryTracker.apply(
+            event: .notification, surfaceID: "s1",
+            cwd: "", to: &dirs
+        )
+        #expect(dirs["s1"] == "/old")
+    }
+
     // MARK: - State machine
 
     @Test func sessionStartSetsIdle() {

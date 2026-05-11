@@ -257,6 +257,91 @@ struct TabTests {
         #expect(tab.claudeStates["c"] == .working)
     }
 
+    // MARK: - Claude-reported cwd (worktree color tracking)
+
+    @Test func effectiveSurfaceDirectoriesPrefersClaudeCwd() {
+        let surfaceID = UUID()
+        let monttyID = "mid-1"
+        let tab = Tab(surfaceID: surfaceID)
+        tab.surfaceToMonttyID[surfaceID] = monttyID
+        tab.surfaceDirectories[surfaceID] = "/parent/repo"
+        tab.claudeDirectories[monttyID] = "/parent/repo/feature-worktree"
+
+        #expect(tab.effectiveSurfaceDirectories[surfaceID] == "/parent/repo/feature-worktree")
+    }
+
+    @Test func effectiveSurfaceDirectoriesFallsBackToShellPwd() {
+        let surfaceID = UUID()
+        let tab = Tab(surfaceID: surfaceID)
+        tab.surfaceToMonttyID[surfaceID] = "mid-1"
+        tab.surfaceDirectories[surfaceID] = "/parent/repo"
+        // No claudeDirectories entry — fall back to shell pwd.
+
+        #expect(tab.effectiveSurfaceDirectories[surfaceID] == "/parent/repo")
+    }
+
+    @Test func effectiveSurfaceDirectoriesIgnoresClaudeWithoutMapping() {
+        // Claude entry keyed by an unmapped MONTTY id is dead weight, not a crash.
+        let surfaceID = UUID()
+        let tab = Tab(surfaceID: surfaceID)
+        tab.surfaceDirectories[surfaceID] = "/parent/repo"
+        tab.claudeDirectories["orphan-mid"] = "/somewhere/else"
+
+        #expect(tab.effectiveSurfaceDirectories[surfaceID] == "/parent/repo")
+    }
+
+    @Test func effectiveColorReflectsClaudeWorktreeCwd() throws {
+        // Set up a real worktree on disk so GitInfo resolves both paths.
+        let tmp = NSTemporaryDirectory()
+        let base = (tmp as NSString).appendingPathComponent(
+            "montty-test-\(UUID().uuidString)"
+        )
+        let fileManager = FileManager.default
+
+        // Main repo
+        let mainRepo = (base as NSString).appendingPathComponent("main-repo")
+        try fileManager.createDirectory(atPath: mainRepo, withIntermediateDirectories: true)
+        let mainGitDir = (mainRepo as NSString).appendingPathComponent(".git")
+        try fileManager.createDirectory(atPath: mainGitDir, withIntermediateDirectories: true)
+        try "ref: refs/heads/main\n".write(
+            toFile: (mainGitDir as NSString).appendingPathComponent("HEAD"),
+            atomically: true, encoding: .utf8
+        )
+
+        // Linked worktree pointing at main-repo
+        let wtName = "feature-x"
+        let worktreesDir = (mainGitDir as NSString).appendingPathComponent("worktrees")
+        let wtGitDir = (worktreesDir as NSString).appendingPathComponent(wtName)
+        try fileManager.createDirectory(atPath: wtGitDir, withIntermediateDirectories: true)
+        try "ref: refs/heads/\(wtName)\n".write(
+            toFile: (wtGitDir as NSString).appendingPathComponent("HEAD"),
+            atomically: true, encoding: .utf8
+        )
+        let worktreePath = (base as NSString).appendingPathComponent(wtName)
+        try fileManager.createDirectory(atPath: worktreePath, withIntermediateDirectories: true)
+        try "gitdir: \(wtGitDir)\n".write(
+            toFile: (worktreePath as NSString).appendingPathComponent(".git"),
+            atomically: true, encoding: .utf8
+        )
+
+        // Tab whose shell pwd is the main repo, but Claude reports the worktree.
+        let surfaceID = UUID()
+        let monttyID = "mid-cc"
+        let tab = Tab(surfaceID: surfaceID)
+        tab.surfaceToMonttyID[surfaceID] = monttyID
+        tab.surfaceDirectories[surfaceID] = mainRepo
+
+        let parentColor = tab.effectiveColor()
+        #expect(parentColor != .gray)
+
+        tab.claudeDirectories[monttyID] = worktreePath
+        let worktreeColor = tab.effectiveColor()
+        #expect(worktreeColor != .gray)
+        #expect(worktreeColor != parentColor, "worktree should hash to a different color than its parent")
+
+        try? fileManager.removeItem(atPath: base)
+    }
+
     @Test func tabColorOverrideNilFallsThrough() {
         let surfaceID = UUID()
         let tab = Tab(surfaceID: surfaceID)

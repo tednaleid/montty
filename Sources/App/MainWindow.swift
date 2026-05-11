@@ -81,7 +81,7 @@ struct MainWindow: View {
                 focusedLeafID: activeTab.focusedLeafID,
                 surfaceLookup: { appDelegate.surfaceView(for: $0) },
                 jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:],
-                surfaceDirectories: activeTab.surfaceDirectories,
+                surfaceDirectories: activeTab.effectiveSurfaceDirectories,
                 repoColorOverrides: appDelegate.repoColorOverrides,
                 tabColorOverride: activeTab.colorOverride,
                 surfaceTintEnabled: appDelegate.surfaceTintEnabled,

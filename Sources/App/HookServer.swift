@@ -147,6 +147,12 @@ enum HookServer {
                 if case .applied(let newState) = outcome {
                     newStateLabel = newState.map { String(describing: $0) }
                 }
+                HookDirectoryTracker.apply(
+                    event: message.event,
+                    surfaceID: message.surface,
+                    cwd: message.cwd,
+                    to: &tab.claudeDirectories
+                )
             }
 
             let matched = owningTab != nil

@@ -8,9 +8,10 @@ struct TabContextMenu: View {
     let onSetTabColor: (TabColor?) -> Void
     let onClose: () -> Void
 
-    /// The focused surface's directory, if any.
+    /// The focused surface's directory, if any. Prefers Claude-reported cwd
+    /// over the parent shell's pwd so the menu reflects the active worktree.
     private var focusedDir: String? {
-        tab.focusedSurfaceID.flatMap { tab.surfaceDirectories[$0] }
+        tab.focusedSurfaceID.flatMap { tab.effectiveSurfaceDirectories[$0] }
     }
 
     /// Git info for the focused surface.

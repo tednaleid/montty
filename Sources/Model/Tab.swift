@@ -18,7 +18,13 @@ final class Tab: Identifiable {
     /// Maps Ghostty surfaceID -> MONTTY_SURFACE_ID for hook routing.
     var surfaceToMonttyID: [UUID: String] = [:]
     /// Per-surface working directories, keyed by surfaceID.
+    /// These come from the parent shell via Ghostty's PWD action (OSC 7 / chpwd).
     var surfaceDirectories: [UUID: String] = [:]
+    /// Per-surface cwd as reported by Claude Code's hooks, keyed by MONTTY_SURFACE_ID.
+    /// Set on every hook event with a cwd; cleared on session-end. Wins over the
+    /// shell pwd because Claude can `cd` into a worktree without the parent shell
+    /// noticing (no chpwd fires from a subprocess).
+    var claudeDirectories: [String: String] = [:]
     /// Tab-level color override. Beats repo/worktree colors for all surfaces in this tab.
     var colorOverride: TabColor?
 
@@ -26,10 +32,22 @@ final class Tab: Identifiable {
         name.isEmpty ? autoName : name
     }
 
+    /// Per-surface effective directory: Claude's reported cwd if active, else the shell pwd.
+    var effectiveSurfaceDirectories: [UUID: String] {
+        var dirs = surfaceDirectories
+        for (uuid, monttyID) in surfaceToMonttyID {
+            if let claudeCwd = claudeDirectories[monttyID] {
+                dirs[uuid] = claudeCwd
+            }
+        }
+        return dirs
+    }
+
     /// The effective color for this tab. Priority: tab override > repo override > git hash > gray.
     func effectiveColor(overrides: [String: TabColor] = [:]) -> TabColor {
         if let colorOverride { return colorOverride }
-        let dir = focusedSurfaceID.flatMap { surfaceDirectories[$0] }
+        let dirs = effectiveSurfaceDirectories
+        let dir = focusedSurfaceID.flatMap { dirs[$0] }
         return TabColor.colorForWorktree(dir, overrides: overrides) ?? .gray
     }
 
@@ -40,7 +58,7 @@ final class Tab: Identifiable {
             autoName: autoName,
             splitRoot: splitRoot,
             focusedLeafID: focusedLeafID,
-            surfaceDirectories: surfaceDirectories,
+            surfaceDirectories: effectiveSurfaceDirectories,
             surfaceTitles: surfaceTitles,
             claudeStates: claudeStates,
             surfaceToMonttyID: surfaceToMonttyID

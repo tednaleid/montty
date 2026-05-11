@@ -17,8 +17,17 @@ enum ClaudeHookEvent: String {
 struct ClaudeHookMessage: Equatable {
     let event: ClaudeHookEvent
     let surface: String
+    /// The cwd Claude Code reported on stdin. Optional for backward compat with
+    /// older wrappers; the worktree color tracking depends on it being present.
+    let cwd: String?
 
-    /// Parse a hook message body. Expects: {"event": "<name>", "surface": "<id>"}.
+    init(event: ClaudeHookEvent, surface: String, cwd: String? = nil) {
+        self.event = event
+        self.surface = surface
+        self.cwd = cwd
+    }
+
+    /// Parse a hook message body. Expects: {"event": "<name>", "surface": "<id>", "cwd": "<path>"?}.
     /// Returns nil for malformed JSON, unknown events, or missing fields.
     static func parse(json: String) -> ClaudeHookMessage? {
         guard let data = json.data(using: .utf8),
@@ -29,7 +38,32 @@ struct ClaudeHookMessage: Equatable {
               !surface.isEmpty else {
             return nil
         }
-        return ClaudeHookMessage(event: event, surface: surface)
+        let rawCwd = obj["cwd"] as? String
+        let cwd = (rawCwd?.isEmpty ?? true) ? nil : rawCwd
+        return ClaudeHookMessage(event: event, surface: surface, cwd: cwd)
+    }
+}
+
+/// Pure logic for tracking Claude-reported cwd per surface. Kept separate from
+/// HookStateMachine because cwd isn't part of the state transition.
+enum HookDirectoryTracker {
+    /// Apply a hook event's cwd update to the directories dict.
+    /// - `session-end` removes the entry.
+    /// - Any other event with a non-empty cwd updates the entry.
+    /// - A nil/empty cwd on a non-end event is a no-op (preserves prior value).
+    static func apply(
+        event: ClaudeHookEvent,
+        surfaceID: String,
+        cwd: String?,
+        to directories: inout [String: String]
+    ) {
+        if event == .sessionEnd {
+            directories.removeValue(forKey: surfaceID)
+            return
+        }
+        if let cwd, !cwd.isEmpty {
+            directories[surfaceID] = cwd
+        }
     }
 }
 
