@@ -3,6 +3,7 @@ excluded:
   - ghostty
   - DerivedData
   - build
+  - .llm
 
 identifier_name:
   excluded:
