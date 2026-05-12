@@ -270,8 +270,9 @@ import Testing
         #expect(worktreeTint?.isGradient == true)
         #expect(worktreeTint?.secondary == parentTint?.primary,
             "gradient secondary should match parent repo's solid color")
-        #expect(worktreeTint?.primary != worktreeTint?.secondary,
-            "worktree color should differ from parent")
+        // Don't assert primary != secondary -- the 14-color hash will sometimes
+        // collide for two distinct identities, and the gradient still renders
+        // correctly (it just looks solid in that rare case).
     }
 
     @Test func paneTintWorktreeRespectsParentRepoOverride() throws {

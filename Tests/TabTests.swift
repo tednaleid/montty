@@ -290,6 +290,72 @@ struct TabTests {
         #expect(tab.effectiveSurfaceDirectories[surfaceID] == "/parent/repo")
     }
 
+    @Test func effectivePaneTintFallsBackToGraySolidWhenNoDir() {
+        let tab = Tab()
+        let tint = tab.effectivePaneTint()
+        #expect(tint == PaneTint(primary: .gray, secondary: nil))
+    }
+
+    @Test func effectivePaneTintRespectsTabOverride() {
+        let surfaceID = UUID()
+        let tab = Tab(surfaceID: surfaceID)
+        let repoPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().path
+        tab.surfaceDirectories[surfaceID] = repoPath
+        tab.colorOverride = .red
+        let tint = tab.effectivePaneTint()
+        #expect(tint.primary == .red)
+        #expect(tint.secondary == nil, "tab override should always render solid, never a gradient")
+    }
+
+    @Test func effectivePaneTintGradientsForClaudeReportedWorktree() throws {
+        // Set up parent + worktree on disk, mark claude as having moved into the worktree.
+        // The tint should gradient (parent on leading, worktree on trailing) -- this is
+        // the integration between the hook cwd plumbing and the gradient resolver.
+        let tmp = NSTemporaryDirectory()
+        let base = (tmp as NSString).appendingPathComponent(
+            "montty-tab-tint-\(UUID().uuidString)"
+        )
+        let fileManager = FileManager.default
+
+        let parent = (base as NSString).appendingPathComponent("main-repo")
+        try fileManager.createDirectory(atPath: parent, withIntermediateDirectories: true)
+        let parentGit = (parent as NSString).appendingPathComponent(".git")
+        try fileManager.createDirectory(atPath: parentGit, withIntermediateDirectories: true)
+        try "ref: refs/heads/main\n".write(
+            toFile: (parentGit as NSString).appendingPathComponent("HEAD"),
+            atomically: true, encoding: .utf8
+        )
+
+        let wtName = "feature-y"
+        let wtMeta = ((parentGit as NSString)
+            .appendingPathComponent("worktrees") as NSString)
+            .appendingPathComponent(wtName)
+        try fileManager.createDirectory(atPath: wtMeta, withIntermediateDirectories: true)
+        try "ref: refs/heads/\(wtName)\n".write(
+            toFile: (wtMeta as NSString).appendingPathComponent("HEAD"),
+            atomically: true, encoding: .utf8
+        )
+        let worktreePath = (base as NSString).appendingPathComponent(wtName)
+        try fileManager.createDirectory(atPath: worktreePath, withIntermediateDirectories: true)
+        try "gitdir: \(wtMeta)\n".write(
+            toFile: (worktreePath as NSString).appendingPathComponent(".git"),
+            atomically: true, encoding: .utf8
+        )
+
+        let surfaceID = UUID()
+        let monttyID = "mid-cc"
+        let tab = Tab(surfaceID: surfaceID)
+        tab.surfaceToMonttyID[surfaceID] = monttyID
+        tab.surfaceDirectories[surfaceID] = parent       // shell still in main
+        tab.claudeDirectories[monttyID] = worktreePath   // claude moved into worktree
+
+        let tint = tab.effectivePaneTint()
+        #expect(tint.isGradient, "claude in a worktree should yield a gradient tint")
+
+        try? fileManager.removeItem(atPath: base)
+    }
+
     @Test func effectiveColorReflectsClaudeWorktreeCwd() throws {
         // Set up a real worktree on disk so GitInfo resolves both paths.
         let tmp = NSTemporaryDirectory()
