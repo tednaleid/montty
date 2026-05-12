@@ -45,7 +45,15 @@ struct SplitContainerView: View {
                         : Color.black.opacity(Self.unfocusedDimOpacity)
                             .allowsHitTesting(false)
                 )
-                .border(isFocused ? borderColor : Color.clear, width: 2)
+                .overlay {
+                    if isFocused {
+                        Rectangle()
+                            .strokeBorder(
+                                surfaceTintGradient(for: leaf.surfaceID, opacity: 0.7),
+                                lineWidth: 2
+                            )
+                    }
+                }
                 .overlay {
                     if let label = jumpLabels[leaf.id] {
                         JumpBadge(
@@ -68,31 +76,20 @@ struct SplitContainerView: View {
         )
     }
 
-    /// Gradient for the surface tint overlay -- collapses to solid when not in a worktree.
-    private func surfaceTintGradient(for surfaceID: UUID) -> LinearGradient {
-        surfaceTint(for: surfaceID)?.gradient()
-            ?? LinearGradient(colors: [.clear, .clear], startPoint: .leading, endPoint: .trailing)
+    /// Gradient for the surface tint overlay and focused border -- collapses to a
+    /// same-color gradient when not in a worktree, so callers don't need to branch.
+    private func surfaceTintGradient(for surfaceID: UUID, opacity: Double = 1.0) -> LinearGradient {
+        surfaceTint(for: surfaceID)?.gradient(opacity: opacity)
+            ?? LinearGradient(
+                colors: [.gray.opacity(opacity), .gray.opacity(opacity)],
+                startPoint: .leading, endPoint: .trailing
+            )
     }
 
     /// Single color for elements that can't render a gradient (jump badges).
     private func surfaceTintPrimary(for surfaceID: UUID) -> Color {
         surfaceTint(for: surfaceID)?.primary.swiftUIColor ?? .clear
     }
-
-    private var resolvedTabColor: Color {
-        if let tabColorOverride { return tabColorOverride.swiftUIColor }
-        let dir = focusedLeafID
-            .flatMap { leafID in
-                SplitTree.allLeaves(node: node)
-                    .first { $0.id == leafID }?.surfaceID
-            }
-            .flatMap { surfaceDirectories[$0] }
-        return TabColor.colorForWorktree(
-            dir, overrides: repoColorOverrides
-        )?.swiftUIColor ?? .gray
-    }
-
-    private var borderColor: Color { resolvedTabColor.opacity(0.7) }
 
     private func branchView(_ branch: SplitBranch) -> some View {
         BranchWrapper(
