@@ -288,8 +288,17 @@ import Testing
             surfaceDirectory: fixture.worktree,
             repoColorOverrides: overrides
         )
+        // Compare to the hash-only result so the assertion is deterministic --
+        // asserting != .magenta would flake when the worktree's identity legitimately
+        // hashes to magenta out of the 14-color palette.
+        let unoverridden = TabColor.resolvedPaneTint(
+            tabColorOverride: nil,
+            surfaceDirectory: fixture.worktree,
+            repoColorOverrides: [:]
+        )
         #expect(tint?.secondary == .magenta)
-        #expect(tint?.primary != .magenta, "worktree color should still hash, not pick up parent override")
+        #expect(tint?.primary == unoverridden?.primary,
+            "worktree primary should follow the hash, not the parent override")
     }
 
     @Test func paneTintWorktreeRespectsWorktreeOverride() throws {
