@@ -36,6 +36,8 @@ extension DebugServer {
             handleHookLog(connection: connection)
         case ("GET", "/claude-states"):
             handleClaudeStates(connection: connection)
+        case ("GET", "/icon"):
+            handleIcon(connection: connection)
         default:
             sendJSON(["error": "Not found: \(request.method) \(request.path)"], status: 404, connection: connection)
         }
@@ -185,6 +187,46 @@ extension DebugServer {
             }
             sendJSONArray(results, connection: connection)
         }
+    }
+
+    private static func handleIcon(connection: NWConnection) {
+        DispatchQueue.main.async {
+            var result: [String: Any] = [:]
+            result["bundle_path"] = Bundle.main.bundlePath
+            result["bundle_icon_name"] = Bundle.main.object(forInfoDictionaryKey: "CFBundleIconName") as? String ?? ""
+            result["bundle_icon_file"] = Bundle.main.object(forInfoDictionaryKey: "CFBundleIconFile") as? String ?? ""
+
+            result["nsapp_application_icon_image"] = describeIconImage(NSApp.applicationIconImage)
+            result["nsimage_named_AppIcon"] = describeIconImage(NSImage(named: "AppIcon"))
+            result["nsimage_application_icon_name"] = describeIconImage(NSImage(named: NSImage.applicationIconName))
+            result["workspace_icon_for_bundle"] = describeIconImage(
+                NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
+            )
+            sendJSON(result, connection: connection)
+        }
+    }
+
+    private static func describeIconImage(_ image: NSImage?) -> [String: Any] {
+        guard let image = image else { return ["present": false] }
+        let reps = image.representations.map { rep -> [String: Any] in
+            var info: [String: Any] = [
+                "class": String(describing: type(of: rep)),
+                "size_w": rep.size.width,
+                "size_h": rep.size.height
+            ]
+            if let bitmap = rep as? NSBitmapImageRep {
+                info["pixels_w"] = bitmap.pixelsWide
+                info["pixels_h"] = bitmap.pixelsHigh
+            }
+            return info
+        }
+        return [
+            "present": true,
+            "size_w": image.size.width,
+            "size_h": image.size.height,
+            "rep_count": image.representations.count,
+            "reps": reps
+        ]
     }
 
     private static func addSurfaceViewData(

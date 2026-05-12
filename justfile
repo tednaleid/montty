@@ -203,6 +203,10 @@ inspect-hook-log:
 inspect-claude-states:
     @curl -sf localhost:9876/claude-states | jq .
 
+# Debug: show app icon state (applicationIconImage, NSImage(named:), LaunchServices)
+inspect-icon:
+    @curl -sf localhost:9876/icon | jq .
+
 # Bump version in Info.plist, commit, tag with release notes, and push.
 # If no version given, increments the patch version from the last tag.
 bump version="":
