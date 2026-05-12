@@ -165,4 +165,153 @@ import Testing
         )
         #expect(resolved == nil)
     }
+
+    // MARK: - PaneTint (worktree gradient)
+
+    private struct WorktreeFixture {
+        let parent: String
+        let worktree: String
+        let base: String
+    }
+
+    /// Build a (parentRepoPath, worktreePath, baseDir) triple on disk for tint tests.
+    private func makeWorktreeOnDisk() throws -> WorktreeFixture {
+        let tmp = NSTemporaryDirectory()
+        let base = (tmp as NSString).appendingPathComponent(
+            "montty-tint-\(UUID().uuidString)"
+        )
+        let fileManager = FileManager.default
+
+        let parent = (base as NSString).appendingPathComponent("main-repo")
+        try fileManager.createDirectory(atPath: parent, withIntermediateDirectories: true)
+        let parentGit = (parent as NSString).appendingPathComponent(".git")
+        try fileManager.createDirectory(atPath: parentGit, withIntermediateDirectories: true)
+        try "ref: refs/heads/main\n".write(
+            toFile: (parentGit as NSString).appendingPathComponent("HEAD"),
+            atomically: true, encoding: .utf8
+        )
+
+        let wtName = "feature-x"
+        let wtGitDir = (parentGit as NSString)
+            .appendingPathComponent("worktrees")
+        let wtMeta = (wtGitDir as NSString).appendingPathComponent(wtName)
+        try fileManager.createDirectory(atPath: wtMeta, withIntermediateDirectories: true)
+        try "ref: refs/heads/\(wtName)\n".write(
+            toFile: (wtMeta as NSString).appendingPathComponent("HEAD"),
+            atomically: true, encoding: .utf8
+        )
+        let worktree = (base as NSString).appendingPathComponent(wtName)
+        try fileManager.createDirectory(atPath: worktree, withIntermediateDirectories: true)
+        try "gitdir: \(wtMeta)\n".write(
+            toFile: (worktree as NSString).appendingPathComponent(".git"),
+            atomically: true, encoding: .utf8
+        )
+
+        return WorktreeFixture(parent: parent, worktree: worktree, base: base)
+    }
+
+    @Test func paneTintNilForNonGitDirectory() {
+        let tint = TabColor.resolvedPaneTint(
+            tabColorOverride: nil,
+            surfaceDirectory: "/tmp",
+            repoColorOverrides: [:]
+        )
+        #expect(tint == nil)
+    }
+
+    @Test func paneTintNilForNilDirectory() {
+        let tint = TabColor.resolvedPaneTint(
+            tabColorOverride: nil,
+            surfaceDirectory: nil,
+            repoColorOverrides: [:]
+        )
+        #expect(tint == nil)
+    }
+
+    @Test func paneTintTabOverrideIsSolid() {
+        let tint = TabColor.resolvedPaneTint(
+            tabColorOverride: .red,
+            surfaceDirectory: "/anywhere",
+            repoColorOverrides: [:]
+        )
+        #expect(tint?.primary == .red)
+        #expect(tint?.secondary == nil)
+        #expect(tint?.isGradient == false)
+    }
+
+    @Test func paneTintNonWorktreeRepoIsSolid() throws {
+        let fixture = try makeWorktreeOnDisk()
+        defer { try? FileManager.default.removeItem(atPath: fixture.base) }
+
+        let tint = TabColor.resolvedPaneTint(
+            tabColorOverride: nil,
+            surfaceDirectory: fixture.parent,
+            repoColorOverrides: [:]
+        )
+        #expect(tint != nil)
+        #expect(tint?.secondary == nil, "main repo should not produce a gradient")
+        #expect(tint?.isGradient == false)
+    }
+
+    @Test func paneTintWorktreeYieldsGradient() throws {
+        let fixture = try makeWorktreeOnDisk()
+        defer { try? FileManager.default.removeItem(atPath: fixture.base) }
+
+        let parentTint = TabColor.resolvedPaneTint(
+            tabColorOverride: nil,
+            surfaceDirectory: fixture.parent,
+            repoColorOverrides: [:]
+        )
+        let worktreeTint = TabColor.resolvedPaneTint(
+            tabColorOverride: nil,
+            surfaceDirectory: fixture.worktree,
+            repoColorOverrides: [:]
+        )
+        #expect(worktreeTint?.isGradient == true)
+        #expect(worktreeTint?.secondary == parentTint?.primary,
+            "gradient secondary should match parent repo's solid color")
+        #expect(worktreeTint?.primary != worktreeTint?.secondary,
+            "worktree color should differ from parent")
+    }
+
+    @Test func paneTintWorktreeRespectsParentRepoOverride() throws {
+        let fixture = try makeWorktreeOnDisk()
+        defer { try? FileManager.default.removeItem(atPath: fixture.base) }
+
+        // Override the *parent* repo color, not the worktree.
+        let parentIdentity = TabColor.repoIdentity(for: fixture.parent)!
+        let overrides: [String: TabColor] = [parentIdentity: .magenta]
+
+        let tint = TabColor.resolvedPaneTint(
+            tabColorOverride: nil,
+            surfaceDirectory: fixture.worktree,
+            repoColorOverrides: overrides
+        )
+        #expect(tint?.secondary == .magenta)
+        #expect(tint?.primary != .magenta, "worktree color should still hash, not pick up parent override")
+    }
+
+    @Test func paneTintWorktreeRespectsWorktreeOverride() throws {
+        let fixture = try makeWorktreeOnDisk()
+        defer { try? FileManager.default.removeItem(atPath: fixture.base) }
+
+        let wtIdentity = TabColor.repoIdentity(for: fixture.worktree)!
+        let overrides: [String: TabColor] = [wtIdentity: .cyan]
+
+        // Parent under the same overrides -- the worktree override key doesn't
+        // match the parent's identity, so it should fall through to the hash.
+        let parentTint = TabColor.resolvedPaneTint(
+            tabColorOverride: nil,
+            surfaceDirectory: fixture.parent,
+            repoColorOverrides: overrides
+        )
+        let worktreeTint = TabColor.resolvedPaneTint(
+            tabColorOverride: nil,
+            surfaceDirectory: fixture.worktree,
+            repoColorOverrides: overrides
+        )
+        #expect(worktreeTint?.primary == .cyan)
+        #expect(worktreeTint?.secondary == parentTint?.primary,
+            "worktree override should not bleed into the parent's resolved color")
+    }
 }

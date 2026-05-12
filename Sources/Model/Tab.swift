@@ -51,6 +51,19 @@ final class Tab: Identifiable {
         return TabColor.colorForWorktree(dir, overrides: overrides) ?? .gray
     }
 
+    /// The effective tint for this tab, including the worktree-gradient secondary
+    /// stop when the focused pane is in a linked worktree. Falls back to a solid
+    /// gray tint when there's no git info.
+    func effectivePaneTint(overrides: [String: TabColor] = [:]) -> PaneTint {
+        let dirs = effectiveSurfaceDirectories
+        let dir = focusedSurfaceID.flatMap { dirs[$0] }
+        return TabColor.resolvedPaneTint(
+            tabColorOverride: colorOverride,
+            surfaceDirectory: dir,
+            repoColorOverrides: overrides
+        ) ?? PaneTint(primary: .gray, secondary: nil)
+    }
+
     /// Computed metadata for tab display, decoupled from AppKit/Ghostty.
     var tabInfo: TabInfo {
         TabInfo.from(tab: TabProperties(

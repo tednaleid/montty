@@ -53,28 +53,44 @@ struct MinimapView: View {
         return rawFrame.insetBy(dx: gap / 2, dy: gap / 2)
     }
 
-    private func paneColor(_ pane: MinimapPane) -> Color {
-        TabColor.resolvedPaneColor(
+    private func paneTint(_ pane: MinimapPane) -> PaneTint? {
+        TabColor.resolvedPaneTint(
             tabColorOverride: tabColorOverride,
             surfaceDirectory: surfaceDirectories[pane.surfaceID],
             repoColorOverrides: repoColorOverrides
-        )?.swiftUIColor ?? tabColor
+        )
     }
 
-    private func paneFill(_ pane: MinimapPane) -> Color {
-        let color = paneColor(pane)
-        if pane.isFocused {
-            return color.opacity(isActiveTab ? 0.45 : 0.3)
-        }
-        return color.opacity(isActiveTab ? 0.2 : 0.12)
+    /// Single color for the jump badge (which can't render a gradient).
+    private func paneColor(_ pane: MinimapPane) -> Color {
+        paneTint(pane)?.primary.swiftUIColor ?? tabColor
     }
 
-    private func paneBorder(_ pane: MinimapPane) -> Color {
-        let color = paneColor(pane)
-        if pane.isFocused {
-            return color.opacity(isActiveTab ? 0.9 : 0.5)
+    private func paneFill(_ pane: MinimapPane) -> LinearGradient {
+        let opacity: Double = pane.isFocused
+            ? (isActiveTab ? 0.45 : 0.3)
+            : (isActiveTab ? 0.2 : 0.12)
+        if let tint = paneTint(pane) {
+            return tint.gradient(opacity: opacity)
         }
-        return color.opacity(isActiveTab ? 0.45 : 0.25)
+        // No git info -- fall back to a solid grey gradient (both stops same).
+        return LinearGradient(
+            colors: [tabColor.opacity(opacity), tabColor.opacity(opacity)],
+            startPoint: .leading, endPoint: .trailing
+        )
+    }
+
+    private func paneBorder(_ pane: MinimapPane) -> LinearGradient {
+        let opacity: Double = pane.isFocused
+            ? (isActiveTab ? 0.9 : 0.5)
+            : (isActiveTab ? 0.45 : 0.25)
+        if let tint = paneTint(pane) {
+            return tint.gradient(opacity: opacity)
+        }
+        return LinearGradient(
+            colors: [tabColor.opacity(opacity), tabColor.opacity(opacity)],
+            startPoint: .leading, endPoint: .trailing
+        )
     }
 }
 

@@ -80,7 +80,7 @@ struct TabRow: View {
                 // Minimap (always shown)
                 MinimapView(
                     minimap: info.minimap,
-                    tabColor: accentColor,
+                    tabColor: tabColor,
                     tabColorOverride: tab.colorOverride,
                     isActiveTab: isActive,
                     jumpLabels: jumpLabels,
@@ -97,33 +97,41 @@ struct TabRow: View {
             Spacer(minLength: 0)
         }
         .opacity(isActive ? 1.0 : 0.9)
-        .background(isActive ? activeBackground.padding(.trailing, -24) : nil)
+        .background(
+            isActive
+                ? Rectangle().fill(activeBackgroundGradient).padding(.trailing, -24)
+                : nil
+        )
         .overlay {
             if isActive {
                 // Extend borders past the row's right edge to meet the
                 // window divider line, using negative trailing padding
                 VStack {
-                    Rectangle().fill(accentColor).frame(height: 4)
+                    Rectangle().fill(accentGradient).frame(height: 4)
                     Spacer()
-                    Rectangle().fill(accentColor).frame(height: 4)
+                    Rectangle().fill(accentGradient).frame(height: 4)
                 }
                 .padding(.trailing, -24)
             }
         }
     }
 
-    private var tabColor: Color {
-        tab.effectiveColor(overrides: repoColorOverrides).swiftUIColor
+    private var paneTint: PaneTint {
+        tab.effectivePaneTint(overrides: repoColorOverrides)
     }
 
-    private var accentColor: Color { tabColor }
+    private var tabColor: Color {
+        paneTint.primary.swiftUIColor
+    }
+
+    private var accentGradient: LinearGradient { paneTint.gradient() }
 
     private var colorBarColor: Color {
         isActive ? tabColor : tabColor.opacity(0.3)
     }
 
-    private var activeBackground: Color {
-        tabColor.opacity(0.15)
+    private var activeBackgroundGradient: LinearGradient {
+        paneTint.gradient(opacity: 0.15)
     }
 }
 

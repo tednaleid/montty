@@ -33,7 +33,8 @@ struct SplitContainerView: View {
             Ghostty.SurfaceWrapper(surfaceView: surfaceView)
                 .overlay(
                     surfaceTintEnabled
-                        ? surfaceTintColor(for: leaf.surfaceID)
+                        ? Rectangle()
+                            .fill(surfaceTintGradient(for: leaf.surfaceID))
                             .opacity(0.06)
                             .allowsHitTesting(false)
                         : nil
@@ -47,7 +48,11 @@ struct SplitContainerView: View {
                 .border(isFocused ? borderColor : Color.clear, width: 2)
                 .overlay {
                     if let label = jumpLabels[leaf.id] {
-                        JumpBadge(label: label, color: surfaceTintColor(for: leaf.surfaceID), large: true)
+                        JumpBadge(
+                            label: label,
+                            color: surfaceTintPrimary(for: leaf.surfaceID),
+                            large: true
+                        )
                     }
                 }
         } else {
@@ -55,11 +60,23 @@ struct SplitContainerView: View {
         }
     }
 
-    private func surfaceTintColor(for surfaceID: UUID) -> Color {
-        if let tabColorOverride { return tabColorOverride.swiftUIColor }
-        return TabColor.colorForWorktree(
-            surfaceDirectories[surfaceID], overrides: repoColorOverrides
-        )?.swiftUIColor ?? .clear
+    private func surfaceTint(for surfaceID: UUID) -> PaneTint? {
+        TabColor.resolvedPaneTint(
+            tabColorOverride: tabColorOverride,
+            surfaceDirectory: surfaceDirectories[surfaceID],
+            repoColorOverrides: repoColorOverrides
+        )
+    }
+
+    /// Gradient for the surface tint overlay -- collapses to solid when not in a worktree.
+    private func surfaceTintGradient(for surfaceID: UUID) -> LinearGradient {
+        surfaceTint(for: surfaceID)?.gradient()
+            ?? LinearGradient(colors: [.clear, .clear], startPoint: .leading, endPoint: .trailing)
+    }
+
+    /// Single color for elements that can't render a gradient (jump badges).
+    private func surfaceTintPrimary(for surfaceID: UUID) -> Color {
+        surfaceTint(for: surfaceID)?.primary.swiftUIColor ?? .clear
     }
 
     private var resolvedTabColor: Color {
