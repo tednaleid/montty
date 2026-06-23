@@ -60,7 +60,7 @@ cask "montty" do
   desc "macOS terminal app with vertical tabs, splits, and session persistence"
   homepage "https://github.com/${OWNER}/${MAIN_REPO}"
 
-  depends_on macos: ">= :tahoe"
+  depends_on macos: :tahoe
 
   app "Montty.app"
 
