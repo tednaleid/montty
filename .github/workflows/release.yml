@@ -25,6 +25,13 @@ jobs:
         with:
           tool: just
 
+      # Zig 0.15.2 cannot parse the macOS SDK shipped with the runner's default
+      # Xcode (26.5), so it links without libSystem and the GhosttyKit build fails
+      # with undefined libc symbols. Pin Xcode 26.2 to match upstream Ghostty's
+      # toolchain for this Zig version.
+      - name: Select Xcode 26.2
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app
+
       - name: Cache GhosttyKit
         id: cache-ghosttykit
         uses: actions/cache@v5
