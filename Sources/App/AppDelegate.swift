@@ -91,6 +91,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         )
         window.contentView = hostingView
         window.title = "Montty"
+        window.delegate = self
         window.makeKeyAndOrderFront(nil)
 
         // Start the Ghostty event loop tick timer
