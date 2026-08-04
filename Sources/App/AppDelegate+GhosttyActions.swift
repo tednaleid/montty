@@ -94,10 +94,15 @@ extension AppDelegate {
                   let surfaceView = notification.object as? Ghostty.SurfaceView,
                   let tab = self.tabStore.tab(forSurfaceID: surfaceView.id),
                   let leaf = SplitTree.findLeaf(
-                      node: tab.splitRoot, surfaceID: surfaceView.id),
-                  tab.focusedLeafID != leaf.id
+                      node: tab.splitRoot, surfaceID: surfaceView.id)
             else { return }
-            tab.focusedLeafID = leaf.id
+            // Always re-sync, even if focusedLeafID already matches: a
+            // surface can report itself focused (e.g. becomeFirstResponder
+            // right after tab creation) while the window isn't key, and only
+            // syncSurfaceFocus() will blur it back down.
+            if tab.focusedLeafID != leaf.id {
+                tab.focusedLeafID = leaf.id
+            }
             self.syncSurfaceFocus()
         }
     }
