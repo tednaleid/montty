@@ -237,8 +237,9 @@ struct SessionStoreTests {
             environment: ["MONTTY_SESSION_DIR": "~/montty-test-session"]
         )
 
-        #expect(!url.path.contains("~"))
-        #expect(url.path.hasSuffix("/montty-test-session"))
+        // Assert the real home directory was substituted. Checking only for the
+        // absence of "~" would pass for a resolver that merely strips the character.
+        #expect(url.path == "\(NSHomeDirectory())/montty-test-session")
     }
 
     @Test func resolveDirectoryIgnoresEmptyOverride() {
