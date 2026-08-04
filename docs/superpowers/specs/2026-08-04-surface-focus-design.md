@@ -98,10 +98,13 @@ suite.
 
 ### 2. Applier
 
-New file `Sources/App/AppDelegate+Focus.swift`, following the existing
-`AppDelegate+GhosttyActions.swift` pattern so `AppDelegate.swift` does not grow.
-`updateSurfaceFocus(for:)` is deleted. Its replacement is the only code in
-montty permitted to call `focusDidChange`:
+`updateSurfaceFocus(for:)` is deleted and replaced in place, in
+`Sources/App/AppDelegate.swift`, by the only code in montty permitted to call
+`focusDidChange`. It stays in that file rather than moving to an extension
+because it reads the `private surfaces` dictionary, and a Swift extension in
+another file cannot see private members. The net line count is roughly
+unchanged, so `AppDelegate.swift` stays well under the SwiftLint file length
+warning.
 
 ```swift
 func syncSurfaceFocus() {
@@ -125,7 +128,7 @@ Call sites, each replacing a partial sync or an absent one:
 | `MainWindow.onChange(of: tabStore.activeTabID)` | sync, then `Ghostty.moveFocus(to:)` |
 | `AppDelegate.setFocusedLeaf(_:in:)` | `updateSurfaceFocus` becomes `syncSurfaceFocus` |
 | `AppDelegate+GhosttyActions` `ghosttySurfaceFocused` observer | same substitution |
-| `AppDelegate.createTab` / `splitSurface` / `closeTab` | sync after mutating the tree |
+| `AppDelegate.createTab` / `closeTab` | sync after mutating the tab list |
 | `AppDelegate.restoreSession` | replace the per-tab loop with one sync |
 | `windowDidBecomeKey` / `windowDidResignKey` | new, see below |
 
@@ -141,7 +144,11 @@ The `ghosttySurfaceFocused` observer already guards on
 
 ### 3. Window delegate
 
-`AppDelegate` conforms to `NSWindowDelegate` and sets `window.delegate = self`.
+New file `Sources/App/AppDelegate+Focus.swift`, following the existing
+`AppDelegate+GhosttyActions.swift` pattern. `AppDelegate` conforms to
+`NSWindowDelegate` there, and `applicationDidFinishLaunching` sets
+`window.delegate = self`. The conformance only needs internal members, so it
+reads cleanly from an extension.
 
 - `windowDidResignKey` calls `syncSurfaceFocus()`. This is what makes leaving
   montty emit `ESC[O`.
