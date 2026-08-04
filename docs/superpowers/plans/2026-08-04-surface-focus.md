@@ -19,7 +19,8 @@
 - Ghostty C API calls happen on the main actor.
 - After adding or removing any file under `Sources/` or `Tests/`, run `just generate` before `just test` or `just build`. xcodegen globs directories, so a new file is invisible to Xcode until the project is regenerated.
 - `just check` (test + lint + build) runs as a pre-commit hook. Every commit step in this plan will trigger it.
-- **Never run `just stop`.** It kills processes by name and will kill the host montty this session may be running inside. To stop a test instance, quit it from its own menu or `kill <pid>` the specific process you launched.
+- A host Montty (Release build, no debug server) is running and this session lives inside it. `just run-bg` launches a second Debug instance that binds port 9876. `just stop` walks the ancestor chain from `$PPID` and skips the host, so it only kills Debug instances. It prints the host PID it protected; if it reports `host PID: none`, stop and report rather than assuming it worked.
+- Both builds use bundle ID `com.montty.app` and therefore share `~/Library/Application Support/montty/session.json`. A Debug instance will overwrite the host's tab layout. The controller has backed the file up. Do not move or delete it yourself.
 - Comments state what is true now. No dates, ticket IDs, "currently", or narration of what was tried.
 
 ---
@@ -303,7 +304,7 @@ Expected: `** TEST SUCCEEDED **` with 9 tests passing.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/Model/SurfaceFocus.swift Tests/SurfaceFocusTests.swift montty.xcodeproj
+git add Sources/Model/SurfaceFocus.swift Tests/SurfaceFocusTests.swift
 git commit -m "feat: pure surface focus policy"
 ```
 
@@ -651,7 +652,7 @@ Cleanup in the terminal: Ctrl-C, then `printf '\033[?1004l'`.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/App/AppDelegate+Focus.swift Sources/App/AppDelegate.swift montty.xcodeproj
+git add Sources/App/AppDelegate+Focus.swift Sources/App/AppDelegate.swift
 git commit -m "fix: emit focus reports when the window gains or loses key
 
 Montty had no NSWindowDelegate, and ghostty_app_set_focus only sets an
@@ -846,6 +847,188 @@ Expected: the keys listed in the doc block (optional keys `directory_name`, `git
 ```bash
 git add docs/debug-server.md
 git commit -m "docs: document the /surfaces focus fields"
+```
+
+---
+
+### Task 7: Isolate the session file for Justfile-launched builds
+
+Dispatched after Task 3 and before Task 4, out of numeric order.
+
+Debug builds share bundle ID `com.montty.app` with the installed app, so both read and write `~/Library/Application Support/montty/session.json`. A Justfile-launched instance and a real running montty auto-save to it every 8 seconds and race each other. Task 5 makes this worse by deliberately moving the file aside.
+
+`SessionStore` already accepts `init(directory:)`. This adds an environment override on the default, so an agent-launched instance cannot touch the real session. Launching from Finder, Spotlight, or a Mac launcher inherits no environment variable, so the installed app is unaffected and Task 5's cold-launch test still exercises the real restore path.
+
+**Files:**
+- Modify: `Sources/Persistence/SessionStore.swift:13-18` (`init`), `:61-65` (`defaultDirectory`)
+- Modify: `Justfile` (`run` and `run-bg` recipes)
+- Modify: `ONBOARDING.md` (common commands section)
+- Test: `Tests/SessionSnapshotTests.swift` (existing `SessionStoreTests` struct at line 181)
+
+**Interfaces:**
+- Consumes: nothing from earlier tasks.
+- Produces: `SessionStore.resolveDirectory(environment:)`, static, taking `[String: String]` and returning `URL`. Pure and injectable so it is testable without mutating process environment. `init(directory:)` keeps its existing signature and behavior when a directory is passed explicitly.
+
+- [ ] **Step 1: Write the failing tests**
+
+Add to `Tests/SessionSnapshotTests.swift`, inside the existing `SessionStoreTests` struct:
+
+```swift
+    @Test func resolveDirectoryUsesEnvironmentOverride() {
+        let url = SessionStore.resolveDirectory(
+            environment: ["MONTTY_SESSION_DIR": "/tmp/montty-test-session"]
+        )
+
+        #expect(url.path == "/tmp/montty-test-session")
+    }
+
+    @Test func resolveDirectoryExpandsTilde() {
+        let url = SessionStore.resolveDirectory(
+            environment: ["MONTTY_SESSION_DIR": "~/montty-test-session"]
+        )
+
+        // Assert the real home directory was substituted. Checking only for the
+        // absence of "~" would pass for a resolver that merely strips the character.
+        #expect(url.path == "\(NSHomeDirectory())/montty-test-session")
+    }
+
+    @Test func resolveDirectoryIgnoresEmptyOverride() {
+        let url = SessionStore.resolveDirectory(environment: ["MONTTY_SESSION_DIR": ""])
+
+        #expect(url.path.hasSuffix("/montty"))
+    }
+
+    @Test func resolveDirectoryFallsBackToApplicationSupport() {
+        let url = SessionStore.resolveDirectory(environment: [:])
+
+        #expect(url.path.hasSuffix("/montty"))
+        #expect(url.path.contains("Application Support"))
+    }
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run:
+```bash
+xcodebuild -project montty.xcodeproj -scheme montty-unit -destination 'platform=macOS' \
+  -only-testing:montty-unit/SessionStoreTests test SYMROOT=/tmp/montty-build 2>&1 | tail -30
+```
+Expected: compile failure, no member `resolveDirectory` on `SessionStore`.
+
+- [ ] **Step 3: Write the implementation**
+
+In `Sources/Persistence/SessionStore.swift`, change `init` to use the new resolver:
+
+```swift
+    init(directory: URL? = nil) {
+        let dir = directory ?? Self.resolveDirectory()
+        try? FileManager.default.createDirectory(
+            at: dir, withIntermediateDirectories: true)
+        self.fileURL = dir.appendingPathComponent("session.json")
+    }
+```
+
+Replace `defaultDirectory()` with:
+
+```swift
+    /// Where session state lives. `MONTTY_SESSION_DIR` overrides the default so a
+    /// Justfile-launched build cannot overwrite the installed app's session.
+    static func resolveDirectory(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> URL {
+        if let override = environment["MONTTY_SESSION_DIR"], !override.isEmpty {
+            return URL(fileURLWithPath: (override as NSString).expandingTildeInPath)
+        }
+        return FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask
+        ).first!.appendingPathComponent("montty")
+    }
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run:
+```bash
+xcodebuild -project montty.xcodeproj -scheme montty-unit -destination 'platform=macOS' \
+  -only-testing:montty-unit/SessionStoreTests test SYMROOT=/tmp/montty-build 2>&1 | tail -30
+```
+Expected: `** TEST SUCCEEDED **`, including the two pre-existing `SessionStoreTests` cases.
+
+- [ ] **Step 5: Point both launch recipes at an isolated directory**
+
+In `Justfile`, replace:
+
+```
+# Build and launch the app (foreground)
+run: build
+    {{build_dir}}/Debug/Montty.app/Contents/MacOS/Montty
+```
+
+with:
+
+```
+# Build and launch the app (foreground)
+# MONTTY_SESSION_DIR keeps this build's tabs out of the installed app's session
+run: build
+    MONTTY_SESSION_DIR={{build_dir}}/session {{build_dir}}/Debug/Montty.app/Contents/MacOS/Montty
+```
+
+and replace:
+
+```
+run-bg: build
+    @{{build_dir}}/Debug/Montty.app/Contents/MacOS/Montty &
+```
+
+with:
+
+```
+run-bg: build
+    @MONTTY_SESSION_DIR={{build_dir}}/session {{build_dir}}/Debug/Montty.app/Contents/MacOS/Montty &
+```
+
+Leave the rest of `run-bg` (the `sleep 2` and the echo) unchanged.
+
+- [ ] **Step 6: Document the variable**
+
+In `ONBOARDING.md`, in the "Common commands" list, after the `Run:` line, add:
+
+```markdown
+- `just run` and `just run-bg` set `MONTTY_SESSION_DIR` so a dev build keeps its
+  tabs in `/tmp/montty-build/session` instead of the installed app's session.
+  Unset it to dogfood a build against your real session.
+```
+
+- [ ] **Step 7: Verify the isolation at runtime**
+
+```bash
+just stop
+just run-bg
+sleep 3
+ls /tmp/montty-build/session/session.json
+```
+Expected: the file exists.
+
+Then confirm the real session is untouched:
+```bash
+stat -f '%Sm %N' ~/Library/Application\ Support/montty/session.json
+```
+Expected: the modification time stops advancing while only the Debug instance is running with no host montty writing. If a host montty is running it will keep saving its own state; in that case confirm instead that the Debug instance's tab count appears in `/tmp/montty-build/session/session.json` and not in the real file.
+
+- [ ] **Step 8: Run the full suite**
+
+Run: `just test && just lint && just build`
+Expected: `** TEST SUCCEEDED **`, no lint output, `** BUILD SUCCEEDED **`.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add Sources/Persistence/SessionStore.swift Tests/SessionSnapshotTests.swift Justfile ONBOARDING.md
+git commit -m "feat: MONTTY_SESSION_DIR isolates dev-build session state
+
+Debug builds share a bundle ID with the installed app and were racing it
+for the same session.json. Justfile launches now keep their tabs under
+the build directory."
 ```
 
 ---

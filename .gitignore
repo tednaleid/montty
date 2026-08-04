@@ -25,3 +25,6 @@ GhosttyKit.xcframework
 
 # veer runtime database
 .veer/veer.db
+
+# Superpowers SDD scratch (briefs, reports, review packages)
+.superpowers/
