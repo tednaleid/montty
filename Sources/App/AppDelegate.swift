@@ -522,7 +522,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     private func restoreSession(_ snapshot: SessionSnapshot) {
         guard let app = ghostty.app, !snapshot.tabs.isEmpty else {
+            // Quitting by closing the last tab saves a snapshot with no tabs, so
+            // this path is a normal cold launch and needs focus like any other.
             createTab()
+            focusActiveSurface()
             return
         }
 
