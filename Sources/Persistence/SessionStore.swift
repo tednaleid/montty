@@ -11,7 +11,7 @@ final class SessionStore {
     private var autoSaveTimer: Timer?
 
     init(directory: URL? = nil) {
-        let dir = directory ?? Self.defaultDirectory()
+        let dir = directory ?? Self.resolveDirectory()
         try? FileManager.default.createDirectory(
             at: dir, withIntermediateDirectories: true)
         self.fileURL = dir.appendingPathComponent("session.json")
@@ -58,8 +58,15 @@ final class SessionStore {
         autoSaveTimer = nil
     }
 
-    private static func defaultDirectory() -> URL {
-        FileManager.default.urls(
+    /// Where session state lives. `MONTTY_SESSION_DIR` overrides the default so a
+    /// Justfile-launched build cannot overwrite the installed app's session.
+    static func resolveDirectory(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> URL {
+        if let override = environment["MONTTY_SESSION_DIR"], !override.isEmpty {
+            return URL(fileURLWithPath: (override as NSString).expandingTildeInPath)
+        }
+        return FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
         ).first!.appendingPathComponent("montty")
     }

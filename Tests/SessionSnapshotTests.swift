@@ -223,4 +223,34 @@ struct SessionStoreTests {
         let result = store.load()
         #expect(result == nil)
     }
+
+    @Test func resolveDirectoryUsesEnvironmentOverride() {
+        let url = SessionStore.resolveDirectory(
+            environment: ["MONTTY_SESSION_DIR": "/tmp/montty-test-session"]
+        )
+
+        #expect(url.path == "/tmp/montty-test-session")
+    }
+
+    @Test func resolveDirectoryExpandsTilde() {
+        let url = SessionStore.resolveDirectory(
+            environment: ["MONTTY_SESSION_DIR": "~/montty-test-session"]
+        )
+
+        #expect(!url.path.contains("~"))
+        #expect(url.path.hasSuffix("/montty-test-session"))
+    }
+
+    @Test func resolveDirectoryIgnoresEmptyOverride() {
+        let url = SessionStore.resolveDirectory(environment: ["MONTTY_SESSION_DIR": ""])
+
+        #expect(url.path.hasSuffix("/montty"))
+    }
+
+    @Test func resolveDirectoryFallsBackToApplicationSupport() {
+        let url = SessionStore.resolveDirectory(environment: [:])
+
+        #expect(url.path.hasSuffix("/montty"))
+        #expect(url.path.contains("Application Support"))
+    }
 }

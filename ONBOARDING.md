@@ -25,6 +25,9 @@ shipped target is macOS 26. Update the manifest if/when that drift matters.
 - Lint: `just lint`
 - Check: `just check` (test + lint + build; used by CI and pre-commit)
 - Run: `just run` (foreground) or `just run-bg` (background, for scripting)
+- `just run` and `just run-bg` set `MONTTY_SESSION_DIR` so a dev build keeps its
+  tabs in `/tmp/montty-build/session` instead of the installed app's session.
+  Unset it to dogfood a build against your real session.
 - Stop: `just stop` (skips the host Montty if you are sitting inside one)
 - Clean: `just clean`
 - Release: `just bump [version]`; `just retag <tag>` to re-trigger a release
