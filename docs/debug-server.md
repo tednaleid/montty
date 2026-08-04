@@ -29,13 +29,23 @@ Response:
 [
   {
     "id": "A1B2C3D4-...",
+    "leaf_id": "E5F6A7B8-...",
+    "tab_id": "C9D0E1F2-...",
+    "tab_name": "montty",
+    "tab_position": 0,
+    "tab_color": "blue",
+    "active": true,
+    "focused_in_tab": true,
+    "focused": true,
+    "split_count": 1,
     "title": "zsh",
     "pwd": "/Users/ted/montty",
-    "focused": true,
     "size": {"rows": 24, "cols": 80, "width_px": 1200, "height_px": 800}
   }
 ]
 ```
+
+`focused_in_tab` is montty's model state: which pane the tab will focus when it becomes active. `focused` is what libghostty believes, and it is true for at most one surface across the whole app. It is false for every surface while the montty window is not key.
 
 ### POST /type
 
