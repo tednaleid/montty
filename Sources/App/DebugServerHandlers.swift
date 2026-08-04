@@ -234,6 +234,7 @@ extension DebugServer {
     ) {
         guard let view = appDelegate.surfaceView(for: leaf.surfaceID) else { return }
         entry["title"] = view.title
+        entry["focused"] = view.focused
         if let pwd = view.pwd { entry["pwd"] = pwd }
         if let size = view.surfaceSize {
             entry["size"] = [
