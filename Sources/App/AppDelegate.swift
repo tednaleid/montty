@@ -93,6 +93,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         window.title = "Montty"
         window.delegate = self
         window.makeKeyAndOrderFront(nil)
+        NSApp.activate()
 
         // Start the Ghostty event loop tick timer
         tickTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
@@ -112,6 +113,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             restoreSession(snapshot)
         } else {
             createTab()
+            focusActiveSurface()
         }
 
         // Observe Ghostty action notifications for tab operations
@@ -298,6 +300,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     func surfaceView(for surfaceID: UUID) -> Ghostty.SurfaceView? {
         surfaces[surfaceID]
+    }
+
+    /// Move the first responder to the active tab's focused surface, if any.
+    func focusActiveSurface() {
+        if let surfaceID = tabStore.activeTab?.focusedSurfaceID,
+           let surfaceView = surfaceView(for: surfaceID) {
+            Ghostty.moveFocus(to: surfaceView)
+        }
     }
 
     // MARK: - Surface jump mode
@@ -554,6 +564,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
                 self.window?.setFrame(frame, display: true)
             }
             self.syncSurfaceFocus()
+            self.focusActiveSurface()
         }
     }
 
