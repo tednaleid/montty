@@ -59,6 +59,9 @@ struct MainWindow: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onChange(of: tabStore.activeTabID) { _, newID in
+            // Sync before the guard so the outgoing tab blurs even when the
+            // incoming tab has no surface view yet.
+            appDelegate.syncSurfaceFocus()
             guard let newID = newID,
                   let tab = tabStore.tabs.first(where: { $0.id == newID }),
                   let surfaceID = tab.focusedSurfaceID,

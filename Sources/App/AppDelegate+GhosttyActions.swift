@@ -98,7 +98,7 @@ extension AppDelegate {
                   tab.focusedLeafID != leaf.id
             else { return }
             tab.focusedLeafID = leaf.id
-            self.updateSurfaceFocus(for: tab)
+            self.syncSurfaceFocus()
         }
     }
 

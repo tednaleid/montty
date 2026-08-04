@@ -181,6 +181,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
         // Watch for title and PWD changes from this surface
         observeSurface(surfaceView, tab: tab)
+
+        // A surface is born with `focused == true`, so blur the tabs it displaced.
+        syncSurfaceFocus()
     }
 
     func closeTab(id: UUID) {
@@ -195,7 +198,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         // If no tabs remain, quit
         if tabStore.tabs.isEmpty {
             NSApplication.shared.terminate(nil)
+            return
         }
+        syncSurfaceFocus()
     }
 
     /// Close a single surface within a tab's split tree.
@@ -260,7 +265,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Set the focused leaf for a tab and sync Ghostty's focus state.
     func setFocusedLeaf(_ leafID: UUID, in tab: Tab) {
         tab.focusedLeafID = leafID
-        updateSurfaceFocus(for: tab)
+        syncSurfaceFocus()
         if let surfaceID = tab.focusedSurfaceID,
            let surfaceView = surfaces[surfaceID] {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -269,16 +274,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         }
     }
 
-    /// Update focus state for all surfaces in a tab so only the focused
-    /// pane has an active cursor and accepts key equivalents.
-    func updateSurfaceFocus(for tab: Tab) {
-        let focusedSurfaceID = tab.focusedSurfaceID
-        for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
-            guard let view = surfaces[leaf.surfaceID] else { continue }
-            let shouldFocus = leaf.surfaceID == focusedSurfaceID
-            // Use focusDidChange to update both the Swift-side focused
-            // flag and the C-side ghostty_surface_set_focus.
-            view.focusDidChange(shouldFocus)
+    /// Push the focus policy out to every surface in every tab. The only place
+    /// montty calls `focusDidChange`, which updates both the Swift-side flag and
+    /// the C-side `ghostty_surface_set_focus`.
+    ///
+    /// Blurs run before focuses. libghostty writes the DEC mode 1004 reports in
+    /// call order, and the outgoing surface must see its blur before the
+    /// incoming surface sees its focus.
+    func syncSurfaceFocus() {
+        let plan = SurfaceFocus.plan(
+            tabs: tabStore.tabs,
+            activeTabID: tabStore.activeTabID,
+            windowIsKey: window?.isKeyWindow ?? false
+        )
+        for (surfaceID, focused) in plan where !focused {
+            surfaces[surfaceID]?.focusDidChange(false)
+        }
+        for (surfaceID, focused) in plan where focused {
+            surfaces[surfaceID]?.focusDidChange(true)
         }
     }
 
@@ -539,9 +552,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
                 )
                 self.window?.setFrame(frame, display: true)
             }
-            for tab in self.tabStore.tabs {
-                self.updateSurfaceFocus(for: tab)
-            }
+            self.syncSurfaceFocus()
         }
     }
 
