@@ -285,18 +285,10 @@ import Testing
             surfaceDirectory: fixture.worktree,
             repoColorOverrides: overrides
         )
-        // Compare to the hash-only result so the assertion is deterministic --
-        // asserting != .magenta would flake when the worktree's identity legitimately
-        // hashes to magenta out of the 14-color palette.
-        let unoverridden = TabColor.resolvedPaneTint(
-            tabColorOverride: nil,
-            surfaceDirectory: fixture.worktree,
-            repoColorOverrides: [:]
-        )
         #expect(tint?.leading == .magenta,
             "a picked parent color collapses the parent signature to that one band")
-        #expect(tint?.primary == unoverridden?.primary,
-            "worktree primary should follow the hash, not the parent override")
+        #expect(tint?.primary.hueFamily != TabColor.magenta.hueFamily,
+            "the worktree's own stop knocks out whatever family the parent used")
     }
 
     @Test func paneTintWorktreeRespectsWorktreeOverride() throws {
@@ -373,12 +365,20 @@ import Testing
         #expect(Array(worktreeTint?.stops.prefix(2) ?? []) == parentTint?.stops)
     }
 
-    @Test func worktreeTrailingStopIsItsOwnColor() {
-        let info = worktree("fix-focus", of: "montty")
+    @Test func worktreeStopsAreAllTellableApart() {
+        let tint = TabColor.paneTint(for: worktree("fix-focus", of: "montty"))
+        let families = (tint?.stops ?? []).map(\.hueFamily)
 
-        let tint = TabColor.paneTint(for: info)
+        #expect(Set(families).count == 3,
+            "green beside brightGreen reads as one band, so families must differ")
+    }
 
-        #expect(tint?.primary == TabColor.colorForGitInfo(info))
+    @Test func worktreesOfOneRepoSpreadAcrossFamilies() {
+        let tints = (0..<20).map { TabColor.paneTint(for: worktree("wt-\($0)", of: "montty")) }
+        let families = Set(tints.compactMap { $0?.primary.hueFamily })
+
+        #expect(families.count >= 4,
+            "20 worktrees of one repo should not pile onto one or two colors")
     }
 
     @Test func sameIdentityAlwaysProducesTheSameStops() {

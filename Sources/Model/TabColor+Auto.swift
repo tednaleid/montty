@@ -1,6 +1,12 @@
 import Foundation
 
 extension TabColor {
+    /// The long-standing repo color hash. Kept exactly as-is so existing tabs
+    /// keep the color you already recognize.
+    static func polynomialHash(_ identity: String) -> UInt64 {
+        identity.utf8.reduce(UInt64(0)) { ($0 &+ UInt64($1)) &* 31 }
+    }
+
     /// Derive a color from git repo identity, checking overrides first.
     /// Same repo+worktree always produces the same color.
     /// Returns nil if not in a git repo (no tinting).
@@ -11,10 +17,9 @@ extension TabColor {
         guard let gitInfo else { return nil }
         let identity = gitInfo.repoPath + (gitInfo.worktreeName ?? "")
         if let override = overrides[identity] { return override }
-        let hash = identity.utf8.reduce(UInt64(0)) { ($0 &+ UInt64($1)) &* 31 }
         // Gray is reserved for "no git repo" -- exclude it from the hash palette
         let colors = TabColor.allCases.filter { $0 != .gray }
-        return colors[Int(hash % UInt64(colors.count))]
+        return colors[Int(polynomialHash(identity) % UInt64(colors.count))]
     }
 
     /// Derive a color from a directory path via its git repo.
@@ -34,8 +39,11 @@ extension TabColor {
         surfaceDirectory: String?,
         repoColorOverrides: [String: TabColor]
     ) -> TabColor? {
-        if let tabColorOverride { return tabColorOverride }
-        return colorForWorktree(surfaceDirectory, overrides: repoColorOverrides)
+        resolvedPaneTint(
+            tabColorOverride: tabColorOverride,
+            surfaceDirectory: surfaceDirectory,
+            repoColorOverrides: repoColorOverrides
+        )?.primary
     }
 
     /// The repo identity string for a directory, used as the key in overrides.
@@ -45,16 +53,48 @@ extension TabColor {
         return gitInfo.repoPath + (gitInfo.worktreeName ?? "")
     }
 
-    /// The leading gradient stop for a repo identity. Hashed independently of
-    /// the primary color, so two repos that collide on one color are unlikely to
-    /// collide on both. Never returns the primary, so the pair is always visible
-    /// as a gradient rather than a flat block.
-    static func secondaryColor(for identity: String, excluding primary: TabColor) -> TabColor {
+    /// Hue families collapse each base/bright pair, which read as one color at a
+    /// glance. Knockout removes a whole family so a gradient never sets green
+    /// beside brightGreen.
+    enum HueFamily: Hashable {
+        case red, green, yellow, blue, magenta, cyan, neutral
+    }
+
+    var hueFamily: HueFamily {
+        switch self {
+        case .red, .brightRed: .red
+        case .green, .brightGreen: .green
+        case .yellow, .brightYellow: .yellow
+        case .blue, .brightBlue: .blue
+        case .magenta, .brightMagenta: .magenta
+        case .cyan, .brightCyan: .cyan
+        case .neutral, .neutralBright, .gray: .neutral
+        }
+    }
+
+    /// FNV-1a, independent of the polynomial hash behind `colorForGitInfo`, so a
+    /// repo's two stops are uncorrelated.
+    private static func mixedHash(_ identity: String) -> UInt64 {
         var hash: UInt64 = 0xcbf2_9ce4_8422_2325
         for byte in identity.utf8 {
             hash = (hash ^ UInt64(byte)) &* 0x100_0000_01b3
         }
-        let colors = TabColor.allCases.filter { $0 != .gray && $0 != primary }
+        return hash
+    }
+
+    /// Pick a stop for `identity`, skipping every color whose hue family is
+    /// already spoken for. Returns nil only if the palette is exhausted.
+    static func knockout(
+        for identity: String,
+        avoiding taken: [TabColor],
+        mixed: Bool = true
+    ) -> TabColor? {
+        let usedFamilies = Set(taken.map(\.hueFamily))
+        let colors = TabColor.allCases.filter {
+            $0 != .gray && !usedFamilies.contains($0.hueFamily)
+        }
+        guard !colors.isEmpty else { return nil }
+        let hash = mixed ? mixedHash(identity) : polynomialHash(identity)
         return colors[Int(hash % UInt64(colors.count))]
     }
 
@@ -79,16 +119,17 @@ extension TabColor {
         if let picked = overrides[parentInfo.repoPath] {
             parentStops = [picked]
         } else if let parentPrimary = colorForGitInfo(parentInfo, overrides: overrides) {
-            parentStops = [
-                secondaryColor(for: parentInfo.repoPath, excluding: parentPrimary),
-                parentPrimary
-            ]
+            let leading = knockout(for: parentInfo.repoPath, avoiding: [parentPrimary])
+            parentStops = [leading ?? parentPrimary, parentPrimary]
         } else {
             parentStops = [own]
         }
 
         guard info.worktreeName != nil else { return PaneTint(stops: parentStops) }
-        return PaneTint(stops: parentStops + [own])
+        // The worktree's own stop knocks out both parent families, so all three
+        // bands stay tellable apart.
+        let ownStop = knockout(for: identity, avoiding: parentStops, mixed: false)
+        return PaneTint(stops: parentStops + [ownStop ?? own])
     }
 
     /// Resolve the pane tint for a directory.

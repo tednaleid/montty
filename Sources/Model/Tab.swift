@@ -45,10 +45,7 @@ final class Tab: Identifiable {
 
     /// The effective color for this tab. Priority: tab override > repo override > git hash > gray.
     func effectiveColor(overrides: [String: TabColor] = [:]) -> TabColor {
-        if let colorOverride { return colorOverride }
-        let dirs = effectiveSurfaceDirectories
-        let dir = focusedSurfaceID.flatMap { dirs[$0] }
-        return TabColor.colorForWorktree(dir, overrides: overrides) ?? .gray
+        effectivePaneTint(overrides: overrides).primary
     }
 
     /// The effective tint for this tab, including the worktree-gradient secondary
