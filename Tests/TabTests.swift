@@ -293,7 +293,7 @@ struct TabTests {
     @Test func effectivePaneTintFallsBackToGraySolidWhenNoDir() {
         let tab = Tab()
         let tint = tab.effectivePaneTint()
-        #expect(tint == PaneTint(primary: .gray, secondary: nil))
+        #expect(tint == PaneTint(stops: [.gray]))
     }
 
     @Test func effectivePaneTintRespectsTabOverride() {
@@ -305,7 +305,7 @@ struct TabTests {
         tab.colorOverride = .red
         let tint = tab.effectivePaneTint()
         #expect(tint.primary == .red)
-        #expect(tint.secondary == nil, "tab override should always render solid, never a gradient")
+        #expect(tint.stops == [.red], "tab override should always render solid, never a gradient")
     }
 
     @Test func effectivePaneTintGradientsForClaudeReportedWorktree() throws {

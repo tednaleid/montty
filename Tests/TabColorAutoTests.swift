@@ -235,11 +235,11 @@ import Testing
             repoColorOverrides: [:]
         )
         #expect(tint?.primary == .red)
-        #expect(tint?.secondary == nil)
+        #expect(tint?.stops.count == 1)
         #expect(tint?.isGradient == false)
     }
 
-    @Test func paneTintNonWorktreeRepoIsSolid() throws {
+    @Test func paneTintPlainRepoIsATwoColorSignature() throws {
         let fixture = try makeWorktreeOnDisk()
         defer { try? FileManager.default.removeItem(atPath: fixture.base) }
 
@@ -248,12 +248,12 @@ import Testing
             surfaceDirectory: fixture.parent,
             repoColorOverrides: [:]
         )
-        #expect(tint != nil)
-        #expect(tint?.secondary == nil, "main repo should not produce a gradient")
-        #expect(tint?.isGradient == false)
+        #expect(tint?.stops.count == 2)
+        #expect(tint?.stops.first != tint?.stops.last)
+        #expect(tint?.isGradient == true)
     }
 
-    @Test func paneTintWorktreeYieldsGradient() throws {
+    @Test func paneTintWorktreeLeadsWithTheParentSignature() throws {
         let fixture = try makeWorktreeOnDisk()
         defer { try? FileManager.default.removeItem(atPath: fixture.base) }
 
@@ -267,12 +267,9 @@ import Testing
             surfaceDirectory: fixture.worktree,
             repoColorOverrides: [:]
         )
-        #expect(worktreeTint?.isGradient == true)
-        #expect(worktreeTint?.secondary == parentTint?.primary,
-            "gradient secondary should match parent repo's solid color")
-        // Don't assert primary != secondary -- the 14-color hash will sometimes
-        // collide for two distinct identities, and the gradient still renders
-        // correctly (it just looks solid in that rare case).
+        #expect(worktreeTint?.stops.count == 3)
+        #expect(Array(worktreeTint?.stops.prefix(2) ?? []) == parentTint?.stops,
+            "a worktree leads with its parent repo's two-color signature")
     }
 
     @Test func paneTintWorktreeRespectsParentRepoOverride() throws {
@@ -296,7 +293,8 @@ import Testing
             surfaceDirectory: fixture.worktree,
             repoColorOverrides: [:]
         )
-        #expect(tint?.secondary == .magenta)
+        #expect(tint?.leading == .magenta,
+            "a picked parent color collapses the parent signature to that one band")
         #expect(tint?.primary == unoverridden?.primary,
             "worktree primary should follow the hash, not the parent override")
     }
@@ -315,13 +313,95 @@ import Testing
             surfaceDirectory: fixture.parent,
             repoColorOverrides: overrides
         )
+        let parentWithoutOverrides = TabColor.resolvedPaneTint(
+            tabColorOverride: nil,
+            surfaceDirectory: fixture.parent,
+            repoColorOverrides: [:]
+        )
         let worktreeTint = TabColor.resolvedPaneTint(
             tabColorOverride: nil,
             surfaceDirectory: fixture.worktree,
             repoColorOverrides: overrides
         )
-        #expect(worktreeTint?.primary == .cyan)
-        #expect(worktreeTint?.secondary == parentTint?.primary,
-            "worktree override should not bleed into the parent's resolved color")
+        #expect(worktreeTint?.stops == [.cyan], "a picked color renders solid")
+        #expect(parentTint == parentWithoutOverrides,
+            "worktree override should not bleed into the parent's resolved tint")
+    }
+}
+
+@Suite struct PaneTintStopsTests {
+    private func repo(_ name: String) -> GitInfo {
+        GitInfo(
+            repoName: name, branchName: "main",
+            worktreeName: nil, repoPath: "/Users/ted/\(name)"
+        )
+    }
+
+    private func worktree(_ name: String, of parent: String) -> GitInfo {
+        GitInfo(
+            repoName: parent, branchName: "feature",
+            worktreeName: name, repoPath: "/Users/ted/\(parent)"
+        )
+    }
+
+    @Test func plainRepoGetsTwoDistinctStops() {
+        let tint = TabColor.paneTint(for: repo("montty"))
+
+        #expect(tint?.stops.count == 2)
+        #expect(tint?.stops[0] != tint?.stops[1])
+    }
+
+    @Test func trailingStopIsTheRepoColorShownElsewhere() {
+        let info = repo("montty")
+
+        let tint = TabColor.paneTint(for: info)
+
+        #expect(tint?.primary == TabColor.colorForGitInfo(info))
+        #expect(tint?.primary == tint?.stops.last)
+    }
+
+    @Test func worktreeGetsThreeStops() {
+        let tint = TabColor.paneTint(for: worktree("fix-focus", of: "montty"))
+
+        #expect(tint?.stops.count == 3)
+    }
+
+    @Test func worktreeLeadingStopsAreTheParentRepoSignature() {
+        let parentTint = TabColor.paneTint(for: repo("montty"))
+        let worktreeTint = TabColor.paneTint(for: worktree("fix-focus", of: "montty"))
+
+        #expect(Array(worktreeTint?.stops.prefix(2) ?? []) == parentTint?.stops)
+    }
+
+    @Test func worktreeTrailingStopIsItsOwnColor() {
+        let info = worktree("fix-focus", of: "montty")
+
+        let tint = TabColor.paneTint(for: info)
+
+        #expect(tint?.primary == TabColor.colorForGitInfo(info))
+    }
+
+    @Test func sameIdentityAlwaysProducesTheSameStops() {
+        #expect(TabColor.paneTint(for: repo("montty"))
+            == TabColor.paneTint(for: repo("montty")))
+    }
+
+    @Test func overrideRendersAsASingleSolidStop() {
+        let tint = TabColor.paneTint(
+            for: repo("montty"), overrides: ["/Users/ted/montty": .cyan]
+        )
+
+        #expect(tint?.stops == [.cyan])
+        #expect(tint?.isGradient == false)
+    }
+
+    @Test func twoStopsAreFarMoreDistinctThanOne() {
+        let repos = (0..<120).map { repo("project-\($0)") }
+
+        let primaries = Set(repos.compactMap { TabColor.paneTint(for: $0)?.primary })
+        let pairs = Set(repos.compactMap { TabColor.paneTint(for: $0)?.stops })
+
+        #expect(primaries.count <= 14)
+        #expect(pairs.count > primaries.count * 3)
     }
 }

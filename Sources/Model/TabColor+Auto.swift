@@ -45,45 +45,85 @@ extension TabColor {
         return gitInfo.repoPath + (gitInfo.worktreeName ?? "")
     }
 
-    /// Resolve the pane tint, returning a worktree gradient when applicable.
-    /// Priority: tab override (always solid) > worktree gradient > solid repo color > nil.
-    static func resolvedPaneTint(
-        tabColorOverride: TabColor?,
-        surfaceDirectory: String?,
-        repoColorOverrides: [String: TabColor]
-    ) -> PaneTint? {
-        if let tabColorOverride {
-            return PaneTint(primary: tabColorOverride, secondary: nil)
+    /// The leading gradient stop for a repo identity. Hashed independently of
+    /// the primary color, so two repos that collide on one color are unlikely to
+    /// collide on both. Never returns the primary, so the pair is always visible
+    /// as a gradient rather than a flat block.
+    static func secondaryColor(for identity: String, excluding primary: TabColor) -> TabColor {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in identity.utf8 {
+            hash = (hash ^ UInt64(byte)) &* 0x100_0000_01b3
         }
-        guard let dir = surfaceDirectory, let info = GitInfo.from(path: dir) else {
-            return nil
+        let colors = TabColor.allCases.filter { $0 != .gray && $0 != primary }
+        return colors[Int(hash % UInt64(colors.count))]
+    }
+
+    /// Gradient stops for a git location. A repo gets its own two-color
+    /// signature. A worktree carries its parent repo's signature on the leading
+    /// edge and its own color on the trailing edge, so every worktree of a repo
+    /// starts with the same pattern. An explicitly picked color renders solid.
+    static func paneTint(for info: GitInfo, overrides: [String: TabColor] = [:]) -> PaneTint? {
+        let identity = info.repoPath + (info.worktreeName ?? "")
+        if let picked = overrides[identity] {
+            return PaneTint(stops: [picked])
         }
-        guard let primary = colorForGitInfo(info, overrides: repoColorOverrides) else {
-            return nil
-        }
-        guard info.worktreeName != nil else {
-            return PaneTint(primary: primary, secondary: nil)
-        }
-        // Worktree -> derive a parent-repo color for the gradient's secondary stop.
+        guard let own = colorForGitInfo(info, overrides: overrides) else { return nil }
+
         let parentInfo = GitInfo(
             repoName: info.repoName,
             branchName: nil,
             worktreeName: nil,
             repoPath: info.repoPath
         )
-        let secondary = colorForGitInfo(parentInfo, overrides: repoColorOverrides) ?? primary
-        return PaneTint(primary: primary, secondary: secondary)
+        let parentStops: [TabColor]
+        if let picked = overrides[parentInfo.repoPath] {
+            parentStops = [picked]
+        } else if let parentPrimary = colorForGitInfo(parentInfo, overrides: overrides) {
+            parentStops = [
+                secondaryColor(for: parentInfo.repoPath, excluding: parentPrimary),
+                parentPrimary
+            ]
+        } else {
+            parentStops = [own]
+        }
+
+        guard info.worktreeName != nil else { return PaneTint(stops: parentStops) }
+        return PaneTint(stops: parentStops + [own])
+    }
+
+    /// Resolve the pane tint for a directory.
+    /// Priority: tab override (always solid) > git signature > nil.
+    static func resolvedPaneTint(
+        tabColorOverride: TabColor?,
+        surfaceDirectory: String?,
+        repoColorOverrides: [String: TabColor]
+    ) -> PaneTint? {
+        if let tabColorOverride {
+            return PaneTint(stops: [tabColorOverride])
+        }
+        guard let dir = surfaceDirectory, let info = GitInfo.from(path: dir) else {
+            return nil
+        }
+        return paneTint(for: info, overrides: repoColorOverrides)
     }
 }
 
-/// Two-color tint for a pane. When `secondary` is non-nil, render as a
-/// LinearGradient (secondary on the leading edge, primary on trailing) to signal
-/// that the pane is in a worktree of a parent repo. When nil, render solid.
+/// Ordered gradient stops for a pane, leading edge to trailing edge. One stop
+/// renders solid, two is a repo's own signature, and three is a worktree
+/// carrying its parent repo's pair ahead of its own color.
 struct PaneTint: Equatable {
-    /// The worktree's color (or the only color when not in a worktree).
-    let primary: TabColor
-    /// The parent repo's color, only set when this pane is in a linked worktree.
-    let secondary: TabColor?
+    let stops: [TabColor]
 
-    var isGradient: Bool { secondary != nil }
+    init(stops: [TabColor]) {
+        self.stops = stops.isEmpty ? [.gray] : stops
+    }
+
+    /// The color to use wherever only one can be shown. Always the trailing
+    /// stop: a repo's own color, or a worktree's own color.
+    var primary: TabColor { stops.last ?? .gray }
+
+    /// The leading stop, used for the tab row's left edge bar.
+    var leading: TabColor { stops.first ?? .gray }
+
+    var isGradient: Bool { stops.count > 1 }
 }

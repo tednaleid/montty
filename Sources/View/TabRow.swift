@@ -124,11 +124,10 @@ struct TabRow: View {
         paneTint.primary.swiftUIColor
     }
 
-    /// The leading edge color of the gradient -- parent repo when in a worktree,
-    /// solid color otherwise. Used for the left-edge bar so it lines up visually
-    /// with the leading stop of the row's gradient.
+    /// The leading edge color of the gradient. Used for the left-edge bar so it
+    /// lines up visually with the leading stop of the row's gradient.
     private var leadingEdgeColor: Color {
-        (paneTint.secondary ?? paneTint.primary).swiftUIColor
+        paneTint.leading.swiftUIColor
     }
 
     private var accentGradient: LinearGradient { paneTint.gradient() }

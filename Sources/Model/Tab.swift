@@ -61,7 +61,7 @@ final class Tab: Identifiable {
             tabColorOverride: colorOverride,
             surfaceDirectory: dir,
             repoColorOverrides: overrides
-        ) ?? PaneTint(primary: .gray, secondary: nil)
+        ) ?? PaneTint(stops: [.gray])
     }
 
     /// Computed metadata for tab display, decoupled from AppKit/Ghostty.
