@@ -172,6 +172,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         guard let app = ghostty.app else { return }
         let monttyID = UUID().uuidString
         var config = Ghostty.SurfaceConfiguration()
+        config.workingDirectory = focusedDirectory(of: tabStore.activeTab)
         config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
         config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
         config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
@@ -241,11 +242,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
         let monttyID = UUID().uuidString
         var config = Ghostty.SurfaceConfiguration()
-        // Inherit the focused surface's working directory
-        if let focusedSurfaceID = tab.focusedSurfaceID,
-           let pwd = surfaces[focusedSurfaceID]?.pwd {
-            config.workingDirectory = pwd
-        }
+        config.workingDirectory = focusedDirectory(of: tab)
         config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
         config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
         config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
@@ -300,6 +297,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     func surfaceView(for surfaceID: UUID) -> Ghostty.SurfaceView? {
         surfaces[surfaceID]
+    }
+
+    /// The shell's working directory for a tab's focused surface. New tabs and
+    /// splits inherit it so they open where you were, not where libghostty last
+    /// tracked.
+    private func focusedDirectory(of tab: Tab?) -> String? {
+        guard let surfaceID = tab?.focusedSurfaceID else { return nil }
+        return surfaces[surfaceID]?.pwd
     }
 
     /// Move the first responder to the active tab's focused surface, if any.
