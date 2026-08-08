@@ -76,4 +76,27 @@ import Testing
         tab.surfaceColorOverrides[surfaceID] = surfaceTint
         #expect(tab.effectiveColor() == surfaceTint.primary)
     }
+
+    @Test func worktreeKeepsItsOwnStopWhenParentOverrideIsFull() {
+        let repoPath = "/Users/ted/montty"
+        let repoInfo = GitInfo(
+            repoName: "montty", branchName: "main",
+            worktreeName: nil, repoPath: repoPath
+        )
+        let worktreeInfo = GitInfo(
+            repoName: "montty", branchName: "feature",
+            worktreeName: "montty-feature", repoPath: repoPath
+        )
+        let picked = PaneTint(stops: [.named(.cyan), .named(.blue), .named(.magenta)])
+        let overrides = [repoPath: picked]
+
+        let repoTint = TabColor.paneTint(for: repoInfo, overrides: overrides)
+        let worktreeTint = TabColor.paneTint(for: worktreeInfo, overrides: overrides)
+
+        #expect(worktreeTint?.stops.count == PaneTint.maxStops)
+        #expect(worktreeTint?.primary != picked.stops.last,
+            "a full parent override must not push out the worktree's own trailing stop")
+        #expect(worktreeTint != repoTint,
+            "a worktree must render differently than its parent's own tint")
+    }
 }

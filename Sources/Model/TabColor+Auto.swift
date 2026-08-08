@@ -85,10 +85,15 @@ extension TabColor {
         }
 
         guard info.worktreeName != nil else { return PaneTint(stops: parentStops) }
-        // The worktree's own stop knocks out both parent families, so all three
-        // bands stay tellable apart.
+        // The worktree's own stop knocks out every parent family, so all
+        // rendered bands stay tellable apart.
         let ownStop = knockout(for: identity, avoiding: parentStops, mixed: false)
-        return PaneTint(stops: parentStops + [.named(ownStop ?? own)])
+        // Keep only the parent's leading stops so the worktree's own trailing
+        // stop always survives PaneTint's clamp to maxStops -- the own stop is
+        // what makes a worktree distinguishable from its parent and siblings,
+        // so it must never be the stop that gets dropped.
+        let leadingParentStops = Array(parentStops.prefix(PaneTint.maxStops - 1))
+        return PaneTint(stops: leadingParentStops + [.named(ownStop ?? own)])
     }
 
     /// Resolve the pane tint for a surface.
