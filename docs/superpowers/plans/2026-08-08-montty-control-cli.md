@@ -19,7 +19,11 @@
 - `Sources/Control/`, `Sources/Model/`, and `Sources/Persistence/` import Foundation only. No AppKit, no SwiftUI. `montty-unit` compiles them with no test host, so an AppKit import breaks the build.
 - Ghostty's C API calls happen on the main actor.
 - Run `just check` (test + lint + build) before every commit. Never `--no-verify`.
-- After editing `project.yml`, run `just generate` before building.
+- Run `just generate` after editing `project.yml` **and after creating any new
+  source or test file**. `just test` does not invoke xcodegen, so a brand-new
+  file is invisible to every target until it does. Skipping this makes a
+  red-state step fail with "no such file" instead of the failure the step is
+  actually looking for, which reads as success and is not.
 - SwiftLint strict: file length warns at 650 lines, errors at 750; type body warns at 450.
 - Full test suite must stay under 5 seconds.
 - Protocol version constant is `1`.
