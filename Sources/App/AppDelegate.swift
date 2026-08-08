@@ -25,7 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Whether surface background tinting is enabled.
     @Published var surfaceTintEnabled = true
     /// Per-repo/worktree color overrides, keyed by repo identity string.
-    @Published var repoColorOverrides: [String: TabColor] = [:]
+    @Published var repoColorOverrides: [String: PaneTint] = [:]
     /// ANSI palette colors from the Ghostty config (14 colors, reordered).
     /// Indexed by TabColor.orderedCases position. Empty before config loads.
     var tabPalette: [NSColor] = []
@@ -509,7 +509,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
                 focusedLeafID: tab.focusedLeafID,
                 splitLayout: tab.splitRoot,
                 leafDirectories: dirs,
-                colorOverride: tab.colorOverride
+                colorOverride: legacyColor(from: tab.colorOverride)
             )
         }
         return SessionSnapshot(
@@ -521,7 +521,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             surfaceTintEnabled: surfaceTintEnabled,
             activeTabID: tabStore.activeTabID,
             tabs: tabSnapshots,
-            repoColorOverrides: repoColorOverrides
+            repoColorOverrides: legacyColorOverrides(from: repoColorOverrides)
         )
     }
 
@@ -536,7 +536,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
         sidebarWidth = snapshot.sidebarWidth
         surfaceTintEnabled = snapshot.surfaceTintEnabled
-        repoColorOverrides = snapshot.repoColorOverrides
+        repoColorOverrides = snapshot.repoColorOverrides.mapValues { PaneTint(stops: [.named($0)]) }
 
         for tabSnap in snapshot.tabs.sorted(by: { $0.position < $1.position }) {
             let tab = Tab(
@@ -551,7 +551,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
                 app: app, tab: tab
             )
             tab.focusedLeafID = tabSnap.focusedLeafID
-            tab.colorOverride = tabSnap.colorOverride
+            tab.colorOverride = tabSnap.colorOverride.map { PaneTint(stops: [.named($0)]) }
             tabStore.append(tab: tab)
         }
 

@@ -3,7 +3,7 @@ import SwiftUI
 struct TabRow: View {
     let tab: Tab
     let isActive: Bool
-    var repoColorOverrides: [String: TabColor] = [:]
+    var repoColorOverrides: [String: PaneTint] = [:]
     @Binding var editingTabID: UUID?
     var jumpLabels: [UUID: String] = [:]
     var onPaneTap: ((UUID) -> Void)?
@@ -86,6 +86,7 @@ struct TabRow: View {
                     jumpLabels: jumpLabels,
                     surfaceDirectories: tab.effectiveSurfaceDirectories,
                     repoColorOverrides: repoColorOverrides,
+                    surfaceColorOverrides: tab.surfaceColorOverrides,
                     onPaneTap: onPaneTap
                 )
                 .padding(.top, 2)

@@ -6,8 +6,9 @@ struct SplitContainerView: View {
     let surfaceLookup: (UUID) -> Ghostty.SurfaceView?
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
-    var repoColorOverrides: [String: TabColor] = [:]
-    var tabColorOverride: TabColor?
+    var repoColorOverrides: [String: PaneTint] = [:]
+    var tabColorOverride: PaneTint?
+    var surfaceColorOverrides: [UUID: PaneTint] = [:]
     var surfaceTintEnabled: Bool = true
     var onRatioChange: ((UUID, CGFloat) -> Void)?
 
@@ -70,6 +71,7 @@ struct SplitContainerView: View {
 
     private func surfaceTint(for surfaceID: UUID) -> PaneTint? {
         TabColor.resolvedPaneTint(
+            surfaceOverride: surfaceColorOverrides[surfaceID],
             tabColorOverride: tabColorOverride,
             surfaceDirectory: surfaceDirectories[surfaceID],
             repoColorOverrides: repoColorOverrides
@@ -100,6 +102,7 @@ struct SplitContainerView: View {
             surfaceDirectories: surfaceDirectories,
             repoColorOverrides: repoColorOverrides,
             tabColorOverride: tabColorOverride,
+            surfaceColorOverrides: surfaceColorOverrides,
             surfaceTintEnabled: surfaceTintEnabled,
             onRatioChange: onRatioChange
         )
@@ -113,8 +116,9 @@ private struct BranchWrapper: View {
     let surfaceLookup: (UUID) -> Ghostty.SurfaceView?
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
-    var repoColorOverrides: [String: TabColor] = [:]
-    var tabColorOverride: TabColor?
+    var repoColorOverrides: [String: PaneTint] = [:]
+    var tabColorOverride: PaneTint?
+    var surfaceColorOverrides: [UUID: PaneTint] = [:]
     var surfaceTintEnabled: Bool = true
     var onRatioChange: ((UUID, CGFloat) -> Void)?
 
@@ -126,8 +130,9 @@ private struct BranchWrapper: View {
         surfaceLookup: @escaping (UUID) -> Ghostty.SurfaceView?,
         jumpLabels: [UUID: String] = [:],
         surfaceDirectories: [UUID: String] = [:],
-        repoColorOverrides: [String: TabColor] = [:],
-        tabColorOverride: TabColor? = nil,
+        repoColorOverrides: [String: PaneTint] = [:],
+        tabColorOverride: PaneTint? = nil,
+        surfaceColorOverrides: [UUID: PaneTint] = [:],
         surfaceTintEnabled: Bool = true,
         onRatioChange: ((UUID, CGFloat) -> Void)? = nil
     ) {
@@ -138,6 +143,7 @@ private struct BranchWrapper: View {
         self.surfaceDirectories = surfaceDirectories
         self.repoColorOverrides = repoColorOverrides
         self.tabColorOverride = tabColorOverride
+        self.surfaceColorOverrides = surfaceColorOverrides
         self.surfaceTintEnabled = surfaceTintEnabled
         self.onRatioChange = onRatioChange
         self._ratio = State(initialValue: branch.ratio)
@@ -156,6 +162,7 @@ private struct BranchWrapper: View {
                 surfaceDirectories: surfaceDirectories,
                 repoColorOverrides: repoColorOverrides,
                 tabColorOverride: tabColorOverride,
+                surfaceColorOverrides: surfaceColorOverrides,
                 surfaceTintEnabled: surfaceTintEnabled,
                 onRatioChange: onRatioChange
             )
@@ -168,6 +175,7 @@ private struct BranchWrapper: View {
                 surfaceDirectories: surfaceDirectories,
                 repoColorOverrides: repoColorOverrides,
                 tabColorOverride: tabColorOverride,
+                surfaceColorOverrides: surfaceColorOverrides,
                 surfaceTintEnabled: surfaceTintEnabled,
                 onRatioChange: onRatioChange
             )

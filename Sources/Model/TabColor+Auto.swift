@@ -7,16 +7,12 @@ extension TabColor {
         identity.utf8.reduce(UInt64(0)) { ($0 &+ UInt64($1)) &* 31 }
     }
 
-    /// Derive a color from git repo identity, checking overrides first.
+    /// Derive a color from git repo identity.
     /// Same repo+worktree always produces the same color.
     /// Returns nil if not in a git repo (no tinting).
-    static func colorForGitInfo(
-        _ gitInfo: GitInfo?,
-        overrides: [String: TabColor] = [:]
-    ) -> TabColor? {
+    static func colorForGitInfo(_ gitInfo: GitInfo?) -> TabColor? {
         guard let gitInfo else { return nil }
         let identity = gitInfo.repoPath + (gitInfo.worktreeName ?? "")
-        if let override = overrides[identity] { return override }
         // Gray is reserved for "no git repo" -- exclude it from the hash palette
         let colors = TabColor.allCases.filter { $0 != .gray }
         return colors[Int(polynomialHash(identity) % UInt64(colors.count))]
@@ -24,26 +20,9 @@ extension TabColor {
 
     /// Derive a color from a directory path via its git repo.
     /// Returns nil if not in a git repo.
-    static func colorForWorktree(
-        _ dir: String?,
-        overrides: [String: TabColor] = [:]
-    ) -> TabColor? {
+    static func colorForWorktree(_ dir: String?) -> TabColor? {
         guard let dir else { return nil }
-        return colorForGitInfo(GitInfo.from(path: dir), overrides: overrides)
-    }
-
-    /// Resolve the display color for a minimap pane.
-    /// Tab-level override wins over per-surface directory color.
-    static func resolvedPaneColor(
-        tabColorOverride: TabColor?,
-        surfaceDirectory: String?,
-        repoColorOverrides: [String: TabColor]
-    ) -> TintStop? {
-        resolvedPaneTint(
-            tabColorOverride: tabColorOverride,
-            surfaceDirectory: surfaceDirectory,
-            repoColorOverrides: repoColorOverrides
-        )?.primary
+        return colorForGitInfo(GitInfo.from(path: dir))
     }
 
     /// The repo identity string for a directory, used as the key in overrides.
@@ -82,13 +61,12 @@ extension TabColor {
     /// Gradient stops for a git location. A repo gets its own two-color
     /// signature. A worktree carries its parent repo's signature on the leading
     /// edge and its own color on the trailing edge, so every worktree of a repo
-    /// starts with the same pattern. An explicitly picked color renders solid.
-    static func paneTint(for info: GitInfo, overrides: [String: TabColor] = [:]) -> PaneTint? {
+    /// starts with the same pattern. A picked override renders using its own
+    /// stops, solid or gradient.
+    static func paneTint(for info: GitInfo, overrides: [String: PaneTint] = [:]) -> PaneTint? {
         let identity = info.repoPath + (info.worktreeName ?? "")
-        if let picked = overrides[identity] {
-            return PaneTint(stops: [.named(picked)])
-        }
-        guard let own = colorForGitInfo(info, overrides: overrides) else { return nil }
+        if let picked = overrides[identity] { return picked }
+        guard let own = colorForGitInfo(info) else { return nil }
 
         let parentInfo = GitInfo(
             repoName: info.repoName,
@@ -98,8 +76,8 @@ extension TabColor {
         )
         let parentStops: [TintStop]
         if let picked = overrides[parentInfo.repoPath] {
-            parentStops = [.named(picked)]
-        } else if let parentPrimary = colorForGitInfo(parentInfo, overrides: overrides) {
+            parentStops = picked.stops
+        } else if let parentPrimary = colorForGitInfo(parentInfo) {
             let leading = knockout(for: parentInfo.repoPath, avoiding: [.named(parentPrimary)])
             parentStops = [.named(leading ?? parentPrimary), .named(parentPrimary)]
         } else {
@@ -113,16 +91,16 @@ extension TabColor {
         return PaneTint(stops: parentStops + [.named(ownStop ?? own)])
     }
 
-    /// Resolve the pane tint for a directory.
-    /// Priority: tab override (always solid) > git signature > nil.
+    /// Resolve the pane tint for a surface.
+    /// Priority: surface override > tab override > repo override > git signature > nil.
     static func resolvedPaneTint(
-        tabColorOverride: TabColor?,
+        surfaceOverride: PaneTint?,
+        tabColorOverride: PaneTint?,
         surfaceDirectory: String?,
-        repoColorOverrides: [String: TabColor]
+        repoColorOverrides: [String: PaneTint]
     ) -> PaneTint? {
-        if let tabColorOverride {
-            return PaneTint(stops: [.named(tabColorOverride)])
-        }
+        if let surfaceOverride { return surfaceOverride }
+        if let tabColorOverride { return tabColorOverride }
         guard let dir = surfaceDirectory, let info = GitInfo.from(path: dir) else {
             return nil
         }

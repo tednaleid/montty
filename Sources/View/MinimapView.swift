@@ -3,11 +3,12 @@ import SwiftUI
 struct MinimapView: View {
     let minimap: SplitMinimap
     let tabColor: Color
-    var tabColorOverride: TabColor?
+    var tabColorOverride: PaneTint?
     let isActiveTab: Bool
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
-    var repoColorOverrides: [String: TabColor] = [:]
+    var repoColorOverrides: [String: PaneTint] = [:]
+    var surfaceColorOverrides: [UUID: PaneTint] = [:]
     var onPaneTap: ((UUID) -> Void)?
 
     private let gap: CGFloat = 4
@@ -55,6 +56,7 @@ struct MinimapView: View {
 
     private func paneTint(_ pane: MinimapPane) -> PaneTint? {
         TabColor.resolvedPaneTint(
+            surfaceOverride: surfaceColorOverrides[pane.surfaceID],
             tabColorOverride: tabColorOverride,
             surfaceDirectory: surfaceDirectories[pane.surfaceID],
             repoColorOverrides: repoColorOverrides

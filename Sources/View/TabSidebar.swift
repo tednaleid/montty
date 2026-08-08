@@ -4,9 +4,9 @@ struct TabSidebar: View {
     @Bindable var tabStore: TabStore
     let onNewTab: () -> Void
     let onCloseTab: (UUID) -> Void
-    let onSetRepoColor: (String, TabColor?) -> Void
-    let onSetTabColor: (Tab, TabColor?) -> Void
-    var repoColorOverrides: [String: TabColor] = [:]
+    let onSetRepoColor: (String, PaneTint?) -> Void
+    let onSetTabColor: (Tab, PaneTint?) -> Void
+    var repoColorOverrides: [String: PaneTint] = [:]
     var jumpLabels: [UUID: String] = [:]
     var onJumpToSurface: ((UUID, UUID) -> Void)?
 

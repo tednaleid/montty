@@ -126,7 +126,7 @@ struct TabTests {
         // Override to a different color
         let overrideColor: TabColor = (defaultColor == .named(.magenta)) ? .blue : .magenta
         let identity = TabColor.repoIdentity(for: repoPath)!
-        let overrides = [identity: overrideColor]
+        let overrides = [identity: PaneTint(stops: [.named(overrideColor)])]
         #expect(tab.effectiveColor(overrides: overrides) == .named(overrideColor))
     }
 
@@ -138,12 +138,12 @@ struct TabTests {
         tab.surfaceDirectories[surfaceID] = repoPath
 
         // Set tab-level override
-        tab.colorOverride = .cyan
+        tab.colorOverride = PaneTint(stops: [.named(.cyan)])
 
         // Tab override should beat both hashed color and repo override
         #expect(tab.effectiveColor() == .named(.cyan))
         let identity = TabColor.repoIdentity(for: repoPath)!
-        let repoOverrides = [identity: TabColor.magenta]
+        let repoOverrides = [identity: PaneTint(stops: [.named(.magenta)])]
         #expect(tab.effectiveColor(overrides: repoOverrides) == .named(.cyan))
     }
 
@@ -302,7 +302,7 @@ struct TabTests {
         let repoPath = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().path
         tab.surfaceDirectories[surfaceID] = repoPath
-        tab.colorOverride = .red
+        tab.colorOverride = PaneTint(stops: [.named(.red)])
         let tint = tab.effectivePaneTint()
         #expect(tint.primary == .named(.red))
         #expect(tint.stops == [.named(.red)], "tab override should always render solid, never a gradient")

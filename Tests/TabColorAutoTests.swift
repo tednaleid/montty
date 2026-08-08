@@ -89,9 +89,9 @@ import Testing
             repoName: "montty", branchName: "main",
             worktreeName: nil, repoPath: "/Users/ted/montty"
         )
-        let overrides = ["/Users/ted/montty": TabColor.blue]
-        let color = TabColor.colorForGitInfo(info, overrides: overrides)
-        #expect(color == .blue)
+        let overrides = ["/Users/ted/montty": PaneTint(stops: [.named(.blue)])]
+        let tint = TabColor.paneTint(for: info, overrides: overrides)
+        #expect(tint?.primary == .named(.blue))
     }
 
     @Test func overrideForDifferentRepoDoesNotApply() {
@@ -99,11 +99,11 @@ import Testing
             repoName: "montty", branchName: "main",
             worktreeName: nil, repoPath: "/Users/ted/montty"
         )
-        let overrides = ["/Users/ted/other-repo": TabColor.blue]
-        let color = TabColor.colorForGitInfo(info, overrides: overrides)
+        let overrides = ["/Users/ted/other-repo": PaneTint(stops: [.named(.blue)])]
+        let tint = TabColor.paneTint(for: info, overrides: overrides)
         // Should return the hash result, not the override
-        #expect(color != nil)
-        #expect(color != .blue || color == TabColor.colorForGitInfo(info))
+        #expect(tint != nil)
+        #expect(tint?.primary != .named(.blue) || tint == TabColor.paneTint(for: info))
     }
 
     @Test func worktreeOverrideDoesNotAffectBaseRepo() {
@@ -115,12 +115,12 @@ import Testing
             repoName: "montty", branchName: "feature",
             worktreeName: "montty-feature", repoPath: "/Users/ted/montty"
         )
-        let overrides = ["/Users/ted/monttymontty-feature": TabColor.magenta]
+        let overrides = ["/Users/ted/monttymontty-feature": PaneTint(stops: [.named(.magenta)])]
         // Override applies to worktree
-        #expect(TabColor.colorForGitInfo(worktree, overrides: overrides) == .magenta)
+        #expect(TabColor.paneTint(for: worktree, overrides: overrides)?.primary == .named(.magenta))
         // Base repo uses normal hash
-        #expect(TabColor.colorForGitInfo(base, overrides: overrides)
-            == TabColor.colorForGitInfo(base))
+        #expect(TabColor.paneTint(for: base, overrides: overrides)
+            == TabColor.paneTint(for: base))
     }
 
     // MARK: - Pane color resolution
@@ -134,11 +134,12 @@ import Testing
         #expect(surfaceColor != nil)
         #expect(surfaceColor != .red, "Test assumes montty doesn't hash to red")
 
-        let resolved = TabColor.resolvedPaneColor(
-            tabColorOverride: .red,
+        let resolved = TabColor.resolvedPaneTint(
+            surfaceOverride: nil,
+            tabColorOverride: PaneTint(stops: [.named(.red)]),
             surfaceDirectory: "/Users/ted/montty",
             repoColorOverrides: [:]
-        )
+        )?.primary
         #expect(resolved == .named(.red))
     }
 
@@ -149,20 +150,22 @@ import Testing
         let expected = TabColor.colorForWorktree(repoDir)
         #expect(expected != nil, "Test must run inside a git repo")
 
-        let resolved = TabColor.resolvedPaneColor(
+        let resolved = TabColor.resolvedPaneTint(
+            surfaceOverride: nil,
             tabColorOverride: nil,
             surfaceDirectory: repoDir,
             repoColorOverrides: [:]
-        )
+        )?.primary
         #expect(resolved == expected.map(TintStop.named))
     }
 
     @Test func noOverrideNoRepoReturnsNil() {
-        let resolved = TabColor.resolvedPaneColor(
+        let resolved = TabColor.resolvedPaneTint(
+            surfaceOverride: nil,
             tabColorOverride: nil,
             surfaceDirectory: nil,
             repoColorOverrides: [:]
-        )
+        )?.primary
         #expect(resolved == nil)
     }
 
@@ -212,6 +215,7 @@ import Testing
 
     @Test func paneTintNilForNonGitDirectory() {
         let tint = TabColor.resolvedPaneTint(
+            surfaceOverride: nil,
             tabColorOverride: nil,
             surfaceDirectory: "/tmp",
             repoColorOverrides: [:]
@@ -221,6 +225,7 @@ import Testing
 
     @Test func paneTintNilForNilDirectory() {
         let tint = TabColor.resolvedPaneTint(
+            surfaceOverride: nil,
             tabColorOverride: nil,
             surfaceDirectory: nil,
             repoColorOverrides: [:]
@@ -230,7 +235,8 @@ import Testing
 
     @Test func paneTintTabOverrideIsSolid() {
         let tint = TabColor.resolvedPaneTint(
-            tabColorOverride: .red,
+            surfaceOverride: nil,
+            tabColorOverride: PaneTint(stops: [.named(.red)]),
             surfaceDirectory: "/anywhere",
             repoColorOverrides: [:]
         )
@@ -244,6 +250,7 @@ import Testing
         defer { try? FileManager.default.removeItem(atPath: fixture.base) }
 
         let tint = TabColor.resolvedPaneTint(
+            surfaceOverride: nil,
             tabColorOverride: nil,
             surfaceDirectory: fixture.parent,
             repoColorOverrides: [:]
@@ -258,11 +265,13 @@ import Testing
         defer { try? FileManager.default.removeItem(atPath: fixture.base) }
 
         let parentTint = TabColor.resolvedPaneTint(
+            surfaceOverride: nil,
             tabColorOverride: nil,
             surfaceDirectory: fixture.parent,
             repoColorOverrides: [:]
         )
         let worktreeTint = TabColor.resolvedPaneTint(
+            surfaceOverride: nil,
             tabColorOverride: nil,
             surfaceDirectory: fixture.worktree,
             repoColorOverrides: [:]
@@ -278,9 +287,10 @@ import Testing
 
         // Override the *parent* repo color, not the worktree.
         let parentIdentity = TabColor.repoIdentity(for: fixture.parent)!
-        let overrides: [String: TabColor] = [parentIdentity: .magenta]
+        let overrides: [String: PaneTint] = [parentIdentity: PaneTint(stops: [.named(.magenta)])]
 
         let tint = TabColor.resolvedPaneTint(
+            surfaceOverride: nil,
             tabColorOverride: nil,
             surfaceDirectory: fixture.worktree,
             repoColorOverrides: overrides
@@ -296,21 +306,24 @@ import Testing
         defer { try? FileManager.default.removeItem(atPath: fixture.base) }
 
         let wtIdentity = TabColor.repoIdentity(for: fixture.worktree)!
-        let overrides: [String: TabColor] = [wtIdentity: .cyan]
+        let overrides: [String: PaneTint] = [wtIdentity: PaneTint(stops: [.named(.cyan)])]
 
         // Parent under the same overrides -- the worktree override key doesn't
         // match the parent's identity, so it should fall through to the hash.
         let parentTint = TabColor.resolvedPaneTint(
+            surfaceOverride: nil,
             tabColorOverride: nil,
             surfaceDirectory: fixture.parent,
             repoColorOverrides: overrides
         )
         let parentWithoutOverrides = TabColor.resolvedPaneTint(
+            surfaceOverride: nil,
             tabColorOverride: nil,
             surfaceDirectory: fixture.parent,
             repoColorOverrides: [:]
         )
         let worktreeTint = TabColor.resolvedPaneTint(
+            surfaceOverride: nil,
             tabColorOverride: nil,
             surfaceDirectory: fixture.worktree,
             repoColorOverrides: overrides
@@ -388,7 +401,7 @@ import Testing
 
     @Test func overrideRendersAsASingleSolidStop() {
         let tint = TabColor.paneTint(
-            for: repo("montty"), overrides: ["/Users/ted/montty": .cyan]
+            for: repo("montty"), overrides: ["/Users/ted/montty": PaneTint(stops: [.named(.cyan)])]
         )
 
         #expect(tint?.stops == [.named(.cyan)])

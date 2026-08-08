@@ -2,10 +2,10 @@ import SwiftUI
 
 struct TabContextMenu: View {
     let tab: Tab
-    var repoColorOverrides: [String: TabColor] = [:]
+    var repoColorOverrides: [String: PaneTint] = [:]
     let onRename: () -> Void
-    let onSetRepoColor: (String, TabColor?) -> Void
-    let onSetTabColor: (TabColor?) -> Void
+    let onSetRepoColor: (String, PaneTint?) -> Void
+    let onSetTabColor: (PaneTint?) -> Void
     let onClose: () -> Void
 
     /// The focused surface's directory, if any. Prefers Claude-reported cwd
@@ -39,9 +39,8 @@ struct TabContextMenu: View {
 
         // Repo/worktree color (affects minimap and other tabs with this repo)
         if let identity = repoIdentity {
-            let repoColor = TintStop.named(
-                TabColor.colorForWorktree(focusedDir, overrides: repoColorOverrides) ?? .gray
-            )
+            let repoColor = repoColorOverrides[identity]?.primary
+                ?? TintStop.named(TabColor.colorForWorktree(focusedDir) ?? .gray)
             let hasRepoOverride = repoColorOverrides[identity] != nil
             Menu(repoColorLabel) {
                 TabColorPicker(
@@ -56,7 +55,7 @@ struct TabContextMenu: View {
         let tabOverride = tab.colorOverride
         Menu("Tab Color") {
             TabColorPicker(
-                currentColor: tabOverride.map(TintStop.named)
+                currentColor: tabOverride?.primary
                     ?? tab.effectiveColor(overrides: repoColorOverrides),
                 hasOverride: tabOverride != nil,
                 onSelect: { color in onSetTabColor(color) }

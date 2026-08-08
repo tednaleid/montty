@@ -25,8 +25,10 @@ final class Tab: Identifiable {
     /// shell pwd because Claude can `cd` into a worktree without the parent shell
     /// noticing (no chpwd fires from a subprocess).
     var claudeDirectories: [String: String] = [:]
+    /// Per-surface color override, keyed by surfaceID. Beats the tab override.
+    var surfaceColorOverrides: [UUID: PaneTint] = [:]
     /// Tab-level color override. Beats repo/worktree colors for all surfaces in this tab.
-    var colorOverride: TabColor?
+    var colorOverride: PaneTint?
 
     var displayName: String {
         name.isEmpty ? autoName : name
@@ -43,18 +45,20 @@ final class Tab: Identifiable {
         return dirs
     }
 
-    /// The effective color for this tab. Priority: tab override > repo override > git hash > gray.
-    func effectiveColor(overrides: [String: TabColor] = [:]) -> TintStop {
+    /// The effective color for this tab. Priority: surface > tab > repo > git hash > gray.
+    func effectiveColor(overrides: [String: PaneTint] = [:]) -> TintStop {
         effectivePaneTint(overrides: overrides).primary
     }
 
     /// The effective tint for this tab, including the worktree-gradient secondary
     /// stop when the focused pane is in a linked worktree. Falls back to a solid
     /// gray tint when there's no git info.
-    func effectivePaneTint(overrides: [String: TabColor] = [:]) -> PaneTint {
+    func effectivePaneTint(overrides: [String: PaneTint] = [:]) -> PaneTint {
         let dirs = effectiveSurfaceDirectories
-        let dir = focusedSurfaceID.flatMap { dirs[$0] }
+        let surfaceID = focusedSurfaceID
+        let dir = surfaceID.flatMap { dirs[$0] }
         return TabColor.resolvedPaneTint(
+            surfaceOverride: surfaceID.flatMap { surfaceColorOverrides[$0] },
             tabColorOverride: colorOverride,
             surfaceDirectory: dir,
             repoColorOverrides: overrides

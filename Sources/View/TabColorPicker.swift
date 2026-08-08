@@ -25,13 +25,13 @@ private func colorSwatch(_ color: Color, checked: Bool) -> NSImage {
 struct TabColorPicker: View {
     let currentColor: TintStop
     let hasOverride: Bool
-    /// Called with a color to set an override, or nil to clear the override.
-    let onSelect: (TabColor?) -> Void
+    /// Called with a tint to set an override, or nil to clear the override.
+    let onSelect: (PaneTint?) -> Void
 
     var body: some View {
         ForEach(TabColor.allCases.filter { $0 != .gray }, id: \.self) { color in
             Button {
-                onSelect(color)
+                onSelect(PaneTint(stops: [.named(color)]))
             } label: {
                 Image(nsImage: colorSwatch(
                     color.swiftUIColor,
