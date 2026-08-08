@@ -3211,17 +3211,23 @@ In `project.yml`, replace everything between `cat >> "${ZSH_ENV}" << 'MONTTY_HOO
           # `montty hook` reads Claude's payload on stdin, forwards the cwd it
           # reports, and always exits 0 so a pane outside montty never makes
           # Claude Code look broken.
-          if [[ -n "$MONTTY_SURFACE_ID" && -x "$MONTTY_BIN" ]]; then
+          #
+          # MONTTY_BIN is the bundled binary's absolute path, injected into every
+          # surface, so hooks keep working when the app was installed by dragging
+          # it to /Applications and no Homebrew symlink exists. The PATH fallback
+          # covers a pane whose environment predates that injection.
+          if [[ -n "$MONTTY_SURFACE_ID" ]] \
+             && { [[ -x "$MONTTY_BIN" ]] || command -v montty >/dev/null 2>&1; }; then
             claude() {
               local settings
               settings=$(cat <<'MONTTY_SETTINGS'
           {"hooks":{
-            "SessionStart":     [{"hooks":[{"type":"command","command":"\"$MONTTY_BIN\" hook session-start"}]}],
-            "UserPromptSubmit": [{"hooks":[{"type":"command","command":"\"$MONTTY_BIN\" hook prompt-submit"}]}],
-            "PreToolUse":       [{"hooks":[{"type":"command","command":"\"$MONTTY_BIN\" hook pre-tool-use"}]}],
-            "Notification":     [{"hooks":[{"type":"command","command":"\"$MONTTY_BIN\" hook notification"}]}],
-            "Stop":             [{"hooks":[{"type":"command","command":"\"$MONTTY_BIN\" hook stop"}]}],
-            "SessionEnd":       [{"hooks":[{"type":"command","command":"\"$MONTTY_BIN\" hook session-end"}]}]
+            "SessionStart":     [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook session-start"}]}],
+            "UserPromptSubmit": [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook prompt-submit"}]}],
+            "PreToolUse":       [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook pre-tool-use"}]}],
+            "Notification":     [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook notification"}]}],
+            "Stop":             [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook stop"}]}],
+            "SessionEnd":       [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook session-end"}]}]
           }}
           MONTTY_SETTINGS
               )
