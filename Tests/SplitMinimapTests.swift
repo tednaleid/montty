@@ -156,17 +156,17 @@ struct SplitMinimapTests {
         ))
         // Only the right pane has Claude running (with a hook state)
         let surfaceToMonttyID: [UUID: String] = [right.surfaceID: "mid-right"]
-        let claudeStates: [String: ClaudeCodeStatus.State] = ["mid-right": .waiting]
+        let activityStates: [String: ActivityStatus.State] = ["mid-right": .waiting]
         let titles: [UUID: String] = [right.surfaceID: "✳ Fix auth bug"]
         let minimap = SplitMinimap.from(
             node: node, focusedLeafID: nil,
             surfaceTitles: titles,
-            claudeStates: claudeStates,
+            activityStates: activityStates,
             surfaceToMonttyID: surfaceToMonttyID
         )
-        #expect(minimap.panes[0].claudeCode == nil)
-        #expect(minimap.panes[1].claudeCode?.state == .waiting)
-        #expect(minimap.panes[1].claudeCode?.sessionName == "✳ Fix auth bug")
+        #expect(minimap.panes[0].activity == nil)
+        #expect(minimap.panes[1].activity?.state == .waiting)
+        #expect(minimap.panes[1].activity?.sessionName == "✳ Fix auth bug")
     }
 
     @Test func paneWithNoHookStateHasNoClaudeCode() {
@@ -177,19 +177,19 @@ struct SplitMinimapTests {
             node: .leaf(left), focusedLeafID: nil,
             surfaceTitles: titles
         )
-        #expect(minimap.panes[0].claudeCode == nil)
+        #expect(minimap.panes[0].activity == nil)
     }
 
     @Test func paneUsesDefaultSessionNameWithoutTitle() {
         let leaf = SurfaceLeaf()
         let surfaceToMonttyID: [UUID: String] = [leaf.surfaceID: "mid-1"]
-        let claudeStates: [String: ClaudeCodeStatus.State] = ["mid-1": .working]
+        let activityStates: [String: ActivityStatus.State] = ["mid-1": .working]
         let minimap = SplitMinimap.from(
             node: .leaf(leaf), focusedLeafID: nil,
-            claudeStates: claudeStates,
+            activityStates: activityStates,
             surfaceToMonttyID: surfaceToMonttyID
         )
-        #expect(minimap.panes[0].claudeCode?.state == .working)
-        #expect(minimap.panes[0].claudeCode?.sessionName == "Claude Code")
+        #expect(minimap.panes[0].activity?.state == .working)
+        #expect(minimap.panes[0].activity?.sessionName == "Claude Code")
     }
 }

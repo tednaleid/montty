@@ -45,7 +45,7 @@ Response:
 ]
 ```
 
-`focused_in_tab` is montty's model state: which pane a given tab will focus when that tab becomes active. It can be true for several surfaces at once, one per tab. `focused` is what libghostty believes: it is true for at most one surface across the entire app, and false for every surface while the montty window is not key. The `directory_name`, `git`, and `claude_code` keys appear only when they apply to the surface.
+`focused_in_tab` is montty's model state: which pane a given tab will focus when that tab becomes active. It can be true for several surfaces at once, one per tab. `focused` is what libghostty believes: it is true for at most one surface across the entire app, and false for every surface while the montty window is not key. The `directory_name`, `git`, and `activity` keys appear only when they apply to the surface.
 
 ### POST /type
 

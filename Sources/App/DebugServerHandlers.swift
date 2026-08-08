@@ -131,8 +131,8 @@ extension DebugServer {
             entry["git"] = git
         }
         if let monttyID = tab.surfaceToMonttyID[leaf.surfaceID],
-           let state = tab.claudeStates[monttyID] {
-            entry["claude_code"] = [
+           let state = tab.activityStates[monttyID] {
+            entry["activity"] = [
                 "montty_surface_id": monttyID,
                 "state": String(describing: state)
             ]
@@ -171,14 +171,14 @@ extension DebugServer {
             var results: [[String: Any]] = []
             for tab in appDelegate.tabStore.tabs {
                 for (surfaceID, monttyID) in tab.surfaceToMonttyID {
-                    guard let state = tab.claudeStates[monttyID] else { continue }
+                    guard let state = tab.activityStates[monttyID] else { continue }
                     var entry: [String: Any] = [
                         "tab_id": tab.id.uuidString,
                         "surface_id": surfaceID.uuidString,
                         "montty_surface_id": monttyID,
                         "state": String(describing: state)
                     ]
-                    if let since = tab.claudeWaitingSince[monttyID] {
+                    if let since = tab.activityWaitingSince[monttyID] {
                         entry["waiting_since"] = formatter.string(from: since)
                         entry["waiting_seconds"] = Date().timeIntervalSince(since)
                     }

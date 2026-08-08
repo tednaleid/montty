@@ -140,8 +140,8 @@ enum HookServer {
                 let outcome = HookStateMachine.apply(
                     message.event,
                     surfaceID: message.surface,
-                    to: &tab.claudeStates,
-                    waitingSince: &tab.claudeWaitingSince,
+                    to: &tab.activityStates,
+                    waitingSince: &tab.activityWaitingSince,
                     isKnownSurface: true
                 )
                 if case .applied(let newState) = outcome {

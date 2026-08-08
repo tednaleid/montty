@@ -12,7 +12,7 @@ struct MinimapPane: Equatable {
     let surfaceID: UUID
     let rect: MinimapRect
     let isFocused: Bool
-    let claudeCode: ClaudeCodeStatus?
+    let activity: ActivityStatus?
 }
 
 struct SplitMinimap: Equatable {
@@ -25,12 +25,12 @@ struct SplitMinimap: Equatable {
         node: SplitNode,
         focusedLeafID: UUID?,
         surfaceTitles: [UUID: String] = [:],
-        claudeStates: [String: ClaudeCodeStatus.State] = [:],
+        activityStates: [String: ActivityStatus.State] = [:],
         surfaceToMonttyID: [UUID: String] = [:]
     ) -> SplitMinimap {
         let ctx = LayoutContext(
             focusedLeafID: focusedLeafID, surfaceTitles: surfaceTitles,
-            claudeStates: claudeStates, surfaceToMonttyID: surfaceToMonttyID
+            activityStates: activityStates, surfaceToMonttyID: surfaceToMonttyID
         )
         var panes: [MinimapPane] = []
         layoutNode(node, rect: MinimapRect(originX: 0, originY: 0, width: 1, height: 1),
@@ -41,7 +41,7 @@ struct SplitMinimap: Equatable {
     private struct LayoutContext {
         let focusedLeafID: UUID?
         let surfaceTitles: [UUID: String]
-        let claudeStates: [String: ClaudeCodeStatus.State]
+        let activityStates: [String: ActivityStatus.State]
         let surfaceToMonttyID: [UUID: String]
     }
 
@@ -52,17 +52,17 @@ struct SplitMinimap: Equatable {
         switch node {
         case .leaf(let leaf):
             // Claude state comes exclusively from hook events routed by MONTTY_SURFACE_ID.
-            let claude: ClaudeCodeStatus?
+            let claude: ActivityStatus?
             if let monttyID = ctx.surfaceToMonttyID[leaf.surfaceID],
-               let hookState = ctx.claudeStates[monttyID] {
+               let hookState = ctx.activityStates[monttyID] {
                 let sessionName = ctx.surfaceTitles[leaf.surfaceID] ?? "Claude Code"
-                claude = ClaudeCodeStatus(sessionName: sessionName, state: hookState)
+                claude = ActivityStatus(sessionName: sessionName, state: hookState)
             } else {
                 claude = nil
             }
             panes.append(MinimapPane(
                 leafID: leaf.id, surfaceID: leaf.surfaceID, rect: rect,
-                isFocused: leaf.id == ctx.focusedLeafID, claudeCode: claude
+                isFocused: leaf.id == ctx.focusedLeafID, activity: claude
             ))
         case .split(let branch):
             let ratio = Double(branch.ratio)

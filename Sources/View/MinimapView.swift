@@ -27,8 +27,8 @@ struct MinimapView: View {
                         )
                     if let label = jumpLabels[pane.leafID] {
                         JumpBadge(label: label, color: paneColor(pane), large: false)
-                    } else if let claude = pane.claudeCode {
-                        ClaudeIndicatorView(state: claude.state)
+                    } else if let activity = pane.activity {
+                        ActivityIndicatorView(state: activity.state)
                     }
                 }
                 .frame(width: frame.width, height: frame.height)
@@ -94,9 +94,9 @@ struct MinimapView: View {
     }
 }
 
-/// Animated indicator for Claude Code state on a minimap pane.
-struct ClaudeIndicatorView: View {
-    let state: ClaudeCodeStatus.State
+/// Animated indicator for activity state on a minimap pane.
+struct ActivityIndicatorView: View {
+    let state: ActivityStatus.State
 
     // Cycle through star characters when working, with per-character scale
     // factors so each symbol appears roughly the same visual size as "*".

@@ -154,14 +154,14 @@ struct TabTests {
         let monttyID = "mid-1"
         let tab = Tab(surfaceID: surfaceID)
         tab.surfaceToMonttyID[surfaceID] = monttyID
-        tab.claudeStates[monttyID] = .waiting
-        tab.claudeWaitingSince[monttyID] = Date()
+        tab.activityStates[monttyID] = .waiting
+        tab.activityWaitingSince[monttyID] = Date()
 
         let changed = tab.clearWaitingOnTitleChange(for: surfaceID)
 
         #expect(changed == true)
-        #expect(tab.claudeStates[monttyID] == .working)
-        #expect(tab.claudeWaitingSince[monttyID] == nil)
+        #expect(tab.activityStates[monttyID] == .working)
+        #expect(tab.activityWaitingSince[monttyID] == nil)
     }
 
     @Test func titleChangeDoesNotDowngradeIdle() {
@@ -169,12 +169,12 @@ struct TabTests {
         let monttyID = "mid-1"
         let tab = Tab(surfaceID: surfaceID)
         tab.surfaceToMonttyID[surfaceID] = monttyID
-        tab.claudeStates[monttyID] = .idle
+        tab.activityStates[monttyID] = .idle
 
         let changed = tab.clearWaitingOnTitleChange(for: surfaceID)
 
         #expect(changed == false)
-        #expect(tab.claudeStates[monttyID] == .idle)
+        #expect(tab.activityStates[monttyID] == .idle)
     }
 
     @Test func titleChangeDoesNotUpgradeWorking() {
@@ -182,18 +182,18 @@ struct TabTests {
         let monttyID = "mid-1"
         let tab = Tab(surfaceID: surfaceID)
         tab.surfaceToMonttyID[surfaceID] = monttyID
-        tab.claudeStates[monttyID] = .working
+        tab.activityStates[monttyID] = .working
 
         let changed = tab.clearWaitingOnTitleChange(for: surfaceID)
 
         #expect(changed == false)
-        #expect(tab.claudeStates[monttyID] == .working)
+        #expect(tab.activityStates[monttyID] == .working)
     }
 
     @Test func titleChangeNoopForUnknownSurface() {
         let surfaceID = UUID()
         let tab = Tab(surfaceID: surfaceID)
-        // No surfaceToMonttyID mapping, no claudeStates entry
+        // No surfaceToMonttyID mapping, no activityStates entry
         let changed = tab.clearWaitingOnTitleChange(for: surfaceID)
         #expect(changed == false)
     }
@@ -201,60 +201,60 @@ struct TabTests {
     @Test func sweepClearsWaitingOlderThanThreshold() {
         let monttyID = "mid-1"
         let tab = Tab()
-        tab.claudeStates[monttyID] = .waiting
+        tab.activityStates[monttyID] = .waiting
         let now = Date()
-        tab.claudeWaitingSince[monttyID] = now.addingTimeInterval(-120) // 2 minutes ago
+        tab.activityWaitingSince[monttyID] = now.addingTimeInterval(-120) // 2 minutes ago
 
         let transitioned = tab.sweepStaleWaiting(threshold: 60, now: now)
 
         #expect(transitioned == [monttyID])
-        #expect(tab.claudeStates[monttyID] == .idle)
-        #expect(tab.claudeWaitingSince[monttyID] == nil)
+        #expect(tab.activityStates[monttyID] == .idle)
+        #expect(tab.activityWaitingSince[monttyID] == nil)
     }
 
     @Test func sweepLeavesRecentWaiting() {
         let monttyID = "mid-1"
         let tab = Tab()
-        tab.claudeStates[monttyID] = .waiting
+        tab.activityStates[monttyID] = .waiting
         let now = Date()
-        tab.claudeWaitingSince[monttyID] = now.addingTimeInterval(-30) // 30s ago
+        tab.activityWaitingSince[monttyID] = now.addingTimeInterval(-30) // 30s ago
 
         let transitioned = tab.sweepStaleWaiting(threshold: 60, now: now)
 
         #expect(transitioned.isEmpty)
-        #expect(tab.claudeStates[monttyID] == .waiting)
-        #expect(tab.claudeWaitingSince[monttyID] != nil)
+        #expect(tab.activityStates[monttyID] == .waiting)
+        #expect(tab.activityWaitingSince[monttyID] != nil)
     }
 
     @Test func sweepIgnoresNonWaitingSurfaces() {
         let monttyID = "mid-1"
         let tab = Tab()
-        tab.claudeStates[monttyID] = .working
+        tab.activityStates[monttyID] = .working
         let now = Date()
         // Stale waitingSince but state is .working (shouldn't happen, but safe)
-        tab.claudeWaitingSince[monttyID] = now.addingTimeInterval(-120)
+        tab.activityWaitingSince[monttyID] = now.addingTimeInterval(-120)
 
         let transitioned = tab.sweepStaleWaiting(threshold: 60, now: now)
 
         #expect(transitioned.isEmpty)
-        #expect(tab.claudeStates[monttyID] == .working)
+        #expect(tab.activityStates[monttyID] == .working)
     }
 
     @Test func sweepHandlesMultipleSurfaces() {
         let tab = Tab()
         let now = Date()
-        tab.claudeStates["a"] = .waiting
-        tab.claudeWaitingSince["a"] = now.addingTimeInterval(-120)  // stale
-        tab.claudeStates["b"] = .waiting
-        tab.claudeWaitingSince["b"] = now.addingTimeInterval(-10)   // fresh
-        tab.claudeStates["c"] = .working                             // not waiting
+        tab.activityStates["a"] = .waiting
+        tab.activityWaitingSince["a"] = now.addingTimeInterval(-120)  // stale
+        tab.activityStates["b"] = .waiting
+        tab.activityWaitingSince["b"] = now.addingTimeInterval(-10)   // fresh
+        tab.activityStates["c"] = .working                             // not waiting
 
         let transitioned = tab.sweepStaleWaiting(threshold: 60, now: now)
 
         #expect(Set(transitioned) == Set(["a"]))
-        #expect(tab.claudeStates["a"] == .idle)
-        #expect(tab.claudeStates["b"] == .waiting)
-        #expect(tab.claudeStates["c"] == .working)
+        #expect(tab.activityStates["a"] == .idle)
+        #expect(tab.activityStates["b"] == .waiting)
+        #expect(tab.activityStates["c"] == .working)
     }
 
     // MARK: - Claude-reported cwd (worktree color tracking)

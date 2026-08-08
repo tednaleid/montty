@@ -72,7 +72,7 @@ enum HookDirectoryTracker {
 enum HookStateMachine {
     /// Result of applying an event.
     enum Outcome: Equatable {
-        case applied(newState: ClaudeCodeStatus.State?)  // nil means entry removed (session-end)
+        case applied(newState: ActivityStatus.State?)  // nil means entry removed (session-end)
         case rejectedUnknownSurface
     }
 
@@ -83,7 +83,7 @@ enum HookStateMachine {
     static func apply(
         _ event: ClaudeHookEvent,
         surfaceID: String,
-        to claudeStates: inout [String: ClaudeCodeStatus.State],
+        to activityStates: inout [String: ActivityStatus.State],
         waitingSince: inout [String: Date],
         isKnownSurface: Bool,
         now: Date = Date()
@@ -92,23 +92,23 @@ enum HookStateMachine {
 
         switch event {
         case .sessionStart:
-            claudeStates[surfaceID] = .idle
+            activityStates[surfaceID] = .idle
             waitingSince.removeValue(forKey: surfaceID)
             return .applied(newState: .idle)
         case .promptSubmit, .preToolUse:
-            claudeStates[surfaceID] = .working
+            activityStates[surfaceID] = .working
             waitingSince.removeValue(forKey: surfaceID)
             return .applied(newState: .working)
         case .notification:
-            claudeStates[surfaceID] = .waiting
+            activityStates[surfaceID] = .waiting
             waitingSince[surfaceID] = now
             return .applied(newState: .waiting)
         case .stop:
-            claudeStates[surfaceID] = .idle
+            activityStates[surfaceID] = .idle
             waitingSince.removeValue(forKey: surfaceID)
             return .applied(newState: .idle)
         case .sessionEnd:
-            claudeStates.removeValue(forKey: surfaceID)
+            activityStates.removeValue(forKey: surfaceID)
             waitingSince.removeValue(forKey: surfaceID)
             return .applied(newState: nil)
         }

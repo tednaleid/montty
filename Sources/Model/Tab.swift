@@ -11,10 +11,10 @@ final class Tab: Identifiable {
     /// Per-surface terminal titles, keyed by surfaceID.
     var surfaceTitles: [UUID: String] = [:]
     /// Per-surface Claude Code state, keyed by MONTTY_SURFACE_ID.
-    var claudeStates: [String: ClaudeCodeStatus.State] = [:]
+    var activityStates: [String: ActivityStatus.State] = [:]
     /// Timestamps for when each surface entered `.waiting`, keyed by MONTTY_SURFACE_ID.
     /// Used for the timeout sweep that clears stuck `*?` indicators.
-    var claudeWaitingSince: [String: Date] = [:]
+    var activityWaitingSince: [String: Date] = [:]
     /// Maps Ghostty surfaceID -> MONTTY_SURFACE_ID for hook routing.
     var surfaceToMonttyID: [UUID: String] = [:]
     /// Per-surface working directories, keyed by surfaceID.
@@ -70,7 +70,7 @@ final class Tab: Identifiable {
             focusedLeafID: focusedLeafID,
             surfaceDirectories: effectiveSurfaceDirectories,
             surfaceTitles: surfaceTitles,
-            claudeStates: claudeStates,
+            activityStates: activityStates,
             surfaceToMonttyID: surfaceToMonttyID
         ))
     }
@@ -96,9 +96,9 @@ final class Tab: Identifiable {
     @discardableResult
     func clearWaitingOnTitleChange(for surfaceID: UUID) -> Bool {
         guard let monttyID = surfaceToMonttyID[surfaceID],
-              claudeStates[monttyID] == .waiting else { return false }
-        claudeStates[monttyID] = .working
-        claudeWaitingSince.removeValue(forKey: monttyID)
+              activityStates[monttyID] == .waiting else { return false }
+        activityStates[monttyID] = .working
+        activityWaitingSince.removeValue(forKey: monttyID)
         return true
     }
 
@@ -108,14 +108,14 @@ final class Tab: Identifiable {
     @discardableResult
     func sweepStaleWaiting(threshold: TimeInterval = 60, now: Date = Date()) -> [String] {
         var transitioned: [String] = []
-        for (monttyID, since) in claudeWaitingSince
-        where claudeStates[monttyID] == .waiting
+        for (monttyID, since) in activityWaitingSince
+        where activityStates[monttyID] == .waiting
             && now.timeIntervalSince(since) > threshold {
-            claudeStates[monttyID] = .idle
+            activityStates[monttyID] = .idle
             transitioned.append(monttyID)
         }
         for monttyID in transitioned {
-            claudeWaitingSince.removeValue(forKey: monttyID)
+            activityWaitingSince.removeValue(forKey: monttyID)
         }
         return transitioned
     }

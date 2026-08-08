@@ -129,7 +129,7 @@ struct HookEventTests {
     // MARK: - State machine
 
     @Test func sessionStartSetsIdle() {
-        var states: [String: ClaudeCodeStatus.State] = [:]
+        var states: [String: ActivityStatus.State] = [:]
         var waitingSince: [String: Date] = [:]
         let outcome = HookStateMachine.apply(
             .sessionStart, surfaceID: "s1",
@@ -141,7 +141,7 @@ struct HookEventTests {
     }
 
     @Test func promptSubmitSetsWorking() {
-        var states: [String: ClaudeCodeStatus.State] = [:]
+        var states: [String: ActivityStatus.State] = [:]
         var waitingSince: [String: Date] = [:]
         _ = HookStateMachine.apply(
             .promptSubmit, surfaceID: "s1",
@@ -151,7 +151,7 @@ struct HookEventTests {
     }
 
     @Test func preToolUseSetsWorking() {
-        var states: [String: ClaudeCodeStatus.State] = [:]
+        var states: [String: ActivityStatus.State] = [:]
         var waitingSince: [String: Date] = [:]
         _ = HookStateMachine.apply(
             .preToolUse, surfaceID: "s1",
@@ -163,7 +163,7 @@ struct HookEventTests {
     @Test func preToolUseClearsStaleWaiting() {
         // Root-cause scenario: Claude was in .waiting (permission dialog),
         // user approved via UI, Claude resumes via tool use -> .working.
-        var states: [String: ClaudeCodeStatus.State] = ["s1": .waiting]
+        var states: [String: ActivityStatus.State] = ["s1": .waiting]
         var waitingSince: [String: Date] = ["s1": Date(timeIntervalSince1970: 100)]
         let outcome = HookStateMachine.apply(
             .preToolUse, surfaceID: "s1",
@@ -175,7 +175,7 @@ struct HookEventTests {
     }
 
     @Test func notificationSetsWaiting() {
-        var states: [String: ClaudeCodeStatus.State] = [:]
+        var states: [String: ActivityStatus.State] = [:]
         var waitingSince: [String: Date] = [:]
         let now = Date(timeIntervalSince1970: 500)
         _ = HookStateMachine.apply(
@@ -187,7 +187,7 @@ struct HookEventTests {
     }
 
     @Test func stopSetsIdleAndClearsWaitingSince() {
-        var states: [String: ClaudeCodeStatus.State] = ["s1": .waiting]
+        var states: [String: ActivityStatus.State] = ["s1": .waiting]
         var waitingSince: [String: Date] = ["s1": Date()]
         _ = HookStateMachine.apply(
             .stop, surfaceID: "s1",
@@ -198,7 +198,7 @@ struct HookEventTests {
     }
 
     @Test func sessionEndRemovesEntry() {
-        var states: [String: ClaudeCodeStatus.State] = ["s1": .working]
+        var states: [String: ActivityStatus.State] = ["s1": .working]
         var waitingSince: [String: Date] = [:]
         let outcome = HookStateMachine.apply(
             .sessionEnd, surfaceID: "s1",
@@ -209,7 +209,7 @@ struct HookEventTests {
     }
 
     @Test func sessionEndClearsWaitingSince() {
-        var states: [String: ClaudeCodeStatus.State] = ["s1": .waiting]
+        var states: [String: ActivityStatus.State] = ["s1": .waiting]
         var waitingSince: [String: Date] = ["s1": Date()]
         _ = HookStateMachine.apply(
             .sessionEnd, surfaceID: "s1",
@@ -220,7 +220,7 @@ struct HookEventTests {
     }
 
     @Test func staleSurfaceIDRejected() {
-        var states: [String: ClaudeCodeStatus.State] = ["s1": .idle]
+        var states: [String: ActivityStatus.State] = ["s1": .idle]
         var waitingSince: [String: Date] = [:]
         let outcome = HookStateMachine.apply(
             .notification, surfaceID: "unknown",

@@ -56,7 +56,7 @@ struct TabInfo: Equatable {
         let minimap = SplitMinimap.from(
             node: tab.splitRoot, focusedLeafID: tab.focusedLeafID,
             surfaceTitles: tab.surfaceTitles,
-            claudeStates: tab.claudeStates,
+            activityStates: tab.activityStates,
             surfaceToMonttyID: tab.surfaceToMonttyID
         )
 
@@ -72,7 +72,7 @@ struct TabInfo: Equatable {
 }
 
 /// Claude Code status for a terminal pane.
-struct ClaudeCodeStatus: Equatable {
+struct ActivityStatus: Equatable {
     let sessionName: String
     let state: State
 
@@ -94,7 +94,7 @@ struct TabProperties: Equatable {
     /// Per-surface terminal titles, keyed by surfaceID.
     var surfaceTitles: [UUID: String] = [:]
     /// Per-surface Claude Code state from hooks, keyed by MONTTY_SURFACE_ID.
-    var claudeStates: [String: ClaudeCodeStatus.State] = [:]
+    var activityStates: [String: ActivityStatus.State] = [:]
     /// Maps Ghostty surfaceID -> MONTTY_SURFACE_ID.
     var surfaceToMonttyID: [UUID: String] = [:]
 }
