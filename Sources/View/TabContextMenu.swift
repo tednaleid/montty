@@ -39,9 +39,9 @@ struct TabContextMenu: View {
 
         // Repo/worktree color (affects minimap and other tabs with this repo)
         if let identity = repoIdentity {
-            let repoColor = TabColor.colorForWorktree(
-                focusedDir, overrides: repoColorOverrides
-            ) ?? .gray
+            let repoColor = TintStop.named(
+                TabColor.colorForWorktree(focusedDir, overrides: repoColorOverrides) ?? .gray
+            )
             let hasRepoOverride = repoColorOverrides[identity] != nil
             Menu(repoColorLabel) {
                 TabColorPicker(
@@ -56,7 +56,8 @@ struct TabContextMenu: View {
         let tabOverride = tab.colorOverride
         Menu("Tab Color") {
             TabColorPicker(
-                currentColor: tabOverride ?? tab.effectiveColor(overrides: repoColorOverrides),
+                currentColor: tabOverride.map(TintStop.named)
+                    ?? tab.effectiveColor(overrides: repoColorOverrides),
                 hasOverride: tabOverride != nil,
                 onSelect: { color in onSetTabColor(color) }
             )

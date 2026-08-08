@@ -69,7 +69,7 @@ struct TabTests {
         tab.surfaceDirectories[surfaceID] = repoPath
         let color = tab.effectiveColor()
         // Should derive a color from the git repo, not gray
-        #expect(color != .gray)
+        #expect(color != .named(.gray))
         // Should be deterministic
         #expect(color == tab.effectiveColor())
     }
@@ -94,23 +94,23 @@ struct TabTests {
         // Focus surface A (git repo) -- should get a real color
         tab.focusedLeafID = leafA.id
         let colorA = tab.effectiveColor()
-        #expect(colorA != .gray)
+        #expect(colorA != .named(.gray))
 
         // Focus surface B (non-git) -- should get gray
         tab.focusedLeafID = leafB.id
-        #expect(tab.effectiveColor() == .gray)
+        #expect(tab.effectiveColor() == .named(.gray))
     }
 
     @Test func effectiveColorReturnsGrayForNonGitDirectory() {
         let surfaceID = UUID()
         let tab = Tab(surfaceID: surfaceID)
         tab.surfaceDirectories[surfaceID] = "/tmp"
-        #expect(tab.effectiveColor() == .gray)
+        #expect(tab.effectiveColor() == .named(.gray))
     }
 
     @Test func effectiveColorReturnsGrayWhenNoDirectory() {
         let tab = Tab()
-        #expect(tab.effectiveColor() == .gray)
+        #expect(tab.effectiveColor() == .named(.gray))
     }
 
     @Test func effectiveColorRespectsOverride() {
@@ -121,13 +121,13 @@ struct TabTests {
         tab.surfaceDirectories[surfaceID] = repoPath
 
         let defaultColor = tab.effectiveColor()
-        #expect(defaultColor != .gray)
+        #expect(defaultColor != .named(.gray))
 
         // Override to a different color
-        let overrideColor: TabColor = (defaultColor == .magenta) ? .blue : .magenta
+        let overrideColor: TabColor = (defaultColor == .named(.magenta)) ? .blue : .magenta
         let identity = TabColor.repoIdentity(for: repoPath)!
         let overrides = [identity: overrideColor]
-        #expect(tab.effectiveColor(overrides: overrides) == overrideColor)
+        #expect(tab.effectiveColor(overrides: overrides) == .named(overrideColor))
     }
 
     @Test func tabColorOverrideBeatsRepoOverride() {
@@ -141,10 +141,10 @@ struct TabTests {
         tab.colorOverride = .cyan
 
         // Tab override should beat both hashed color and repo override
-        #expect(tab.effectiveColor() == .cyan)
+        #expect(tab.effectiveColor() == .named(.cyan))
         let identity = TabColor.repoIdentity(for: repoPath)!
         let repoOverrides = [identity: TabColor.magenta]
-        #expect(tab.effectiveColor(overrides: repoOverrides) == .cyan)
+        #expect(tab.effectiveColor(overrides: repoOverrides) == .named(.cyan))
     }
 
     // MARK: - Claude waiting-state safety nets
@@ -293,7 +293,7 @@ struct TabTests {
     @Test func effectivePaneTintFallsBackToGraySolidWhenNoDir() {
         let tab = Tab()
         let tint = tab.effectivePaneTint()
-        #expect(tint == PaneTint(stops: [.gray]))
+        #expect(tint == PaneTint(stops: [.named(.gray)]))
     }
 
     @Test func effectivePaneTintRespectsTabOverride() {
@@ -304,8 +304,8 @@ struct TabTests {
         tab.surfaceDirectories[surfaceID] = repoPath
         tab.colorOverride = .red
         let tint = tab.effectivePaneTint()
-        #expect(tint.primary == .red)
-        #expect(tint.stops == [.red], "tab override should always render solid, never a gradient")
+        #expect(tint.primary == .named(.red))
+        #expect(tint.stops == [.named(.red)], "tab override should always render solid, never a gradient")
     }
 
     @Test func effectivePaneTintGradientsForClaudeReportedWorktree() throws {
@@ -398,11 +398,11 @@ struct TabTests {
         tab.surfaceDirectories[surfaceID] = mainRepo
 
         let parentColor = tab.effectiveColor()
-        #expect(parentColor != .gray)
+        #expect(parentColor != .named(.gray))
 
         tab.claudeDirectories[monttyID] = worktreePath
         let worktreeColor = tab.effectiveColor()
-        #expect(worktreeColor != .gray)
+        #expect(worktreeColor != .named(.gray))
         #expect(worktreeColor != parentColor, "worktree should hash to a different color than its parent")
 
         try? fileManager.removeItem(atPath: base)
@@ -417,6 +417,6 @@ struct TabTests {
 
         tab.colorOverride = nil
         // Should use the git-hashed color, not gray
-        #expect(tab.effectiveColor() != .gray)
+        #expect(tab.effectiveColor() != .named(.gray))
     }
 }

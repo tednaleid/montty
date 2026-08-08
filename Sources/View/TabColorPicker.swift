@@ -23,7 +23,7 @@ private func colorSwatch(_ color: Color, checked: Bool) -> NSImage {
 }
 
 struct TabColorPicker: View {
-    let currentColor: TabColor
+    let currentColor: TintStop
     let hasOverride: Bool
     /// Called with a color to set an override, or nil to clear the override.
     let onSelect: (TabColor?) -> Void
@@ -35,7 +35,7 @@ struct TabColorPicker: View {
             } label: {
                 Image(nsImage: colorSwatch(
                     color.swiftUIColor,
-                    checked: color == currentColor
+                    checked: .named(color) == currentColor
                 ))
             }
         }

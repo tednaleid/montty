@@ -38,7 +38,7 @@ extension TabColor {
         tabColorOverride: TabColor?,
         surfaceDirectory: String?,
         repoColorOverrides: [String: TabColor]
-    ) -> TabColor? {
+    ) -> TintStop? {
         resolvedPaneTint(
             tabColorOverride: tabColorOverride,
             surfaceDirectory: surfaceDirectory,
@@ -67,7 +67,7 @@ extension TabColor {
     /// already spoken for. Returns nil only if the palette is exhausted.
     static func knockout(
         for identity: String,
-        avoiding taken: [TabColor],
+        avoiding taken: [TintStop],
         mixed: Bool = true
     ) -> TabColor? {
         let usedFamilies = Set(taken.map(\.hueFamily))
@@ -86,7 +86,7 @@ extension TabColor {
     static func paneTint(for info: GitInfo, overrides: [String: TabColor] = [:]) -> PaneTint? {
         let identity = info.repoPath + (info.worktreeName ?? "")
         if let picked = overrides[identity] {
-            return PaneTint(stops: [picked])
+            return PaneTint(stops: [.named(picked)])
         }
         guard let own = colorForGitInfo(info, overrides: overrides) else { return nil }
 
@@ -96,21 +96,21 @@ extension TabColor {
             worktreeName: nil,
             repoPath: info.repoPath
         )
-        let parentStops: [TabColor]
+        let parentStops: [TintStop]
         if let picked = overrides[parentInfo.repoPath] {
-            parentStops = [picked]
+            parentStops = [.named(picked)]
         } else if let parentPrimary = colorForGitInfo(parentInfo, overrides: overrides) {
-            let leading = knockout(for: parentInfo.repoPath, avoiding: [parentPrimary])
-            parentStops = [leading ?? parentPrimary, parentPrimary]
+            let leading = knockout(for: parentInfo.repoPath, avoiding: [.named(parentPrimary)])
+            parentStops = [.named(leading ?? parentPrimary), .named(parentPrimary)]
         } else {
-            parentStops = [own]
+            parentStops = [.named(own)]
         }
 
         guard info.worktreeName != nil else { return PaneTint(stops: parentStops) }
         // The worktree's own stop knocks out both parent families, so all three
         // bands stay tellable apart.
         let ownStop = knockout(for: identity, avoiding: parentStops, mixed: false)
-        return PaneTint(stops: parentStops + [ownStop ?? own])
+        return PaneTint(stops: parentStops + [.named(ownStop ?? own)])
     }
 
     /// Resolve the pane tint for a directory.
@@ -121,31 +121,11 @@ extension TabColor {
         repoColorOverrides: [String: TabColor]
     ) -> PaneTint? {
         if let tabColorOverride {
-            return PaneTint(stops: [tabColorOverride])
+            return PaneTint(stops: [.named(tabColorOverride)])
         }
         guard let dir = surfaceDirectory, let info = GitInfo.from(path: dir) else {
             return nil
         }
         return paneTint(for: info, overrides: repoColorOverrides)
     }
-}
-
-/// Ordered gradient stops for a pane, leading edge to trailing edge. One stop
-/// renders solid, two is a repo's own signature, and three is a worktree
-/// carrying its parent repo's pair ahead of its own color.
-struct PaneTint: Equatable {
-    let stops: [TabColor]
-
-    init(stops: [TabColor]) {
-        self.stops = stops.isEmpty ? [.gray] : stops
-    }
-
-    /// The color to use wherever only one can be shown. Always the trailing
-    /// stop: a repo's own color, or a worktree's own color.
-    var primary: TabColor { stops.last ?? .gray }
-
-    /// The leading stop, used for the tab row's left edge bar.
-    var leading: TabColor { stops.first ?? .gray }
-
-    var isGradient: Bool { stops.count > 1 }
 }

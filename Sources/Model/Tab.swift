@@ -44,7 +44,7 @@ final class Tab: Identifiable {
     }
 
     /// The effective color for this tab. Priority: tab override > repo override > git hash > gray.
-    func effectiveColor(overrides: [String: TabColor] = [:]) -> TabColor {
+    func effectiveColor(overrides: [String: TabColor] = [:]) -> TintStop {
         effectivePaneTint(overrides: overrides).primary
     }
 
@@ -58,7 +58,7 @@ final class Tab: Identifiable {
             tabColorOverride: colorOverride,
             surfaceDirectory: dir,
             repoColorOverrides: overrides
-        ) ?? PaneTint(stops: [.gray])
+        ) ?? PaneTint(stops: [.named(.gray)])
     }
 
     /// Computed metadata for tab display, decoupled from AppKit/Ghostty.

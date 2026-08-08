@@ -193,3 +193,19 @@ extension TabColor {
         }
     }
 }
+
+extension TintStop {
+    /// A named stop resolves through the Ghostty theme palette. A hex stop is
+    /// already literal and renders as given.
+    var swiftUIColor: Color {
+        switch self {
+        case .named(let color): color.swiftUIColor
+        case .hex(let rgb):
+            Color(
+                red: Double(rgb.r) / 255,
+                green: Double(rgb.g) / 255,
+                blue: Double(rgb.b) / 255
+            )
+        }
+    }
+}

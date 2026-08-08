@@ -139,7 +139,7 @@ import Testing
             surfaceDirectory: "/Users/ted/montty",
             repoColorOverrides: [:]
         )
-        #expect(resolved == .red)
+        #expect(resolved == .named(.red))
     }
 
     @Test func noOverrideFallsBackToSurfaceColor() {
@@ -154,7 +154,7 @@ import Testing
             surfaceDirectory: repoDir,
             repoColorOverrides: [:]
         )
-        #expect(resolved == expected)
+        #expect(resolved == expected.map(TintStop.named))
     }
 
     @Test func noOverrideNoRepoReturnsNil() {
@@ -234,7 +234,7 @@ import Testing
             surfaceDirectory: "/anywhere",
             repoColorOverrides: [:]
         )
-        #expect(tint?.primary == .red)
+        #expect(tint?.primary == .named(.red))
         #expect(tint?.stops.count == 1)
         #expect(tint?.isGradient == false)
     }
@@ -285,7 +285,7 @@ import Testing
             surfaceDirectory: fixture.worktree,
             repoColorOverrides: overrides
         )
-        #expect(tint?.leading == .magenta,
+        #expect(tint?.leading == .named(.magenta),
             "a picked parent color collapses the parent signature to that one band")
         #expect(tint?.primary.hueFamily != TabColor.magenta.hueFamily,
             "the worktree's own stop knocks out whatever family the parent used")
@@ -315,7 +315,7 @@ import Testing
             surfaceDirectory: fixture.worktree,
             repoColorOverrides: overrides
         )
-        #expect(worktreeTint?.stops == [.cyan], "a picked color renders solid")
+        #expect(worktreeTint?.stops == [.named(.cyan)], "a picked color renders solid")
         #expect(parentTint == parentWithoutOverrides,
             "worktree override should not bleed into the parent's resolved tint")
     }
@@ -348,7 +348,7 @@ import Testing
 
         let tint = TabColor.paneTint(for: info)
 
-        #expect(tint?.primary == TabColor.colorForGitInfo(info))
+        #expect(tint?.primary == TabColor.colorForGitInfo(info).map(TintStop.named))
         #expect(tint?.primary == tint?.stops.last)
     }
 
@@ -391,7 +391,7 @@ import Testing
             for: repo("montty"), overrides: ["/Users/ted/montty": .cyan]
         )
 
-        #expect(tint?.stops == [.cyan])
+        #expect(tint?.stops == [.named(.cyan)])
         #expect(tint?.isGradient == false)
     }
 
