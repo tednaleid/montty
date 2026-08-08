@@ -2872,13 +2872,18 @@ a usage error and no round trip."
 - Create: `Sources/CLI/main.swift`
 - Modify: `project.yml` (new target, exclude CLI from the app target)
 - Modify: `Sources/App/AppDelegate.swift` (inject `MONTTY_BIN`)
-- Modify: `justfile` (`install-cli`)
-- Modify: `.github/workflows/release.yml` (cask `binary` stanza)
+- Modify: `.github/workflows/release.yml` (drop the jq dependency)
 - Test: manual, end to end
 
 **Interfaces:**
 - Consumes: `ControlArgs`, `ControlRequest`, `ControlResponse` from Tasks 8 and 10.
 - Produces: a `montty` executable at `Montty.app/Contents/MacOS/montty`; `MONTTY_BIN` in every surface's environment.
+
+Distribution needs no symlink. GhosttyKit already appends its own executable
+directory to `PATH` for every shell it spawns, and in montty that directory is
+Montty's own `Contents/MacOS`, so placing the binary there is the whole
+distribution story. `MONTTY_BIN` remains as the fallback for a shell that
+rewrote `PATH`, mirroring upstream's `GHOSTTY_BIN_DIR`.
 
 - [ ] **Step 1: Write the client**
 
@@ -3104,50 +3109,56 @@ Then add one line beside each of the three existing `MONTTY_SOCKET` assignments 
         config.environmentVariables["MONTTY_BIN"] = Self.binPath
 ```
 
-- [ ] **Step 4: Add the install recipe**
+- [ ] **Step 4: Confirm the CLI is already on PATH inside a pane**
 
-In `justfile`:
+No symlink and no PATH edit are needed. GhosttyKit appends its own executable
+directory to `PATH` for every shell it spawns
+(`ghostty/src/termio/Exec.zig:684`), and inside montty `selfExePath` resolves to
+Montty's bundle. Since Step 2 puts the CLI in that same directory, bare `montty`
+resolves in every pane. Verify in a pane:
 
-```make
-# Symlink the dev build's CLI onto PATH for local testing
-install-cli: build
-    #!/usr/bin/env bash
-    set -euo pipefail
-    target="{{build_dir}}/Debug/Montty.app/Contents/MacOS/montty"
-    dest="${HOME}/.local/bin/montty"
-    mkdir -p "$(dirname "$dest")"
-    ln -sf "$target" "$dest"
-    echo "Linked $dest -> $target"
+```bash
+echo "$PATH" | tr ':' '\n' | grep 'Montty.app/Contents/MacOS'
 ```
 
-- [ ] **Step 5: Ship it in the cask**
+Expected: the bundle's `MacOS` directory. Note it is *appended*, so a `montty`
+of the user's own earlier in PATH still wins, which is upstream's deliberate
+choice.
 
-In `.github/workflows/release.yml`, inside the heredoc at line 190, add the binary stanza after `app "Montty.app"` and drop the jq dependency, which the rewritten wrapper stops needing in Task 12:
+Do not add a Homebrew `binary` stanza and do not symlink into `~/.local/bin`.
+Every command needs `$MONTTY_SURFACE_ID`, so a `montty` reachable from outside a
+montty pane can only ever exit 2. The one place it is useful already has it.
+
+- [ ] **Step 5: Drop the jq dependency from the cask**
+
+In `.github/workflows/release.yml`, inside the heredoc at line 190, remove
+`depends_on formula: "jq"`. Task 12 rewrites the shell wrapper so `jq` is no
+longer needed at runtime. Leave the rest of the cask alone:
 
 ```ruby
             depends_on macos: :tahoe
 
             app "Montty.app"
-            binary "#{appdir}/Montty.app/Contents/MacOS/montty"
 ```
 
 - [ ] **Step 6: Verify end to end**
 
 ```bash
 just generate && just check && just run-bg
-just inspect-type 'echo $MONTTY_BIN' && just inspect-key return
+just inspect-type 'command -v montty; echo "bin=$MONTTY_BIN"' && just inspect-key return
 sleep 1
-just inspect-screen | jq -r .text | tail -3
+just inspect-screen | jq -r .text | tail -4
 ```
 
-Expected: an absolute path ending in `Montty.app/Contents/MacOS/montty`.
+Expected: `command -v montty` resolves inside the bundle without any symlink,
+proving the inherited PATH append, and `bin=` shows the absolute fallback path.
 
 ```bash
-just inspect-type '$MONTTY_BIN tab color neutralBright,green' && just inspect-key return
+just inspect-type 'montty tab color neutralBright,green' && just inspect-key return
 sleep 1
-just inspect-type '$MONTTY_BIN tab name "MR !123 fix auth"' && just inspect-key return
+just inspect-type 'montty tab name "MR !123 fix auth"' && just inspect-key return
 sleep 1
-just inspect-type '$MONTTY_BIN info | jq -r .tab_name' && just inspect-key return
+just inspect-type 'montty info | jq -r .tab_name' && just inspect-key return
 sleep 1
 just inspect-screen | jq -r .text | tail -5
 ```
@@ -3155,9 +3166,9 @@ just inspect-screen | jq -r .text | tail -5
 Expected: the tab is a white-to-green gradient, its sidebar name reads `MR !123 fix auth`, and `info` echoes that name back.
 
 ```bash
-just inspect-type '$MONTTY_BIN tab color chartreuse; echo "exit=$?"' && just inspect-key return
+just inspect-type 'montty tab color chartreuse; echo "exit=$?"' && just inspect-key return
 sleep 1
-just inspect-type '$MONTTY_BIN tab color --reset; echo "exit=$?"' && just inspect-key return
+just inspect-type 'montty tab color --reset; echo "exit=$?"' && just inspect-key return
 sleep 1
 just inspect-screen | jq -r .text | tail -8
 just stop
@@ -3173,14 +3184,29 @@ Also confirm the CLI refuses to act outside a pane:
 
 Expected: `montty: not running inside a montty pane` and `exit=2`.
 
+Finally, confirm the bundle still signs as a unit with a second executable in
+`Contents/MacOS`. The release workflow re-signs with `codesign --force --deep`
+(`.github/workflows/release.yml:111`), which recurses into nested executables,
+but verify the seal locally rather than discovering it at notarization:
+
+```bash
+codesign --force --deep --sign - /tmp/montty-build/Debug/Montty.app
+codesign --verify --deep --strict --verbose=2 /tmp/montty-build/Debug/Montty.app
+```
+
+Expected: `valid on disk` and `satisfies its Designated Requirement`. If the
+nested binary is rejected, replace the `cp` in the post-build script with an
+Xcode Copy Files phase targeting `Executables`, which signs what it embeds.
+
 - [ ] **Step 7: Commit**
 
 ```bash
 git add -A
 git commit -m "feat: ship the montty CLI inside the app bundle
 
-MONTTY_BIN gives every pane an absolute path to the binary, and the cask
-puts it on PATH for everything else."
+GhosttyKit already appends the running bundle's MacOS directory to PATH for
+every shell it spawns, so dropping the binary there is the whole
+distribution story. MONTTY_BIN is the fallback for a rewritten PATH."
 ```
 
 ---
@@ -3268,7 +3294,7 @@ Expected: `0`.
 - [ ] **Step 3: Verify the generic status verb**
 
 ```bash
-just inspect-type '$MONTTY_BIN surface status waiting' && just inspect-key return
+just inspect-type 'montty surface status waiting' && just inspect-key return
 sleep 1
 just inspect-surfaces | jq '.[] | select(.activity) | .activity'
 ```
@@ -3276,7 +3302,7 @@ just inspect-surfaces | jq '.[] | select(.activity) | .activity'
 Expected: a `waiting` state on the focused surface.
 
 ```bash
-just inspect-type '$MONTTY_BIN surface status clear' && just inspect-key return
+just inspect-type 'montty surface status clear' && just inspect-key return
 sleep 1
 just inspect-surfaces | jq '[.[] | select(.activity)] | length'
 just stop
@@ -3292,8 +3318,13 @@ Create `docs/montty-cli.md`:
 # montty CLI
 
 `montty` restyles the terminal surface and tab it runs in. It ships inside the
-app bundle and is on PATH via the Homebrew cask; every montty pane also gets
-`MONTTY_BIN` pointing at it by absolute path.
+app bundle, and montty appends that bundle directory to `PATH` for every shell
+it spawns, so `montty` resolves in any montty pane with no install step. Panes
+also get `MONTTY_BIN` pointing at it by absolute path, for scripts that rewrite
+`PATH`.
+
+It only works from inside a montty pane. Run it anywhere else and it exits 2,
+because there is no surface for it to act on.
 
 ## Commands
 
@@ -3389,7 +3420,7 @@ any long-running command."
 | Scopes and precedence | 3, 4 |
 | Socket location and `MONTTY_SOCKET` | 9 |
 | Wire format and protocol versioning | 8 |
-| The binary, `MONTTY_BIN`, cask, `install-cli` | 11 |
+| The binary, `MONTTY_BIN`, inherited PATH append | 11 |
 | CLI grammar and exit codes | 10, 11 |
 | Claude fold-in and `montty surface status` | 12 |
 | `ActivityStatus` rename | 1 |
