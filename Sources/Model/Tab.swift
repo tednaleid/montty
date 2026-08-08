@@ -10,7 +10,7 @@ final class Tab: Identifiable {
     var focusedLeafID: UUID?
     /// Per-surface terminal titles, keyed by surfaceID.
     var surfaceTitles: [UUID: String] = [:]
-    /// Per-surface Claude Code state, keyed by MONTTY_SURFACE_ID.
+    /// Per-surface activity state populated by hook events, keyed by MONTTY_SURFACE_ID.
     var activityStates: [String: ActivityStatus.State] = [:]
     /// Timestamps for when each surface entered `.waiting`, keyed by MONTTY_SURFACE_ID.
     /// Used for the timeout sweep that clears stuck `*?` indicators.

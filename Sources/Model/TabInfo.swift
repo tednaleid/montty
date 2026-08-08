@@ -71,7 +71,7 @@ struct TabInfo: Equatable {
     }
 }
 
-/// Claude Code status for a terminal pane.
+/// Activity state for a terminal pane, populated by hook events routed by MONTTY_SURFACE_ID.
 struct ActivityStatus: Equatable {
     let sessionName: String
     let state: State
@@ -93,7 +93,7 @@ struct TabProperties: Equatable {
     var surfaceDirectories: [UUID: String] = [:]
     /// Per-surface terminal titles, keyed by surfaceID.
     var surfaceTitles: [UUID: String] = [:]
-    /// Per-surface Claude Code state from hooks, keyed by MONTTY_SURFACE_ID.
+    /// Per-surface activity state populated by hook events, keyed by MONTTY_SURFACE_ID.
     var activityStates: [String: ActivityStatus.State] = [:]
     /// Maps Ghostty surfaceID -> MONTTY_SURFACE_ID.
     var surfaceToMonttyID: [UUID: String] = [:]

@@ -20,7 +20,7 @@ struct SplitMinimap: Equatable {
 
     /// Compute minimap layout from a split tree.
     /// Produces normalized 0-1 rects for each leaf pane.
-    /// Surface titles are used to detect Claude Code per-pane.
+    /// Surface titles are used to label activity state on each pane.
     static func from(
         node: SplitNode,
         focusedLeafID: UUID?,
@@ -51,18 +51,18 @@ struct SplitMinimap: Equatable {
     ) {
         switch node {
         case .leaf(let leaf):
-            // Claude state comes exclusively from hook events routed by MONTTY_SURFACE_ID.
-            let claude: ActivityStatus?
+            // Activity state comes from hook events routed by MONTTY_SURFACE_ID.
+            let activity: ActivityStatus?
             if let monttyID = ctx.surfaceToMonttyID[leaf.surfaceID],
                let hookState = ctx.activityStates[monttyID] {
                 let sessionName = ctx.surfaceTitles[leaf.surfaceID] ?? "Claude Code"
-                claude = ActivityStatus(sessionName: sessionName, state: hookState)
+                activity = ActivityStatus(sessionName: sessionName, state: hookState)
             } else {
-                claude = nil
+                activity = nil
             }
             panes.append(MinimapPane(
                 leafID: leaf.id, surfaceID: leaf.surfaceID, rect: rect,
-                isFocused: leaf.id == ctx.focusedLeafID, activity: claude
+                isFocused: leaf.id == ctx.focusedLeafID, activity: activity
             ))
         case .split(let branch):
             let ratio = Double(branch.ratio)
