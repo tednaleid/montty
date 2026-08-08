@@ -123,6 +123,7 @@ targets:
     platform: macOS
     sources:
       - path: Tests
+      - path: Sources/Control
       - path: Sources/Model
       - path: Sources/Persistence
     settings:

@@ -9,6 +9,9 @@ identifier_name:
   excluded:
     - id
     - up
+    - r
+    - g
+    - b
 
 type_body_length:
   warning: 450

@@ -53,25 +53,6 @@ extension TabColor {
         return gitInfo.repoPath + (gitInfo.worktreeName ?? "")
     }
 
-    /// Hue families collapse each base/bright pair, which read as one color at a
-    /// glance. Knockout removes a whole family so a gradient never sets green
-    /// beside brightGreen.
-    enum HueFamily: Hashable {
-        case red, green, yellow, blue, magenta, cyan, neutral
-    }
-
-    var hueFamily: HueFamily {
-        switch self {
-        case .red, .brightRed: .red
-        case .green, .brightGreen: .green
-        case .yellow, .brightYellow: .yellow
-        case .blue, .brightBlue: .blue
-        case .magenta, .brightMagenta: .magenta
-        case .cyan, .brightCyan: .cyan
-        case .neutral, .neutralBright, .gray: .neutral
-        }
-    }
-
     /// FNV-1a, independent of the polynomial hash behind `colorForGitInfo`, so a
     /// repo's two stops are uncorrelated.
     private static func mixedHash(_ identity: String) -> UInt64 {
