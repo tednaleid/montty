@@ -121,6 +121,12 @@ enum HookServer {
     private static func handleConnection(_ clientFD: Int32) {
         defer { close(clientFD) }
 
+        // Bounds how long a connection that opens but sends nothing can hold
+        // a handler thread in read(). Without this, enough silent
+        // connections exhaust the handler pool and block hook delivery.
+        var timeout = timeval(tv_sec: 2, tv_usec: 0)
+        setsockopt(clientFD, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+
         var buffer = [UInt8](repeating: 0, count: 65_536)
         let bytesRead = read(clientFD, &buffer, buffer.count)
         guard bytesRead > 0 else { return }
@@ -170,6 +176,10 @@ enum HookServer {
         }
 
         if semaphore.wait(timeout: .now() + 2) == .timedOut {
+            // The queued main-thread block still holds a reference to
+            // `response` and may write it after this point, so the timeout
+            // path must return a fresh value rather than reading the
+            // variable it could race with.
             return .failure("montty did not respond")
         }
         return response

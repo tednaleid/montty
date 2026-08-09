@@ -110,7 +110,7 @@ extension DebugServer {
         var entry: [String: Any] = [
             "id": leaf.surfaceID.uuidString,
             "leaf_id": leaf.id.uuidString,
-            "montty_surface_id": tab.surfaceToMonttyID[leaf.surfaceID] ?? "",
+            "montty_surface_id": NSNull(),
             "tab_id": tab.id.uuidString,
             "tab_name": info.displayName,
             "tab_position": tab.position,
@@ -120,6 +120,9 @@ extension DebugServer {
             "split_count": info.splitCount,
             "color": colorEntry(leaf: leaf, tab: tab, appDelegate: appDelegate)
         ]
+        if let monttyID = tab.surfaceToMonttyID[leaf.surfaceID] {
+            entry["montty_surface_id"] = monttyID
+        }
         if let dirName = info.directoryName {
             entry["directory_name"] = dirName
         }
