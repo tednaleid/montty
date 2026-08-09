@@ -110,6 +110,7 @@ extension DebugServer {
         var entry: [String: Any] = [
             "id": leaf.surfaceID.uuidString,
             "leaf_id": leaf.id.uuidString,
+            "montty_surface_id": tab.surfaceToMonttyID[leaf.surfaceID] ?? "",
             "tab_id": tab.id.uuidString,
             "tab_name": info.displayName,
             "tab_position": tab.position,

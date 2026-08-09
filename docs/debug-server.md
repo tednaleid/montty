@@ -30,6 +30,7 @@ Response:
   {
     "id": "A1B2C3D4-...",
     "leaf_id": "E5F6A7B8-...",
+    "montty_surface_id": "F1E2D3C4-...",
     "tab_id": "C9D0E1F2-...",
     "tab_name": "montty",
     "tab_position": 0,
@@ -74,6 +75,8 @@ older, tab-wide field kept for existing callers -- it always matches the
 `color.effective` of the tab's currently focused surface.
 
 `focused_in_tab` is montty's model state: which pane a given tab will focus when that tab becomes active. It can be true for several surfaces at once, one per tab. `focused` is what libghostty believes: it is true for at most one surface across the entire app, and false for every surface while the montty window is not key. The `directory_name`, `git`, and `activity` keys appear only when they apply to the surface; `color` is always present.
+
+`id` is the Ghostty surface UUID, montty's own internal handle. `montty_surface_id` is the value exported to each pane as `MONTTY_SURFACE_ID` -- it is what the hook socket (`hook.sock`) addresses, and what a shell inside the pane can read to identify itself. The two are different identifiers for the same surface; use `montty_surface_id` when scripting requests against the socket.
 
 ### POST /type
 

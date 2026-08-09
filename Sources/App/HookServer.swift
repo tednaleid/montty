@@ -106,21 +106,73 @@ enum HookServer {
         unlink(socketPath)
     }
 
+    private static let handlerQueue = DispatchQueue(
+        label: "montty.hookserver.handler", attributes: .concurrent
+    )
+
     private static func acceptLoop() {
         while running {
             let clientFD = accept(serverFD, nil, nil)
             guard clientFD >= 0 else { break }
+            handlerQueue.async { handleConnection(clientFD) }
+        }
+    }
 
-            // Read data from client
-            var buffer = [UInt8](repeating: 0, count: 65_536)
-            let bytesRead = read(clientFD, &buffer, buffer.count)
-            close(clientFD)
+    private static func handleConnection(_ clientFD: Int32) {
+        defer { close(clientFD) }
 
-            if bytesRead > 0 {
-                let body = String(bytes: buffer[..<bytesRead], encoding: .utf8) ?? ""
-                processHook(body)
+        var buffer = [UInt8](repeating: 0, count: 65_536)
+        let bytesRead = read(clientFD, &buffer, buffer.count)
+        guard bytesRead > 0 else { return }
+        let data = Data(buffer[..<bytesRead])
+
+        let response: ControlResponse
+        do {
+            let request = try ControlRequest.decode(data)
+            response = applyOnMain(request)
+        } catch ControlRequest.DecodeFailure.legacyHook {
+            processHook(String(bytes: data, encoding: .utf8) ?? "")
+            return
+        } catch ControlRequest.DecodeFailure.unsupportedVersion {
+            response = .failure("montty CLI is newer than the app")
+        } catch {
+            response = .failure("malformed request")
+        }
+
+        if let out = try? response.encoded() {
+            out.withUnsafeBytes { _ = write(clientFD, $0.baseAddress, $0.count) }
+        }
+    }
+
+    /// Model mutation happens on main. A 2s ceiling keeps a wedged main thread
+    /// from pinning a handler thread forever.
+    private static func applyOnMain(_ request: ControlRequest) -> ControlResponse {
+        let semaphore = DispatchSemaphore(value: 0)
+        var response: ControlResponse = .failure("montty did not respond")
+
+        DispatchQueue.main.async {
+            defer { semaphore.signal() }
+            guard let appDelegate = findAppDelegate(),
+                  let tab = appDelegate.tabStore.tabs.first(where: { tab in
+                      tab.surfaceToMonttyID.values.contains(request.surface)
+                  }),
+                  let surfaceID = tab.surfaceToMonttyID.first(
+                      where: { $0.value == request.surface }
+                  )?.key else {
+                response = .failure(ControlError.unknownSurface.rawValue)
+                return
+            }
+            switch appDelegate.applyControl(request.command, to: tab, surfaceID: surfaceID) {
+            case .applied: response = .ok
+            case .read(let info): response = .info(info)
+            case .rejected(let error): response = .failure(error.rawValue)
             }
         }
+
+        if semaphore.wait(timeout: .now() + 2) == .timedOut {
+            return .failure("montty did not respond")
+        }
+        return response
     }
 
     /// Parse a hook JSON message and update tab state.
