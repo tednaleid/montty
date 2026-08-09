@@ -8,12 +8,16 @@ also get `MONTTY_BIN` pointing at it by absolute path, for scripts that rewrite
 
 Most commands only work from inside a montty pane -- run one anywhere else and
 it exits 2, because there is no surface for it to act on. Two exceptions:
-`montty --version` prints the version and exits 0 from anywhere, and
+`montty --version` and `montty --help` print and exit 0 from anywhere, and
 `montty hook <event>` also exits 0 outside a pane, since a hook firing there
-is normal, not an error. A recognized scope or verb followed by a bad
-property, value, or color exits 64. An unrecognized first argument, including
-none at all, is not treated as a montty invocation -- it launches the GUI
-instead.
+is normal, not an error.
+
+Anything montty cannot parse exits 64 and prints the usage text: a bad
+property, value, or color; a mistyped verb such as `montty tabb color green`;
+and an argument past the end of a command, so `montty tab name MR 123` is an
+error rather than a tab named `MR`. The GUI launches only with no arguments at
+all, or with a flag montty does not define, which is how macOS starts the app
+(`-psn_0_12345`, `-NSDocumentRevisionsDebugMode`).
 
 ## Commands
 
@@ -25,6 +29,7 @@ montty tab     name  <text>          montty tab     name  --reset
 montty surface status <working|waiting|idle|clear>
 montty info
 montty --version
+montty --help
 ```
 
 `<spec>` is 1 to 3 comma-separated stops rendered as a left-to-right gradient.
@@ -63,7 +68,7 @@ montty info | jq -r .git.branch
 | 1 | montty rejected the request (unknown surface, not in a repo) |
 | 2 | not running inside a montty pane |
 | 3 | montty is not running |
-| 64 | usage error: bad color spec or unknown property |
+| 64 | usage error: unknown verb or property, bad color spec, extra arguments |
 
 ## Activity status
 

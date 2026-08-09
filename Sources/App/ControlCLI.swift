@@ -11,6 +11,10 @@ enum ControlCLI {
             print(version())
             exit(ExitCode.ok.rawValue)
         }
+        if case .help = invocation {
+            print(ControlArgs.usage)
+            exit(ExitCode.ok.rawValue)
+        }
 
         let environment = ProcessInfo.processInfo.environment
         guard let surface = environment["MONTTY_SURFACE_ID"], !surface.isEmpty else {
@@ -24,8 +28,8 @@ enum ControlCLI {
             ?? NSTemporaryDirectory() + "montty-hook.sock"
 
         switch invocation {
-        case .version:
-            fatalError("version already exited above; no surface is required for it")
+        case .version, .help:
+            fatalError("version and help already exited above; neither needs a surface")
         case .hook(let event):
             runHook(event: event, surface: surface, socketPath: socketPath)
         case .control(let command):
@@ -56,6 +60,8 @@ enum ControlCLI {
             case .missingValue(let value): detail = "\(value) needs a value"
             case .badColor(let value): detail = "not a color: \"\(value)\" (use a palette name or #rrggbb)"
             case .tooManyStops: detail = "at most \(PaneTint.maxStops) comma-separated stops"
+            case .unexpectedArgument(let value):
+                detail = "unexpected argument \"\(value)\"; quote a value that contains spaces"
             }
             fail("\(detail)\n\n\(ControlArgs.usage)", .usage)
         }

@@ -8,6 +8,7 @@ enum ParsedInvocation: Equatable {
     /// A Claude Code hook event name, forwarded on the legacy wire format.
     case hook(String)
     case version
+    case help
 }
 
 enum ExitCode: Int32 {
@@ -28,6 +29,7 @@ enum ControlArgs {
         case missingValue(String)
         case badColor(String)
         case tooManyStops
+        case unexpectedArgument(String)
     }
 
     static let usage = """
@@ -41,25 +43,27 @@ enum ControlArgs {
           montty hook <event>
           montty info
           montty --version                 montty -v
+          montty --help                    montty -h
 
         <spec> is 1 to 3 comma-separated stops. A stop is a palette name
         (green, brightMagenta, neutralBright) or a six-digit hex value with
         or without a leading #.
         """
 
-    /// True when the first argument is one montty itself understands --
-    /// a scope, a top-level verb, or a version flag -- rather than something
-    /// else entirely: a macOS launch argument, a typo, or nothing at all.
-    /// Unrecognized input falls through to the GUI, so a launch flag this
-    /// doesn't know about still launches normally.
+    /// Flags montty answers itself. Every other flag belongs to macOS.
+    private static let ownFlags: Set<String> = ["--version", "-v", "--help", "-h"]
+
+    /// True when montty should handle these arguments as a command rather than
+    /// launch the GUI. Any first argument that is not a flag is montty's own
+    /// grammar, so a mistyped verb becomes a usage error instead of a second
+    /// app instance fighting the first over the socket and the session file.
+    /// Flags montty does not define are macOS launch arguments
+    /// (`-psn_0_12345`, `-NSDocumentRevisionsDebugMode`), and those launch the
+    /// GUI, as does an empty argument list.
     static func isInvocation(_ arguments: [String]) -> Bool {
         guard let first = arguments.first else { return false }
-        switch first {
-        case "--version", "-v", "info", "hook":
-            return true
-        default:
-            return ControlScope(rawValue: first) != nil
-        }
+        guard first.hasPrefix("-") else { return true }
+        return ownFlags.contains(first)
     }
 
     static func parse(_ arguments: [String]) -> Result<ParsedInvocation, UsageError> {
@@ -73,6 +77,7 @@ enum ControlArgs {
             return .failure(.unknownScope(first))
         }
         guard arguments.count >= 2 else { return .failure(.missingValue("property")) }
+        if arguments.count > 3 { return .failure(.unexpectedArgument(arguments[3])) }
         let property = arguments[1]
         let value = arguments.count >= 3 ? arguments[2] : nil
 
@@ -96,15 +101,28 @@ enum ControlArgs {
     ) -> Result<ParsedInvocation, UsageError>? {
         switch first {
         case "--version", "-v":
-            return .success(.version)
+            return exactly(1, of: arguments, is: .version)
+        case "--help", "-h":
+            return exactly(1, of: arguments, is: .help)
         case "info":
-            return .success(.control(.info))
+            return exactly(1, of: arguments, is: .control(.info))
         case "hook":
             guard arguments.count >= 2 else { return .failure(.missingValue("hook")) }
-            return .success(.hook(arguments[1]))
+            return exactly(2, of: arguments, is: .hook(arguments[1]))
         default:
             return nil
         }
+    }
+
+    /// Every invocation has a fixed arity. An argument past it means the caller
+    /// left a value unquoted, and parsing the prefix would silently apply a
+    /// different command than the one they typed.
+    private static func exactly(
+        _ count: Int, of arguments: [String], is invocation: ParsedInvocation
+    ) -> Result<ParsedInvocation, UsageError> {
+        arguments.count > count
+            ? .failure(.unexpectedArgument(arguments[count]))
+            : .success(invocation)
     }
 
     private static func parseColor(

@@ -99,20 +99,48 @@ import Testing
         #expect(failure(["repo"]) == .missingValue("property"))
     }
 
+    @Test func aMistypedVerbIsAUsageErrorRatherThanALaunch() {
+        #expect(failure(["nope"]) == .unknownScope("nope"))
+        #expect(failure(["tabb", "color", "green"]) == .unknownScope("tabb"))
+        #expect(failure(["tab-color", "green"]) == .unknownScope("tab-color"))
+    }
+
+    @Test func parsesHelpFlags() {
+        guard case .success(.help) = ControlArgs.parse(["--help"]),
+              case .success(.help) = ControlArgs.parse(["-h"]) else {
+            Issue.record("expected help")
+            return
+        }
+    }
+
+    @Test func rejectsArgumentsBeyondAnInvocationsArity() {
+        #expect(failure(["tab", "name", "MR", "123", "fix", "auth"]) == .unexpectedArgument("123"))
+        #expect(failure(["tab", "name", "--reset", "extra"]) == .unexpectedArgument("extra"))
+        #expect(failure(["surface", "color", "green", "ignored"]) == .unexpectedArgument("ignored"))
+        #expect(failure(["info", "extra"]) == .unexpectedArgument("extra"))
+        #expect(failure(["--version", "extra"]) == .unexpectedArgument("extra"))
+        #expect(failure(["--help", "extra"]) == .unexpectedArgument("extra"))
+        #expect(failure(["hook", "stop", "extra"]) == .unexpectedArgument("extra"))
+    }
+
     @Test func classifiesLaunchArgumentsVersusCLIInvocations() {
         let cases: [(arguments: [String], isCLI: Bool)] = [
             ([], false),
-            (["-psn_0_123456"], false),
+            (["-psn_0_12345"], false),
             (["-NSDocumentRevisionsDebugMode", "YES"], false),
             (["-AppleLanguages", "(en)"], false),
             (["-NSTreatUnknownArgumentsAsOpen", "NO"], false),
+            (["--frobnicate"], false),
             (["-v"], true),
             (["--version"], true),
-            (["tab", "color", "green"], true),
+            (["-h"], true),
+            (["--help"], true),
             (["info"], true),
             (["hook", "stop"], true),
-            (["frobnicate"], false),
-            (["--frobnicate"], false)
+            (["surface", "color", "green"], true),
+            (["tabb", "color", "green"], true),
+            (["tab-color", "green"], true),
+            (["nope"], true)
         ]
         for testCase in cases {
             #expect(
