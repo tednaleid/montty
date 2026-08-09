@@ -12,6 +12,7 @@ identifier_name:
     - r
     - g
     - b
+    - ok
 
 type_body_length:
   warning: 450
