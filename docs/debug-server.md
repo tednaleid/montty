@@ -40,12 +40,31 @@ Response:
     "split_count": 1,
     "title": "zsh",
     "pwd": "/Users/ted/montty",
-    "size": {"rows": 24, "cols": 80, "width_px": 1200, "height_px": 800}
+    "size": {"rows": 24, "cols": 80, "width_px": 1200, "height_px": 800},
+    "color": {
+      "effective": ["neutralBright", "#1a7f37"],
+      "source": "surface",
+      "surface_override": ["#1a7f37"],
+      "tab_override": null,
+      "repo_override": {"identity": "/Users/ted/montty", "stops": ["cyan"]}
+    }
   }
 ]
 ```
 
-`focused_in_tab` is montty's model state: which pane a given tab will focus when that tab becomes active. It can be true for several surfaces at once, one per tab. `focused` is what libghostty believes: it is true for at most one surface across the entire app, and false for every surface while the montty window is not key. The `directory_name`, `git`, and `activity` keys appear only when they apply to the surface.
+`color` describes what is actually painted for that specific surface, not the
+tab as a whole -- two panes in the same split can report different `color`
+objects. `effective` is the full ordered stop list as rendered (palette name
+or `#rrggbb`), always an array even when it is a single stop. `source` names
+the scope that won -- `surface`, `tab`, `repo`, `git`, or `none` -- checked in
+that precedence order. `surface_override`, `tab_override`, and
+`repo_override` report the raw override for each scope, or `null` when that
+scope has nothing set; `repo_override` also carries the repo/worktree
+`identity` the override is keyed on. `tab_color` at the top level is the
+older, tab-wide field kept for existing callers -- it always matches the
+`color.effective` of the tab's currently focused surface.
+
+`focused_in_tab` is montty's model state: which pane a given tab will focus when that tab becomes active. It can be true for several surfaces at once, one per tab. `focused` is what libghostty believes: it is true for at most one surface across the entire app, and false for every surface while the montty window is not key. The `directory_name`, `git`, and `activity` keys appear only when they apply to the surface; `color` is always present.
 
 ### POST /type
 

@@ -113,10 +113,11 @@ extension DebugServer {
             "tab_id": tab.id.uuidString,
             "tab_name": info.displayName,
             "tab_position": tab.position,
-            "tab_color": tab.effectiveColor().text,
+            "tab_color": tab.effectiveColor(overrides: appDelegate.repoColorOverrides).text,
             "active": isActiveTab,
             "focused_in_tab": leaf.id == tab.focusedLeafID,
-            "split_count": info.splitCount
+            "split_count": info.splitCount,
+            "color": colorEntry(leaf: leaf, tab: tab, appDelegate: appDelegate)
         ]
         if let dirName = info.directoryName {
             entry["directory_name"] = dirName
