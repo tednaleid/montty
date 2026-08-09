@@ -134,6 +134,7 @@ struct ControlRequest: Equatable {
 }
 
 enum ControlResponse {
+    // swiftlint:disable:next identifier_name
     case ok
     case failure(String)
     case info(ControlInfo)

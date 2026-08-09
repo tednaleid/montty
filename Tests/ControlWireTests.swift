@@ -69,6 +69,42 @@ import Testing
         }
     }
 
+    @Test func aMissingValueKeyIsMalformed() {
+        let color = Data("""
+        {"v":1,"cmd":"set","surface":"M1","scope":"tab","prop":"color"}
+        """.utf8)
+        #expect(throws: ControlRequest.DecodeFailure.malformed) {
+            try ControlRequest.decode(color)
+        }
+
+        let name = Data("""
+        {"v":1,"cmd":"set","surface":"M1","prop":"name"}
+        """.utf8)
+        #expect(throws: ControlRequest.DecodeFailure.malformed) {
+            try ControlRequest.decode(name)
+        }
+    }
+
+    @Test func rejectsMoreThanMaxStops() {
+        let json = Data("""
+        {"v":1,"cmd":"set","surface":"M1","scope":"tab","prop":"color",
+         "value":["red","green","blue","cyan"]}
+        """.utf8)
+        #expect(throws: ControlRequest.DecodeFailure.malformed) {
+            try ControlRequest.decode(json)
+        }
+    }
+
+    @Test func rejectsAnUnparseableStop() {
+        let json = Data("""
+        {"v":1,"cmd":"set","surface":"M1","scope":"tab","prop":"color",
+         "value":["green","chartreuse"]}
+        """.utf8)
+        #expect(throws: ControlRequest.DecodeFailure.malformed) {
+            try ControlRequest.decode(json)
+        }
+    }
+
     @Test func requestRoundTripsThroughEncoding() throws {
         let request = ControlRequest(
             surface: "M1",
@@ -79,9 +115,24 @@ import Testing
         #expect(decoded.surface == "M1")
     }
 
+    @Test func otherCommandShapesRoundTripThroughEncoding() throws {
+        let commands: [ControlCommand] = [
+            .setName("MR !123"),
+            .clearName,
+            .setStatus(.waiting),
+            .clearColor(scope: .surface)
+        ]
+        for command in commands {
+            let request = ControlRequest(surface: "M1", command: command)
+            let decoded = try ControlRequest.decode(try request.encoded())
+            #expect(decoded.command == command)
+            #expect(decoded.surface == "M1")
+        }
+    }
+
     @Test func encodesResponses() throws {
-        let ok = String(data: try ControlResponse.ok.encoded(), encoding: .utf8)
-        #expect(ok == "{\"ok\":true}")
+        let okBody = String(data: try ControlResponse.ok.encoded(), encoding: .utf8)
+        #expect(okBody == "{\"ok\":true}")
 
         let failure = try ControlResponse.failure("unknown surface").encoded()
         let parsed = try JSONSerialization.jsonObject(with: failure) as? [String: Any]
