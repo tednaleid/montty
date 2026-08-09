@@ -65,3 +65,25 @@ struct TabSnapshot: Codable {
     /// Tab-level color override, if set.
     var colorOverride: PaneTint?
 }
+
+extension TabSnapshot {
+    /// The synthesized decoder would require every key, including
+    /// `leafColorOverrides`, because Swift's `Decodable` synthesis ignores a
+    /// property's default value and always emits `decode` instead of
+    /// `decodeIfPresent`. A hand-written decoder is required so a session
+    /// written before this field existed still loads. Kept in an extension so
+    /// the memberwise initializer stays available for callers and tests.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        tabID = try container.decode(UUID.self, forKey: .tabID)
+        name = try container.decode(String.self, forKey: .name)
+        position = try container.decode(Int.self, forKey: .position)
+        focusedLeafID = try container.decodeIfPresent(UUID.self, forKey: .focusedLeafID)
+        splitLayout = try container.decode(SplitNode.self, forKey: .splitLayout)
+        leafDirectories = try container.decode([UUID: String].self, forKey: .leafDirectories)
+        leafColorOverrides = try container.decodeIfPresent(
+            [UUID: PaneTint].self, forKey: .leafColorOverrides
+        ) ?? [:]
+        colorOverride = try container.decodeIfPresent(PaneTint.self, forKey: .colorOverride)
+    }
+}

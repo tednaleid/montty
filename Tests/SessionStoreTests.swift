@@ -14,6 +14,7 @@ import Testing
 
     @Test func loadsAV2SessionWithBareStringColors() throws {
         let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
         let json = """
         {"version":2,"windowX":0,"windowY":0,"windowWidth":100,"windowHeight":100,
          "activeTabID":null,"tabs":[],"repoColorOverrides":{"/repo":"green"}}
@@ -26,17 +27,26 @@ import Testing
 
     @Test func refusesASessionFromANewerVersion() throws {
         let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
         let json = """
         {"version":99,"windowX":0,"windowY":0,"windowWidth":100,"windowHeight":100,
          "activeTabID":null,"tabs":[]}
         """
         try Data(json.utf8).write(to: dir.appendingPathComponent("session.json"))
 
-        #expect(SessionStore(directory: dir).load() == nil)
+        let store = SessionStore(directory: dir)
+        #expect(store.load() == nil)
+        store.save(snapshot: SessionSnapshot(tabs: []))
+
+        let backup = dir.appendingPathComponent("session.v99.json")
+        #expect(FileManager.default.fileExists(atPath: backup.path))
+        let backedUp = try String(contentsOf: backup, encoding: .utf8)
+        #expect(backedUp == json)
     }
 
     @Test func quarantinesAnUnparseableFileInsteadOfOverwritingIt() throws {
         let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
         let path = dir.appendingPathComponent("session.json")
         try Data("{ not json".utf8).write(to: path)
 
@@ -57,6 +67,7 @@ import Testing
 
     @Test func backsUpThePreviousFileWhenTheVersionChanges() throws {
         let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
         let json = """
         {"version":2,"windowX":0,"windowY":0,"windowWidth":100,"windowHeight":100,
          "activeTabID":null,"tabs":[]}
@@ -73,6 +84,7 @@ import Testing
 
     @Test func roundTripsGradientOverrides() throws {
         let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
         let store = SessionStore(directory: dir)
         let tint = PaneTint(stops: [.named(.neutralBright), .hex(RGB(r: 0x1A, g: 0x7F, b: 0x37))])
         store.save(snapshot: SessionSnapshot(
@@ -83,6 +95,7 @@ import Testing
 
     @Test func saveAndLoadRoundTrip() throws {
         let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
         let store = SessionStore(directory: dir)
         let leafID = UUID()
         let snapshot = SessionSnapshot(
@@ -110,8 +123,9 @@ import Testing
     }
 
     @Test func loadFromEmptyDirectoryReturnsNil() throws {
-        let store = SessionStore(directory: tempDir())
-        let result = store.load()
+        let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let result = SessionStore(directory: dir).load()
         #expect(result == nil)
     }
 

@@ -195,4 +195,32 @@ struct SessionSnapshotTests {
         #expect(decoded.tabs[0].leafColorOverrides[leafID] == tint)
         #expect(decoded.version == 3)
     }
+
+    @Test func decodesAV2TabMissingLeafColorOverrides() throws {
+        let tabID = UUID()
+        let leafID = UUID()
+        let surfaceID = UUID()
+        let json = """
+        {"version":2,"windowX":0,"windowY":0,"windowWidth":800,"windowHeight":600,
+         "activeTabID":"\(tabID)","tabs":[
+           {"tabID":"\(tabID)","name":"review","position":0,
+            "focusedLeafID":"\(leafID)",
+            "splitLayout":{"type":"leaf","leaf":{"id":"\(leafID)","surfaceID":"\(surfaceID)"}},
+            "leafDirectories":["\(leafID)","/tmp/review"],
+            "colorOverride":"blue"}
+         ]}
+        """
+
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: Data(json.utf8))
+
+        #expect(decoded.tabs.count == 1)
+        #expect(decoded.tabs[0].name == "review")
+        guard case .leaf(let leaf) = decoded.tabs[0].splitLayout else {
+            Issue.record("Expected leaf split layout")
+            return
+        }
+        #expect(leaf.id == leafID)
+        #expect(decoded.tabs[0].leafColorOverrides.isEmpty)
+        #expect(decoded.tabs[0].colorOverride == PaneTint(stops: [.named(.blue)]))
+    }
 }

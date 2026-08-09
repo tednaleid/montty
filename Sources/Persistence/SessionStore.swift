@@ -79,8 +79,12 @@ final class SessionStore {
             let stamp = Int(Date().timeIntervalSince1970)
             let quarantine = directory
                 .appendingPathComponent("session.corrupt-\(stamp).json")
-            try? FileManager.default.moveItem(at: fileURL, to: quarantine)
-            Self.logger.error("Quarantined unreadable session at \(quarantine.path)")
+            do {
+                try FileManager.default.moveItem(at: fileURL, to: quarantine)
+                Self.logger.error("Quarantined unreadable session at \(quarantine.path)")
+            } catch {
+                Self.logger.error("Failed to quarantine unreadable session at \(self.fileURL.path): \(error)")
+            }
         case .readable(let version):
             guard version != SessionSnapshot.currentVersion else { return }
             let backup = directory.appendingPathComponent("session.v\(version).json")
