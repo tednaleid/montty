@@ -10,8 +10,10 @@ Most commands only work from inside a montty pane -- run one anywhere else and
 it exits 2, because there is no surface for it to act on. Two exceptions:
 `montty --version` prints the version and exits 0 from anywhere, and
 `montty hook <event>` also exits 0 outside a pane, since a hook firing there
-is normal, not an error. A malformed invocation exits 64 no matter where it
-runs.
+is normal, not an error. A recognized scope or verb followed by a bad
+property, value, or color exits 64. An unrecognized first argument, including
+none at all, is not treated as a montty invocation -- it launches the GUI
+instead.
 
 ## Commands
 
@@ -61,7 +63,7 @@ montty info | jq -r .git.branch
 | 1 | montty rejected the request (unknown surface, not in a repo) |
 | 2 | not running inside a montty pane |
 | 3 | montty is not running |
-| 64 | usage error: bad color spec, unknown scope or property |
+| 64 | usage error: bad color spec or unknown property |
 
 ## Activity status
 
