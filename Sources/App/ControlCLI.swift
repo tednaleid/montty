@@ -3,37 +3,16 @@
 
 import Foundation
 
-enum ExitCode: Int32 {
-    // swiftlint:disable:next identifier_name
-    case ok = 0
-    case rejected = 1
-    case notInPane = 2
-    case notRunning = 3
-    case usage = 64
-}
-
 enum ControlCLI {
-    /// True when the first argument is one of ours rather than something
-    /// macOS itself passes to a launched app (a Finder process-serial-number
-    /// flag, a UserDefaults-domain override). An unrecognized single-dash
-    /// argument falls through to the GUI so an unexpected launch flag never
-    /// blocks a normal launch.
-    static func isInvocation(_ arguments: [String]) -> Bool {
-        guard let first = arguments.first else { return false }
-        if first == "-v" { return true }
-        if first.hasPrefix("--") { return true }
-        return !first.hasPrefix("-")
-    }
-
     static func run(arguments: [String]) -> Never {
         let invocation = parseOrExit(arguments)
-        let environment = ProcessInfo.processInfo.environment
 
         if case .version = invocation {
-            print(environment["MONTTY_VERSION"] ?? "montty (development build)")
+            print(version())
             exit(ExitCode.ok.rawValue)
         }
 
+        let environment = ProcessInfo.processInfo.environment
         guard let surface = environment["MONTTY_SURFACE_ID"], !surface.isEmpty else {
             // A hook fired outside montty is normal, not an error worth surfacing to
             // Claude Code.
@@ -46,12 +25,19 @@ enum ControlCLI {
 
         switch invocation {
         case .version:
-            exit(ExitCode.ok.rawValue)
+            fatalError("version already exited above; no surface is required for it")
         case .hook(let event):
             runHook(event: event, surface: surface, socketPath: socketPath)
         case .control(let command):
             runControl(command: command, surface: surface, socketPath: socketPath)
         }
+    }
+
+    /// The app's own marketing version, falling back only when the bundle
+    /// genuinely has none (an unbundled or malformed build).
+    private static func version() -> String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+            ?? "montty (development build)"
     }
 
     /// Parses argv into an invocation, exiting with the usage error text on
@@ -122,9 +108,15 @@ enum ControlCLI {
         guard sock >= 0 else { return nil }
         defer { close(sock) }
 
-        var timeout = timeval(tv_sec: 1, tv_usec: 0)
-        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
-        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+        // A missing or wedged socket should fail fast, so the send side keeps
+        // a tight timeout. The receive side has to outlast HookServer's own
+        // 2s main-thread ceiling (applyOnMain), or a montty that is merely
+        // busy -- and about to reply with its own timeout error -- reads as
+        // "not running" instead.
+        var sendTimeout = timeval(tv_sec: 1, tv_usec: 0)
+        var recvTimeout = timeval(tv_sec: 3, tv_usec: 0)
+        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &sendTimeout, socklen_t(MemoryLayout<timeval>.size))
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &recvTimeout, socklen_t(MemoryLayout<timeval>.size))
 
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)

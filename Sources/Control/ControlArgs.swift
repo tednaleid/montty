@@ -10,6 +10,15 @@ enum ParsedInvocation: Equatable {
     case version
 }
 
+enum ExitCode: Int32 {
+    // swiftlint:disable:next identifier_name
+    case ok = 0
+    case rejected = 1
+    case notInPane = 2
+    case notRunning = 3
+    case usage = 64
+}
+
 enum ControlArgs {
     enum UsageError: Error, Equatable {
         case noArguments
@@ -31,12 +40,27 @@ enum ControlArgs {
           montty surface status <working|waiting|idle|clear>
           montty hook <event>
           montty info
-          montty --version | montty -v
+          montty --version                 montty -v
 
         <spec> is 1 to 3 comma-separated stops. A stop is a palette name
         (green, brightMagenta, neutralBright) or a six-digit hex value with
         or without a leading #.
         """
+
+    /// True when the first argument is one montty itself understands --
+    /// a scope, a top-level verb, or a version flag -- rather than something
+    /// else entirely: a macOS launch argument, a typo, or nothing at all.
+    /// Unrecognized input falls through to the GUI, so a launch flag this
+    /// doesn't know about still launches normally.
+    static func isInvocation(_ arguments: [String]) -> Bool {
+        guard let first = arguments.first else { return false }
+        switch first {
+        case "--version", "-v", "info", "hook":
+            return true
+        default:
+            return ControlScope(rawValue: first) != nil
+        }
+    }
 
     static func parse(_ arguments: [String]) -> Result<ParsedInvocation, UsageError> {
         guard let first = arguments.first else { return .failure(.noArguments) }

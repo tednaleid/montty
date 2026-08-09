@@ -98,4 +98,27 @@ import Testing
         #expect(failure(["surface"]) == .missingValue("property"))
         #expect(failure(["repo"]) == .missingValue("property"))
     }
+
+    @Test func classifiesLaunchArgumentsVersusCLIInvocations() {
+        let cases: [(arguments: [String], isCLI: Bool)] = [
+            ([], false),
+            (["-psn_0_123456"], false),
+            (["-NSDocumentRevisionsDebugMode", "YES"], false),
+            (["-AppleLanguages", "(en)"], false),
+            (["-NSTreatUnknownArgumentsAsOpen", "NO"], false),
+            (["-v"], true),
+            (["--version"], true),
+            (["tab", "color", "green"], true),
+            (["info"], true),
+            (["hook", "stop"], true),
+            (["frobnicate"], false),
+            (["--frobnicate"], false)
+        ]
+        for testCase in cases {
+            #expect(
+                ControlArgs.isInvocation(testCase.arguments) == testCase.isCLI,
+                "arguments: \(testCase.arguments)"
+            )
+        }
+    }
 }

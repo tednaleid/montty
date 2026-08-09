@@ -4,7 +4,7 @@
 import AppKit
 
 let arguments = Array(CommandLine.arguments.dropFirst())
-if ControlCLI.isInvocation(arguments) {
+if ControlArgs.isInvocation(arguments) {
     ControlCLI.run(arguments: arguments)
 }
 
