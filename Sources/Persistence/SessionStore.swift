@@ -17,7 +17,19 @@ final class SessionStore {
         self.fileURL = dir.appendingPathComponent("session.json")
     }
 
+    /// Tracks what the last load saw, so the first save can protect whatever is
+    /// already on disk before overwriting it.
+    private enum PriorFile {
+        case none
+        case readable(version: Int)
+        case unreadable
+    }
+
+    private var priorFile: PriorFile = .none
+    private var didProtectPriorFile = false
+
     func save(snapshot: SessionSnapshot) {
+        protectPriorFileIfNeeded()
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -30,14 +42,51 @@ final class SessionStore {
 
     func load() -> SessionSnapshot? {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            priorFile = .none
             return nil
         }
         do {
             let data = try Data(contentsOf: fileURL)
-            return try JSONDecoder().decode(SessionSnapshot.self, from: data)
+            let snapshot = try JSONDecoder().decode(SessionSnapshot.self, from: data)
+            priorFile = .readable(version: snapshot.version)
+            guard snapshot.version <= SessionSnapshot.currentVersion else {
+                Self.logger.error("""
+                    Session version \(snapshot.version) is newer than \
+                    \(SessionSnapshot.currentVersion); refusing to load
+                    """)
+                return nil
+            }
+            return snapshot
         } catch {
             Self.logger.error("Failed to load session: \(error)")
+            priorFile = .unreadable
             return nil
+        }
+    }
+
+    /// Runs once before the first save. An unreadable file is moved aside so the
+    /// autosave timer cannot destroy the evidence, and a file written by a
+    /// different version is copied aside so a rollback has something to read.
+    private func protectPriorFileIfNeeded() {
+        guard !didProtectPriorFile else { return }
+        didProtectPriorFile = true
+
+        let directory = fileURL.deletingLastPathComponent()
+        switch priorFile {
+        case .none:
+            return
+        case .unreadable:
+            let stamp = Int(Date().timeIntervalSince1970)
+            let quarantine = directory
+                .appendingPathComponent("session.corrupt-\(stamp).json")
+            try? FileManager.default.moveItem(at: fileURL, to: quarantine)
+            Self.logger.error("Quarantined unreadable session at \(quarantine.path)")
+        case .readable(let version):
+            guard version != SessionSnapshot.currentVersion else { return }
+            let backup = directory.appendingPathComponent("session.v\(version).json")
+            try? FileManager.default.removeItem(at: backup)
+            try? FileManager.default.copyItem(at: fileURL, to: backup)
+            Self.logger.info("Backed up v\(version) session to \(backup.path)")
         }
     }
 

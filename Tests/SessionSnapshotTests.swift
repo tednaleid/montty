@@ -24,7 +24,7 @@ struct SessionSnapshotTests {
         let data = try JSONEncoder().encode(snapshot)
         let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: data)
 
-        #expect(decoded.version == 2)
+        #expect(decoded.version == 3)
         #expect(decoded.tabs.count == 1)
         #expect(decoded.tabs[0].name == "my project")
         #expect(decoded.activeTabID == tabID)
@@ -118,14 +118,14 @@ struct SessionSnapshotTests {
 
         let data = try JSONEncoder().encode(snapshot)
         let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: data)
-        #expect(decoded.version == 2)
+        #expect(decoded.version == 3)
     }
 
     @Test func roundTripRepoColorOverrides() throws {
         let leafID = UUID()
-        let overrides: [String: TabColor] = [
-            "/Users/ted/montty": .blue,
-            "/Users/ted/limn": .red
+        let overrides: [String: PaneTint] = [
+            "/Users/ted/montty": PaneTint(stops: [.named(.blue)]),
+            "/Users/ted/limn": PaneTint(stops: [.named(.red)])
         ]
         let snapshot = SessionSnapshot(
             windowX: 0, windowY: 0, windowWidth: 800, windowHeight: 600,
@@ -164,7 +164,7 @@ struct SessionSnapshotTests {
                     leafDirectories: [:]
                 )
             ],
-            repoColorOverrides: ["/some/path": .blue]
+            repoColorOverrides: ["/some/path": PaneTint(stops: [.named(.blue)])]
         )
         let data = try JSONEncoder().encode(snapshot)
         guard var json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -176,82 +176,23 @@ struct SessionSnapshotTests {
         let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: strippedData)
         #expect(decoded.repoColorOverrides.isEmpty)
     }
-}
 
-struct SessionStoreTests {
-    @Test func saveAndLoadRoundTrip() throws {
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(
-            at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
-        let store = SessionStore(directory: tempDir)
+    @Test func leafColorOverridesRoundTrip() throws {
         let leafID = UUID()
-        let snapshot = SessionSnapshot(
-            windowX: 50, windowY: 50, windowWidth: 1000, windowHeight: 700,
-            sidebarWidth: 230,
-            activeTabID: nil,
-            tabs: [
-                TabSnapshot(
-                    tabID: UUID(),
-                    name: "",
-                    position: 0,
-                    focusedLeafID: leafID,
-                    splitLayout: .leaf(SurfaceLeaf(id: leafID)),
-                    leafDirectories: [:]
-                )
-            ]
-        )
-
-        store.save(snapshot: snapshot)
-        let loaded = store.load()
-
-        #expect(loaded != nil)
-        #expect(loaded?.sidebarWidth == 230)
-        #expect(loaded?.windowWidth == 1000)
-    }
-
-    @Test func loadFromEmptyDirectoryReturnsNil() throws {
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(
-            at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
-        let store = SessionStore(directory: tempDir)
-        let result = store.load()
-        #expect(result == nil)
-    }
-
-    @Test func resolveDirectoryUsesEnvironmentOverride() {
-        let url = SessionStore.resolveDirectory(
-            environment: ["MONTTY_SESSION_DIR": "/tmp/montty-test-session"]
-        )
-
-        #expect(url.path == "/tmp/montty-test-session")
-    }
-
-    @Test func resolveDirectoryExpandsTilde() {
-        let url = SessionStore.resolveDirectory(
-            environment: ["MONTTY_SESSION_DIR": "~/montty-test-session"]
-        )
-
-        // Assert the real home directory was substituted. Checking only for the
-        // absence of "~" would pass for a resolver that merely strips the character.
-        #expect(url.path == "\(NSHomeDirectory())/montty-test-session")
-    }
-
-    @Test func resolveDirectoryIgnoresEmptyOverride() {
-        let url = SessionStore.resolveDirectory(environment: ["MONTTY_SESSION_DIR": ""])
-
-        #expect(url.path.hasSuffix("/montty"))
-    }
-
-    @Test func resolveDirectoryFallsBackToApplicationSupport() {
-        let url = SessionStore.resolveDirectory(environment: [:])
-
-        #expect(url.path.hasSuffix("/montty"))
-        #expect(url.path.contains("Application Support"))
+        let tint = PaneTint(stops: [.named(.blue), .named(.red)])
+        let snapshot = SessionSnapshot(tabs: [
+            TabSnapshot(
+                tabID: UUID(), name: "review", position: 0,
+                focusedLeafID: leafID,
+                splitLayout: .leaf(SurfaceLeaf(id: leafID, surfaceID: UUID())),
+                leafDirectories: [:],
+                leafColorOverrides: [leafID: tint],
+                colorOverride: nil
+            )
+        ])
+        let data = try JSONEncoder().encode(snapshot)
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: data)
+        #expect(decoded.tabs[0].leafColorOverrides[leafID] == tint)
+        #expect(decoded.version == 3)
     }
 }

@@ -299,6 +299,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         surfaces[surfaceID]
     }
 
+    /// Wires a freshly created surface into surface lookup and change
+    /// observation.
+    func registerSurface(_ surfaceView: Ghostty.SurfaceView, tab: Tab, monttyID: String) {
+        tab.surfaceToMonttyID[surfaceView.id] = monttyID
+        surfaces[surfaceView.id] = surfaceView
+        observeSurface(surfaceView, tab: tab)
+    }
+
     /// The shell's working directory for a tab's focused surface. New tabs and
     /// splits inherit it so they open where you were, not where libghostty last
     /// tracked.
@@ -488,132 +496,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
                 : [4, 1, 2, 3, 5, 6, 0, 12, 9, 10, 11, 13, 14, 8]
 
             tabPalette = indices.map { all16[$0] }
-        }
-    }
-
-    // MARK: - Session persistence
-
-    func createSnapshot() -> SessionSnapshot {
-        let frame = window?.frame ?? .zero
-        let tabSnapshots = tabStore.tabs.map { tab -> TabSnapshot in
-            var dirs: [UUID: String] = [:]
-            for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
-                if let pwd = surfaces[leaf.surfaceID]?.pwd {
-                    dirs[leaf.id] = pwd
-                }
-            }
-            return TabSnapshot(
-                tabID: tab.id,
-                name: tab.name,
-                position: tab.position,
-                focusedLeafID: tab.focusedLeafID,
-                splitLayout: tab.splitRoot,
-                leafDirectories: dirs,
-                colorOverride: legacyColor(from: tab.colorOverride)
-            )
-        }
-        return SessionSnapshot(
-            windowX: frame.origin.x,
-            windowY: frame.origin.y,
-            windowWidth: frame.width,
-            windowHeight: frame.height,
-            sidebarWidth: sidebarWidth,
-            surfaceTintEnabled: surfaceTintEnabled,
-            activeTabID: tabStore.activeTabID,
-            tabs: tabSnapshots,
-            repoColorOverrides: legacyColorOverrides(from: repoColorOverrides)
-        )
-    }
-
-    private func restoreSession(_ snapshot: SessionSnapshot) {
-        guard let app = ghostty.app, !snapshot.tabs.isEmpty else {
-            // Quitting by closing the last tab saves a snapshot with no tabs, so
-            // this path is a normal cold launch and needs focus like any other.
-            createTab()
-            focusActiveSurface()
-            return
-        }
-
-        sidebarWidth = snapshot.sidebarWidth
-        surfaceTintEnabled = snapshot.surfaceTintEnabled
-        repoColorOverrides = snapshot.repoColorOverrides.mapValues { PaneTint(stops: [.named($0)]) }
-
-        for tabSnap in snapshot.tabs.sorted(by: { $0.position < $1.position }) {
-            let tab = Tab(
-                id: tabSnap.tabID,
-                name: tabSnap.name,
-                position: tabSnap.position
-            )
-            // Rebuild the split tree with fresh surfaces
-            tab.splitRoot = restoreSplitNode(
-                tabSnap.splitLayout,
-                directories: tabSnap.leafDirectories,
-                app: app, tab: tab
-            )
-            tab.focusedLeafID = tabSnap.focusedLeafID
-            tab.colorOverride = tabSnap.colorOverride.map { PaneTint(stops: [.named($0)]) }
-            tabStore.append(tab: tab)
-        }
-
-        tabStore.activeTabID = snapshot.activeTabID ?? tabStore.tabs.first?.id
-
-        // Restore window frame and sync focus after SwiftUI has laid out
-        // the view hierarchy. Must happen after layout because:
-        // 1. Window frame needs the views to exist
-        // 2. Each surface calls becomeFirstResponder when added to the
-        //    window, resetting focus -- we need the last word.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-            guard let self else { return }
-            if snapshot.windowWidth > 0, snapshot.windowHeight > 0 {
-                let frame = CGRect(
-                    x: snapshot.windowX, y: snapshot.windowY,
-                    width: snapshot.windowWidth, height: snapshot.windowHeight
-                )
-                self.window?.setFrame(frame, display: true)
-            }
-            self.syncSurfaceFocus()
-            self.focusActiveSurface()
-        }
-    }
-
-    /// Recursively rebuild a SplitNode tree, creating fresh Ghostty surfaces
-    /// for each leaf with the saved working directory.
-    private func restoreSplitNode(
-        _ node: SplitNode,
-        directories: [UUID: String],
-        app: ghostty_app_t,
-        tab: Tab
-    ) -> SplitNode {
-        switch node {
-        case .leaf(let leaf):
-            let monttyID = UUID().uuidString
-            var config = Ghostty.SurfaceConfiguration()
-            config.workingDirectory = directories[leaf.id]
-            config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
-            config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
-        config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
-            let surfaceView = Ghostty.SurfaceView(app, baseConfig: config)
-            tab.surfaceToMonttyID[surfaceView.id] = monttyID
-            surfaces[surfaceView.id] = surfaceView
-            observeSurface(surfaceView, tab: tab)
-            // Set surface directory for immediate UI display (surface will
-            // update it via observer once the shell reports its pwd)
-            if let dir = directories[leaf.id] {
-                tab.surfaceDirectories[surfaceView.id] = dir
-            }
-            return .leaf(SurfaceLeaf(id: leaf.id, surfaceID: surfaceView.id))
-        case .split(let branch):
-            return .split(SplitBranch(
-                id: branch.id,
-                orientation: branch.orientation,
-                ratio: branch.ratio,
-                first: restoreSplitNode(
-                    branch.first, directories: directories,
-                    app: app, tab: tab),
-                second: restoreSplitNode(
-                    branch.second, directories: directories,
-                    app: app, tab: tab)
-            ))
         }
     }
 

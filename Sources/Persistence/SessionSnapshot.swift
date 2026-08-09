@@ -1,7 +1,7 @@
 import Foundation
 
 struct SessionSnapshot: Codable {
-    static let currentVersion = 2
+    static let currentVersion = 3
 
     var version: Int = Self.currentVersion
     var windowX: Double = 0
@@ -12,7 +12,7 @@ struct SessionSnapshot: Codable {
     var surfaceTintEnabled: Bool = true
     var activeTabID: UUID?
     var tabs: [TabSnapshot]
-    var repoColorOverrides: [String: TabColor] = [:]
+    var repoColorOverrides: [String: PaneTint] = [:]
 
     init(
         windowX: Double = 0, windowY: Double = 0,
@@ -21,7 +21,7 @@ struct SessionSnapshot: Codable {
         surfaceTintEnabled: Bool = true,
         activeTabID: UUID? = nil,
         tabs: [TabSnapshot] = [],
-        repoColorOverrides: [String: TabColor] = [:]
+        repoColorOverrides: [String: PaneTint] = [:]
     ) {
         self.windowX = windowX
         self.windowY = windowY
@@ -46,7 +46,7 @@ struct SessionSnapshot: Codable {
         activeTabID = try container.decodeIfPresent(UUID.self, forKey: .activeTabID)
         tabs = try container.decode([TabSnapshot].self, forKey: .tabs)
         repoColorOverrides = try container.decodeIfPresent(
-            [String: TabColor].self, forKey: .repoColorOverrides
+            [String: PaneTint].self, forKey: .repoColorOverrides
         ) ?? [:]
     }
 }
@@ -59,6 +59,9 @@ struct TabSnapshot: Codable {
     var splitLayout: SplitNode
     /// Working directory per leaf, keyed by leaf ID.
     var leafDirectories: [UUID: String]
+    /// Per-surface color override, keyed by leaf ID. Surfaces get fresh IDs on
+    /// restore; leaf IDs survive, which is what makes this stick.
+    var leafColorOverrides: [UUID: PaneTint] = [:]
     /// Tab-level color override, if set.
-    var colorOverride: TabColor?
+    var colorOverride: PaneTint?
 }
