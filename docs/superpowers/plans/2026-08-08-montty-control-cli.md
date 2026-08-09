@@ -2880,350 +2880,56 @@ a usage error and no round trip."
 
 ---
 
-## Task 11: The montty binary
+## Task 11: Teach the app binary to act as the CLI
+
+**Superseded approach.** This task originally built a separate `montty-cli`
+executable and copied it to `Contents/MacOS/montty`. That is impossible: macOS
+ships a case-insensitive filesystem by default, so `Contents/MacOS/montty` and
+the app's own `Contents/MacOS/Montty` are the same file. The copy silently
+overwrites the app executable with the CLI and the build still reports success.
+Verified directly: both paths report inode 250733403 on an APFS volume.
+
+**What upstream does.** Ghostty ships exactly one binary.
+`/Applications/Ghostty.app/Contents/MacOS/ghostty` is both the GUI app and the
+CLI; `ghostty +version` prints and exits without initializing the app. Measured
+dispatch cost is 10ms on a 41MB binary, the same as a `nc` round trip to the
+control socket.
+
+montty follows that. The app executable already resolves case-insensitively as
+`montty` on PATH, so it only needs to dispatch on `CommandLine.arguments` before
+`NSApplication.run()`. This removes the separate target, the `excludes` rule,
+the bridging-header override, the copy phase, the nested-executable signing
+question, the Homebrew `binary` stanza, and `just install-cli` — none of them
+are needed.
 
 **Files:**
-- Create: `Sources/CLI/main.swift`
-- Modify: `project.yml` (new target, exclude CLI from the app target)
+- Modify: `Sources/App/main.swift` (dispatch on argv before creating the app)
+- Create: `Sources/App/ControlCLI.swift` (the client: socket round trip, exit codes)
 - Modify: `Sources/App/AppDelegate.swift` (inject `MONTTY_BIN`)
-- Modify: `.github/workflows/release.yml` (drop the jq dependency)
-- Test: manual, end to end
+- Modify: `Sources/Control/ControlArgs.swift` (add `-v` to the usage string)
 
 **Interfaces:**
-- Consumes: `ControlArgs`, `ControlRequest`, `ControlResponse` from Tasks 8 and 10.
-- Produces: a `montty` executable at `Montty.app/Contents/MacOS/montty`; `MONTTY_BIN` in every surface's environment.
+- Consumes: `ControlArgs`, `ControlRequest`, `ControlResponse`.
+- Produces: `ControlCLI.run(arguments:) -> Never`, called from `main.swift` when
+  the first argument is not an app-launch argument; `MONTTY_BIN` in every
+  surface's environment.
 
-Distribution needs no symlink. GhosttyKit already appends its own executable
-directory to `PATH` for every shell it spawns, and in montty that directory is
-Montty's own `Contents/MacOS`, so placing the binary there is the whole
-distribution story. `MONTTY_BIN` remains as the fallback for a shell that
-rewrote `PATH`, mirroring upstream's `GHOSTTY_BIN_DIR`.
+**Dispatch rule.** Treat the invocation as CLI when `CommandLine.arguments`
+has more than one element and the first argument is not one macOS itself passes
+(`-NSDocumentRevisionsDebugMode`, `-psn_*`, and anything else beginning with a
+single `-` that is not `-v`). Everything else falls through to the GUI, so a
+bare double-click and `open -a Montty` behave exactly as before.
 
-- [ ] **Step 1: Write the client**
+**Distribution.** Nothing to install. GhosttyKit appends the running bundle's
+`Contents/MacOS` to `PATH` for every shell it spawns
+(`ghostty/src/termio/Exec.zig:684`), and the app executable answers to `montty`
+there by case-insensitive match. `MONTTY_BIN` remains as the absolute-path
+fallback for a shell that rewrote `PATH`.
 
-Create `Sources/CLI/main.swift`:
+Exit codes, grammar, and error text are unchanged from the original plan: 0 ok,
+1 rejected, 2 not inside a montty pane, 3 montty not running, 64 usage error;
+`montty hook` is fire-and-forget and always exits 0.
 
-```swift
-// ABOUTME: The montty command-line client. Sends one control request over the
-// ABOUTME: unix socket named by MONTTY_SOCKET and prints the reply.
-
-import Foundation
-
-enum ExitCode: Int32 {
-    case ok = 0
-    case rejected = 1
-    case notInPane = 2
-    case notRunning = 3
-    case usage = 64
-}
-
-func fail(_ message: String, _ code: ExitCode) -> Never {
-    FileHandle.standardError.write(Data("montty: \(message)\n".utf8))
-    exit(code.rawValue)
-}
-
-/// Open the socket, send `payload`, and read the reply until EOF. Returns nil
-/// when montty is not reachable.
-func roundTrip(_ payload: Data, socketPath: String, expectReply: Bool) -> Data? {
-    let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-    guard fd >= 0 else { return nil }
-    defer { close(fd) }
-
-    var timeout = timeval(tv_sec: 1, tv_usec: 0)
-    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
-
-    var addr = sockaddr_un()
-    addr.sun_family = sa_family_t(AF_UNIX)
-    socketPath.withCString { src in
-        withUnsafeMutablePointer(to: &addr) { addrPtr in
-            let pathPtr = UnsafeMutableRawPointer(addrPtr)
-                .advanced(by: MemoryLayout.offset(of: \sockaddr_un.sun_path)!)
-                .assumingMemoryBound(to: CChar.self)
-            _ = strlcpy(pathPtr, src, 104)
-        }
-    }
-
-    let connected = withUnsafePointer(to: &addr) { ptr in
-        ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-            connect(fd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
-        }
-    }
-    guard connected == 0 else { return nil }
-
-    var sent = 0
-    payload.withUnsafeBytes { raw in
-        while sent < raw.count {
-            let written = write(fd, raw.baseAddress!.advanced(by: sent), raw.count - sent)
-            if written <= 0 { break }
-            sent += written
-        }
-    }
-    guard sent == payload.count else { return nil }
-    guard expectReply else { return Data() }
-
-    var reply = Data()
-    var buffer = [UInt8](repeating: 0, count: 65_536)
-    while true {
-        let count = read(fd, &buffer, buffer.count)
-        if count <= 0 { break }
-        reply.append(contentsOf: buffer[..<count])
-    }
-    return reply
-}
-
-let environment = ProcessInfo.processInfo.environment
-let arguments = Array(CommandLine.arguments.dropFirst())
-
-let invocation: ParsedInvocation
-switch ControlArgs.parse(arguments) {
-case .success(let parsed):
-    invocation = parsed
-case .failure(let error):
-    let detail: String
-    switch error {
-    case .noArguments: detail = "no arguments"
-    case .unknownScope(let value): detail = "unknown scope \"\(value)\""
-    case .unknownProperty(let value): detail = "unknown property \"\(value)\""
-    case .unknownStatus(let value): detail = "unknown status \"\(value)\""
-    case .missingValue(let value): detail = "\(value) needs a value"
-    case .badColor(let value): detail = "not a color: \"\(value)\" (use a palette name or #rrggbb)"
-    case .tooManyStops: detail = "at most \(PaneTint.maxStops) comma-separated stops"
-    }
-    FileHandle.standardError.write(Data("montty: \(detail)\n\n\(ControlArgs.usage)\n".utf8))
-    exit(ExitCode.usage.rawValue)
-}
-
-if case .version = invocation {
-    print(environment["MONTTY_VERSION"] ?? "montty (development build)")
-    exit(ExitCode.ok.rawValue)
-}
-
-guard let surface = environment["MONTTY_SURFACE_ID"], !surface.isEmpty else {
-    // A hook fired outside montty is normal, not an error worth surfacing to
-    // Claude Code.
-    if case .hook = invocation { exit(ExitCode.ok.rawValue) }
-    fail("not running inside a montty pane", .notInPane)
-}
-
-let socketPath = environment["MONTTY_SOCKET"]
-    ?? NSTemporaryDirectory() + "montty-hook.sock"
-
-switch invocation {
-case .version:
-    exit(ExitCode.ok.rawValue)
-
-case .hook(let event):
-    // Claude Code delivers its payload on stdin; forward the cwd it reports.
-    let input = FileHandle.standardInput.readDataToEndOfFile()
-    let cwd = (try? JSONSerialization.jsonObject(with: input))
-        .flatMap { ($0 as? [String: Any])?["cwd"] as? String }
-    var message: [String: Any] = ["event": event, "surface": surface]
-    if let cwd, !cwd.isEmpty { message["cwd"] = cwd }
-    if let payload = try? JSONSerialization.data(withJSONObject: message) {
-        _ = roundTrip(payload, socketPath: socketPath, expectReply: false)
-    }
-    // Best effort: never make a montty-less environment look broken.
-    exit(ExitCode.ok.rawValue)
-
-case .control(let command):
-    let request = ControlRequest(surface: surface, command: command)
-    guard let payload = try? request.encoded() else {
-        fail("could not encode the request", .usage)
-    }
-    guard let reply = roundTrip(payload, socketPath: socketPath, expectReply: true),
-          !reply.isEmpty else {
-        fail("montty is not running", .notRunning)
-    }
-
-    let parsed = (try? JSONSerialization.jsonObject(with: reply)) as? [String: Any]
-    guard parsed?["ok"] as? Bool == true else {
-        fail(parsed?["error"] as? String ?? "request rejected", .rejected)
-    }
-    if case .info = command {
-        FileHandle.standardOutput.write(reply)
-        FileHandle.standardOutput.write(Data("\n".utf8))
-    }
-    exit(ExitCode.ok.rawValue)
-}
-```
-
-- [ ] **Step 2: Add the target and keep it out of the app**
-
-In `project.yml`, the app target's `sources` is `- path: Sources`, which would pull `Sources/CLI/main.swift` into the app and give it two entry points. Exclude it, and add the new target after `montty`:
-
-```yaml
-  montty:
-    type: application
-    platform: macOS
-    sources:
-      - path: Sources
-        excludes:
-          - "CLI/**"
-      - path: AppIcon.icon
-```
-
-```yaml
-  montty-cli:
-    type: tool
-    platform: macOS
-    sources:
-      - path: Sources/CLI
-      - path: Sources/Control
-    settings:
-      base:
-        PRODUCT_NAME: montty
-        PRODUCT_BUNDLE_IDENTIFIER: com.montty.cli
-        SWIFT_VERSION: "5.0"
-        MACOSX_DEPLOYMENT_TARGET: "14.0"
-        SWIFT_STRICT_CONCURRENCY: minimal
-        SWIFT_OBJC_BRIDGING_HEADER: ""
-```
-
-The empty bridging header matters: the project-level `settings.base` sets `SWIFT_OBJC_BRIDGING_HEADER: montty-Bridging-Header.h`, which pulls in GhosttyKit headers the CLI must not need.
-
-Add a copy phase to the app target so the binary ships inside the bundle. Append to the app target's `postBuildScripts`:
-
-```yaml
-      - name: Embed montty CLI
-        script: |
-          # The CLI ships inside the bundle so MONTTY_BIN can always reach it
-          # by absolute path, whether or not the cask symlink is installed.
-          SRC="${BUILT_PRODUCTS_DIR}/montty"
-          DST="${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}/montty"
-          if [ -f "${SRC}" ]; then
-            cp "${SRC}" "${DST}"
-          fi
-```
-
-and declare the dependency so the tool builds first:
-
-```yaml
-    dependencies:
-      - framework: GhosttyKit.xcframework
-        embed: false
-      - target: montty-cli
-        embed: false
-        link: false
-```
-
-- [ ] **Step 3: Inject MONTTY_BIN**
-
-In `Sources/App/AppDelegate.swift`, add a resolved path next to `hookPort`:
-
-```swift
-    /// The bundled CLI, so a pane can reach it by absolute path regardless of PATH.
-    static let binPath = Bundle.main.bundleURL
-        .appendingPathComponent("Contents/MacOS/montty").path
-```
-
-Then add one line beside each of the three existing `MONTTY_SOCKET` assignments (`AppDelegate.swift:178`, `:248`, `:594`):
-
-```swift
-        config.environmentVariables["MONTTY_BIN"] = Self.binPath
-```
-
-- [ ] **Step 4: Confirm the CLI is already on PATH inside a pane**
-
-No symlink and no PATH edit are needed. GhosttyKit appends its own executable
-directory to `PATH` for every shell it spawns
-(`ghostty/src/termio/Exec.zig:684`), and inside montty `selfExePath` resolves to
-Montty's bundle. Since Step 2 puts the CLI in that same directory, bare `montty`
-resolves in every pane. Verify in a pane:
-
-```bash
-echo "$PATH" | tr ':' '\n' | grep 'Montty.app/Contents/MacOS'
-```
-
-Expected: the bundle's `MacOS` directory. Note it is *appended*, so a `montty`
-of the user's own earlier in PATH still wins, which is upstream's deliberate
-choice.
-
-Do not add a Homebrew `binary` stanza and do not symlink into `~/.local/bin`.
-Every command needs `$MONTTY_SURFACE_ID`, so a `montty` reachable from outside a
-montty pane can only ever exit 2. The one place it is useful already has it.
-
-- [ ] **Step 5: Drop the jq dependency from the cask**
-
-In `.github/workflows/release.yml`, inside the heredoc at line 190, remove
-`depends_on formula: "jq"`. Task 12 rewrites the shell wrapper so `jq` is no
-longer needed at runtime. Leave the rest of the cask alone:
-
-```ruby
-            depends_on macos: :tahoe
-
-            app "Montty.app"
-```
-
-- [ ] **Step 6: Verify end to end**
-
-```bash
-just generate && just check && just run-bg
-just inspect-type 'command -v montty; echo "bin=$MONTTY_BIN"' && just inspect-key return
-sleep 1
-just inspect-screen | jq -r .text | tail -4
-```
-
-Expected: `command -v montty` resolves inside the bundle without any symlink,
-proving the inherited PATH append, and `bin=` shows the absolute fallback path.
-
-```bash
-just inspect-type 'montty tab color neutralBright,green' && just inspect-key return
-sleep 1
-just inspect-type 'montty tab name "MR !123 fix auth"' && just inspect-key return
-sleep 1
-just inspect-type 'montty info | jq -r .tab_name' && just inspect-key return
-sleep 1
-just inspect-screen | jq -r .text | tail -5
-```
-
-Expected: the tab is a white-to-green gradient, its sidebar name reads `MR !123 fix auth`, and `info` echoes that name back.
-
-```bash
-just inspect-type 'montty tab color chartreuse; echo "exit=$?"' && just inspect-key return
-sleep 1
-just inspect-type 'montty tab color --reset; echo "exit=$?"' && just inspect-key return
-sleep 1
-just inspect-screen | jq -r .text | tail -8
-just stop
-```
-
-Expected: `not a color: "chartreuse"` with `exit=64`, then `exit=0` and the tab returning to its git-derived color.
-
-Also confirm the CLI refuses to act outside a pane:
-
-```bash
-/tmp/montty-build/Debug/Montty.app/Contents/MacOS/montty tab color green; echo "exit=$?"
-```
-
-Expected: `montty: not running inside a montty pane` and `exit=2`.
-
-Finally, confirm the bundle still signs as a unit with a second executable in
-`Contents/MacOS`. The release workflow re-signs with `codesign --force --deep`
-(`.github/workflows/release.yml:111`), which recurses into nested executables,
-but verify the seal locally rather than discovering it at notarization:
-
-```bash
-codesign --force --deep --sign - /tmp/montty-build/Debug/Montty.app
-codesign --verify --deep --strict --verbose=2 /tmp/montty-build/Debug/Montty.app
-```
-
-Expected: `valid on disk` and `satisfies its Designated Requirement`. If the
-nested binary is rejected, replace the `cp` in the post-build script with an
-Xcode Copy Files phase targeting `Executables`, which signs what it embeds.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add -A
-git commit -m "feat: ship the montty CLI inside the app bundle
-
-GhosttyKit already appends the running bundle's MacOS directory to PATH for
-every shell it spawns, so dropping the binary there is the whole
-distribution story. MONTTY_BIN is the fallback for a rewritten PATH."
-```
-
----
 
 ## Task 12: Fold the Claude Code hooks into the binary
 
