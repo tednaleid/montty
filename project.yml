@@ -83,35 +83,33 @@ targets:
 
           # montty: wrap claude to inject hook callbacks for status tracking.
           # Six hooks map to state transitions:
-          #   SessionStart/Stop      -> .idle
+          #   SessionStart/Stop           -> .idle
           #   UserPromptSubmit/PreToolUse -> .working
-          #   Notification           -> .waiting
-          #   SessionEnd             -> entry removed
-          # Events are sent as JSON over MONTTY_SOCKET. Built with jq so the
-          # JSON structure is legible and escaping is handled correctly. Each
-          # hook also forwards Claude Code's reported cwd so montty paints the
-          # pane with the worktree color when CC moves into one. Stdin (CC's
-          # hook payload) is read synchronously into INPUT first, then the
-          # network send is backgrounded so CC isn't blocked waiting on nc.
-          if [[ -n "$MONTTY_SURFACE_ID" && -n "$MONTTY_SOCKET" ]] && command -v jq >/dev/null 2>&1; then
+          #   Notification                -> .waiting
+          #   SessionEnd                  -> entry removed
+          # `montty hook` reads Claude's payload on stdin, forwards the cwd it
+          # reports, and always exits 0 so a pane outside montty never makes
+          # Claude Code look broken.
+          #
+          # MONTTY_BIN is the bundled binary's absolute path, injected into every
+          # surface, so hooks keep working when the app was installed by dragging
+          # it to /Applications and no Homebrew symlink exists. The PATH fallback
+          # covers a pane whose environment predates that injection.
+          if [[ -n "$MONTTY_SURFACE_ID" ]] \
+             && { [[ -x "$MONTTY_BIN" ]] || command -v montty >/dev/null 2>&1; }; then
             claude() {
               local settings
-              settings=$(jq -nc \
-                --arg surface "$MONTTY_SURFACE_ID" \
-                --arg socket "$MONTTY_SOCKET" '
-                def cmd($event):
-                  "INPUT=$(cat); (printf %s \"$INPUT\" | jq -c --arg surface \u0027" + $surface + "\u0027 --arg event \u0027" + $event + "\u0027 \u0027{event:$event,surface:$surface,cwd:.cwd}\u0027 | nc -U \u0027" + $socket + "\u0027 -w 1 2>/dev/null) &";
-                def entry($event):
-                  [{"hooks": [{"type": "command", "command": cmd($event)}]}];
-                {hooks: {
-                  SessionStart:      entry("session-start"),
-                  UserPromptSubmit:  entry("prompt-submit"),
-                  PreToolUse:        entry("pre-tool-use"),
-                  Notification:      entry("notification"),
-                  Stop:              entry("stop"),
-                  SessionEnd:        entry("session-end")
-                }}
-              ')
+              settings=$(cat <<'MONTTY_SETTINGS'
+          {"hooks":{
+            "SessionStart":     [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook session-start"}]}],
+            "UserPromptSubmit": [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook prompt-submit"}]}],
+            "PreToolUse":       [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook pre-tool-use"}]}],
+            "Notification":     [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook notification"}]}],
+            "Stop":             [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook stop"}]}],
+            "SessionEnd":       [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook session-end"}]}]
+          }}
+          MONTTY_SETTINGS
+              )
               command claude --settings "$settings" "$@"
             }
           fi

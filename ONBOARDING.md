@@ -71,6 +71,7 @@ just setup && just generate && just run
 
 - [README.md](./README.md) -- user-facing feature list and install instructions
 - [docs/debug-server.md](./docs/debug-server.md) -- full debug HTTP API (`just inspect-*`)
+- [docs/montty-cli.md](./docs/montty-cli.md) -- the `montty` CLI for tab colors, names, and activity status
 - [docs/spec/contract.md](./docs/spec/contract.md) -- project contract and phase plan
 - [docs/spec/ghostty-binding-adaptation.md](./docs/spec/ghostty-binding-adaptation.md) -- how to re-apply MONTTY adaptations after `just sync-bindings`
 - [docs/spec/progress.md](./docs/spec/progress.md) -- phase-by-phase progress log
