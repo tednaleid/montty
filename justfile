@@ -109,13 +109,14 @@ lint:
 check: test lint build
 
 # Build and launch the app (foreground)
-# MONTTY_SESSION_DIR keeps this build's tabs out of the installed app's session
+# MONTTY_SESSION_DIR keeps this build's tabs out of the installed app's session,
+# and MONTTY_SOCKET keeps its hook listener off the installed app's socket
 run: build
-    MONTTY_SESSION_DIR={{build_dir}}/session {{build_dir}}/Debug/Montty.app/Contents/MacOS/Montty
+    MONTTY_SESSION_DIR={{build_dir}}/session MONTTY_SOCKET={{build_dir}}/hook.sock {{build_dir}}/Debug/Montty.app/Contents/MacOS/Montty
 
 # Build and launch the app (background, for scripted testing)
 run-bg: build
-    @MONTTY_SESSION_DIR={{build_dir}}/session {{build_dir}}/Debug/Montty.app/Contents/MacOS/Montty &
+    @MONTTY_SESSION_DIR={{build_dir}}/session MONTTY_SOCKET={{build_dir}}/hook.sock {{build_dir}}/Debug/Montty.app/Contents/MacOS/Montty &
     @sleep 2
     @echo "Montty launched in background. Use 'just stop' to quit."
 

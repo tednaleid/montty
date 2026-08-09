@@ -1,5 +1,5 @@
 // ABOUTME: Unix domain socket server for Claude Code hook callbacks.
-// ABOUTME: Receives state updates (working, waiting, idle) from shell hooks via /tmp/montty-hook.sock.
+// ABOUTME: Receives state updates (working, waiting, idle) from shell hooks via a per-user socket.
 
 import AppKit
 import Foundation
@@ -20,7 +20,11 @@ struct HookLogEntry {
 /// Lightweight Unix domain socket listener for Claude Code hook callbacks.
 /// Runs in all builds (debug and release) so hooks work in shipped versions.
 enum HookServer {
-    static let socketPath = "/tmp/montty-hook.sock"
+    /// Per-user, mode 0700, and auto-cleaned. `MONTTY_SOCKET` overrides it so a
+    /// dev build never rebinds the installed app's socket, mirroring
+    /// MONTTY_SESSION_DIR.
+    static let socketPath = ProcessInfo.processInfo.environment["MONTTY_SOCKET"]
+        ?? NSTemporaryDirectory() + "montty-hook.sock"
     private nonisolated(unsafe) static var serverFD: Int32 = -1
     private nonisolated(unsafe) static var running = false
 
