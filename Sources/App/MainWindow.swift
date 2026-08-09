@@ -14,15 +14,9 @@ struct MainWindow: View {
                     tabStore: tabStore,
                     onNewTab: { appDelegate.createTab() },
                     onCloseTab: { appDelegate.closeTab(id: $0) },
-                    onSetRepoColor: { identity, color in
-                        if let color {
-                            appDelegate.repoColorOverrides[identity] = color
-                        } else {
-                            appDelegate.repoColorOverrides.removeValue(forKey: identity)
-                        }
-                    },
-                    onSetTabColor: { tab, color in
-                        tab.colorOverride = color
+                    onControl: { tab, command in
+                        guard let surfaceID = tab.focusedSurfaceID else { return }
+                        appDelegate.applyControl(command, to: tab, surfaceID: surfaceID)
                     },
                     repoColorOverrides: appDelegate.repoColorOverrides,
                     jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:],

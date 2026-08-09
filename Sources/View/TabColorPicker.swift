@@ -23,7 +23,9 @@ private func colorSwatch(_ color: Color, checked: Bool) -> NSImage {
 }
 
 struct TabColorPicker: View {
-    let currentColor: TintStop
+    /// The stop to check, or nil if none should show checked (a gradient or
+    /// hex override matches no named swatch).
+    let currentColor: TintStop?
     let hasOverride: Bool
     /// Called with a tint to set an override, or nil to clear the override.
     let onSelect: (PaneTint?) -> Void
@@ -35,7 +37,7 @@ struct TabColorPicker: View {
             } label: {
                 Image(nsImage: colorSwatch(
                     color.swiftUIColor,
-                    checked: .named(color) == currentColor
+                    checked: currentColor == .named(color)
                 ))
             }
         }

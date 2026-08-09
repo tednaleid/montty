@@ -439,6 +439,48 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         surfaceObservers[surfaceView.id] = cancellables
     }
 
+    // MARK: - Control
+
+    /// Resolve a surface to the reference ControlService needs.
+    func surfaceRef(for surfaceID: UUID, in tab: Tab) -> SurfaceRef? {
+        guard let monttyID = tab.surfaceToMonttyID[surfaceID],
+              let leaf = SplitTree.findLeaf(node: tab.splitRoot, surfaceID: surfaceID)
+        else { return nil }
+        return SurfaceRef(
+            monttyID: monttyID,
+            surfaceID: surfaceID,
+            leafID: leaf.id,
+            tabID: tab.id,
+            directory: tab.effectiveSurfaceDirectories[surfaceID]
+        )
+    }
+
+    /// The single write path into styling state. Every driving adapter -- the
+    /// CLI, the context menu, and the Claude hooks -- comes through here.
+    @discardableResult
+    func applyControl(_ command: ControlCommand, to tab: Tab, surfaceID: UUID) -> ControlResult {
+        guard let target = surfaceRef(for: surfaceID, in: tab) else {
+            return .rejected(.unknownSurface)
+        }
+        var state = ControlState(
+            tabName: tab.name,
+            autoName: tab.autoName,
+            surfaceColorOverrides: tab.surfaceColorOverrides,
+            tabColorOverride: tab.colorOverride,
+            repoColorOverrides: repoColorOverrides,
+            activityStates: tab.activityStates,
+            activityWaitingSince: tab.activityWaitingSince
+        )
+        let result = ControlService.apply(command, target: target, to: &state)
+        tab.name = state.tabName
+        tab.surfaceColorOverrides = state.surfaceColorOverrides
+        tab.colorOverride = state.tabColorOverride
+        tab.activityStates = state.activityStates
+        tab.activityWaitingSince = state.activityWaitingSince
+        repoColorOverrides = state.repoColorOverrides
+        return result
+    }
+
     // MARK: - Menu actions
 
     /// Handle a menu item that triggers a Ghostty binding action.
