@@ -120,7 +120,8 @@ enum ControlService {
             surfaceOverride: state.surfaceColorOverrides[target.surfaceID],
             tabColorOverride: state.tabColorOverride,
             surfaceDirectory: target.directory,
-            repoColorOverrides: state.repoColorOverrides
+            repoColorOverrides: state.repoColorOverrides,
+            gitInfoProvider: gitInfoProvider
         )
 
         return ControlInfo(

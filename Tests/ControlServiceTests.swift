@@ -55,6 +55,23 @@ import Testing
         #expect(subject.tabColorOverride == nil)
     }
 
+    @Test func clearsSurfaceColorRemovingTheKey() {
+        var subject = state()
+        let tint = PaneTint(stops: [.named(.blue)])
+        _ = ControlService.apply(
+            .setColor(scope: .surface, tint: tint),
+            target: ref(), to: &subject, gitInfoProvider: git
+        )
+        #expect(subject.surfaceColorOverrides.keys.contains(surfaceID))
+
+        let result = ControlService.apply(
+            .clearColor(scope: .surface),
+            target: ref(), to: &subject, gitInfoProvider: git
+        )
+        #expect(result == .applied)
+        #expect(!subject.surfaceColorOverrides.keys.contains(surfaceID))
+    }
+
     @Test func setsRepoColorUnderTheRepoIdentity() {
         var subject = state()
         let tint = PaneTint(stops: [.named(.cyan)])
@@ -64,6 +81,23 @@ import Testing
         )
         #expect(result == .applied)
         #expect(subject.repoColorOverrides["/Users/ted/montty"] == tint)
+    }
+
+    @Test func clearsRepoColorRemovingTheKey() {
+        var subject = state()
+        let tint = PaneTint(stops: [.named(.yellow)])
+        _ = ControlService.apply(
+            .setColor(scope: .repo, tint: tint),
+            target: ref(), to: &subject, gitInfoProvider: git
+        )
+        #expect(subject.repoColorOverrides.keys.contains("/Users/ted/montty"))
+
+        let result = ControlService.apply(
+            .clearColor(scope: .repo),
+            target: ref(), to: &subject, gitInfoProvider: git
+        )
+        #expect(result == .applied)
+        #expect(!subject.repoColorOverrides.keys.contains("/Users/ted/montty"))
     }
 
     @Test func rejectsRepoScopeOutsideAGitRepo() {
@@ -105,6 +139,18 @@ import Testing
         #expect(subject.activityWaitingSince["M1"] == nil)
     }
 
+    @Test func setsIdleStatusThroughTheHookStateMachine() {
+        var subject = state()
+        _ = ControlService.apply(
+            .setStatus(.working), target: ref(), to: &subject, gitInfoProvider: git
+        )
+        _ = ControlService.apply(
+            .setStatus(.idle), target: ref(), to: &subject, gitInfoProvider: git
+        )
+        #expect(subject.activityStates["M1"] == .idle)
+        #expect(subject.activityWaitingSince["M1"] == nil)
+    }
+
     @Test func clearingStatusRemovesTheEntry() {
         var subject = state()
         _ = ControlService.apply(
@@ -139,6 +185,77 @@ import Testing
         #expect(info.tabNameIsOverride == false)
         #expect(subject.surfaceColorOverrides == before.surfaceColorOverrides)
         #expect(subject.tabName == before.tabName)
+    }
+
+    @Test func infoReportsGitDetailsFromTheProvider() {
+        var subject = state()
+        let worktreeGit: (String) -> GitInfo? = { _ in
+            GitInfo(
+                repoName: "montty", branchName: "feature-x",
+                worktreeName: "wt-1", repoPath: "/Users/ted/montty"
+            )
+        }
+
+        let result = ControlService.apply(
+            .info, target: ref(), to: &subject, gitInfoProvider: worktreeGit
+        )
+
+        guard case .read(let info) = result else {
+            Issue.record("expected a read result")
+            return
+        }
+        #expect(info.git?.repoName == "montty")
+        #expect(info.git?.branch == "feature-x")
+        #expect(info.git?.worktree == "wt-1")
+        #expect(info.git?.repoPath == "/Users/ted/montty")
+    }
+
+    @Test func infoReportsNilStatusWhenNoneIsSetAndTheStoredStatusOnceOneIs() {
+        var subject = state()
+
+        let before = ControlService.apply(
+            .info, target: ref(), to: &subject, gitInfoProvider: git
+        )
+        guard case .read(let beforeInfo) = before else {
+            Issue.record("expected a read result")
+            return
+        }
+        #expect(beforeInfo.status == nil)
+
+        _ = ControlService.apply(
+            .setStatus(.waiting), target: ref(), to: &subject, gitInfoProvider: git
+        )
+        let after = ControlService.apply(
+            .info, target: ref(), to: &subject, gitInfoProvider: git
+        )
+        guard case .read(let afterInfo) = after else {
+            Issue.record("expected a read result")
+            return
+        }
+        #expect(afterInfo.status == "waiting")
+    }
+
+    @Test func infoEffectiveTintAgreesWithScopesUnderAMockedProvider() {
+        var subject = state()
+        let fakeDir = "/nonexistent/path/for/testing"
+        subject.repoColorOverrides[fakeDir] = PaneTint(stops: [.named(.magenta)])
+        let fakeGit: (String) -> GitInfo? = { _ in
+            GitInfo(
+                repoName: "fake", branchName: "main",
+                worktreeName: nil, repoPath: fakeDir
+            )
+        }
+
+        let result = ControlService.apply(
+            .info, target: ref(directory: fakeDir), to: &subject, gitInfoProvider: fakeGit
+        )
+
+        guard case .read(let info) = result else {
+            Issue.record("expected a read result")
+            return
+        }
+        #expect(info.scopes.repo?.stops == ["magenta"])
+        #expect(info.effective?.stops == ["magenta"])
     }
 
     @Test func infoReportsTheOverriddenNameWhenOneIsSet() {

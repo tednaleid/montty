@@ -102,11 +102,12 @@ extension TabColor {
         surfaceOverride: PaneTint?,
         tabColorOverride: PaneTint?,
         surfaceDirectory: String?,
-        repoColorOverrides: [String: PaneTint]
+        repoColorOverrides: [String: PaneTint],
+        gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:)
     ) -> PaneTint? {
         if let surfaceOverride { return surfaceOverride }
         if let tabColorOverride { return tabColorOverride }
-        guard let dir = surfaceDirectory, let info = GitInfo.from(path: dir) else {
+        guard let dir = surfaceDirectory, let info = gitInfoProvider(dir) else {
             return nil
         }
         return paneTint(for: info, overrides: repoColorOverrides)
