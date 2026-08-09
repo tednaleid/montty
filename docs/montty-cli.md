@@ -6,8 +6,12 @@ it spawns, so `montty` resolves in any montty pane with no install step. Panes
 also get `MONTTY_BIN` pointing at it by absolute path, for scripts that rewrite
 `PATH`.
 
-It only works from inside a montty pane. Run it anywhere else and it exits 2,
-because there is no surface for it to act on.
+Most commands only work from inside a montty pane -- run one anywhere else and
+it exits 2, because there is no surface for it to act on. Two exceptions:
+`montty --version` prints the version and exits 0 from anywhere, and
+`montty hook <event>` also exits 0 outside a pane, since a hook firing there
+is normal, not an error. A malformed invocation exits 64 no matter where it
+runs.
 
 ## Commands
 
@@ -62,8 +66,19 @@ montty info | jq -r .git.branch
 ## Activity status
 
 `montty surface status` drives the same pane indicator Claude Code's hooks use,
-so any long-running command can report progress:
+so any long-running foreground process can report progress:
 
 ```bash
-just check && montty surface status idle || montty surface status waiting
+montty surface status working
+just check
+montty surface status idle
 ```
+
+`waiting` persists only as long as the caller keeps the foreground -- it clears
+the moment control returns to a shell prompt, because an ordinary interactive
+prompt re-emits the terminal title, and any title change clears `waiting`.
+That makes it useful from inside a long-lived foreground process, such as a
+script blocked on user input, but not from a one-off
+`cmd && montty surface status waiting` typed at a normal prompt. `working` and
+`idle` are not cleared by a title change, so they persist however you set
+them.
