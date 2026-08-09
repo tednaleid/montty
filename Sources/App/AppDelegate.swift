@@ -168,6 +168,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Port for the debug HTTP server (debug builds only).
     static let hookPort = 9876
 
+    /// The app's own executable, which also answers to the montty CLI
+    /// grammar, so a pane can reach it by absolute path regardless of PATH.
+    static let binPath = Bundle.main.executableURL?.path ?? ""
+
     func createTab() {
         guard let app = ghostty.app else { return }
         let monttyID = UUID().uuidString
@@ -176,6 +180,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
         config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
         config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
+        config.environmentVariables["MONTTY_BIN"] = Self.binPath
         let surfaceView = Ghostty.SurfaceView(app, baseConfig: config)
         let tab = Tab(surfaceID: surfaceView.id)
         tab.surfaceToMonttyID[surfaceView.id] = monttyID
@@ -246,6 +251,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
         config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
         config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
+        config.environmentVariables["MONTTY_BIN"] = Self.binPath
         let newSurfaceView = Ghostty.SurfaceView(app, baseConfig: config)
         let newLeafID = UUID()
         surfaces[newSurfaceView.id] = newSurfaceView

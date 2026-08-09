@@ -31,7 +31,7 @@ enum ControlArgs {
           montty surface status <working|waiting|idle|clear>
           montty hook <event>
           montty info
-          montty --version
+          montty --version | montty -v
 
         <spec> is 1 to 3 comma-separated stops. A stop is a palette name
         (green, brightMagenta, neutralBright) or a six-digit hex value with

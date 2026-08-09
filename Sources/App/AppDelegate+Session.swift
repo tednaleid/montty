@@ -112,6 +112,7 @@ extension AppDelegate {
             config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
             config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
         config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
+            config.environmentVariables["MONTTY_BIN"] = Self.binPath
             let surfaceView = Ghostty.SurfaceView(app, baseConfig: config)
             registerSurface(surfaceView, tab: tab, monttyID: monttyID)
             // Set surface directory for immediate UI display (surface will
