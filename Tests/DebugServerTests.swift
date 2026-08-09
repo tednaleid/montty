@@ -138,4 +138,60 @@ struct DebugServerKeyMappingTests {
     }
 }
 
+struct DebugServerColorSourceTests {
+
+    // Mirrors DebugServer.colorSource
+    static func colorSource(
+        surfaceOverride: PaneTint?, tabOverride: PaneTint?,
+        repoOverride: PaneTint?, gitInfo: GitInfo?
+    ) -> String {
+        if surfaceOverride != nil { return "surface" }
+        if tabOverride != nil { return "tab" }
+        if repoOverride != nil { return "repo" }
+        if gitInfo != nil { return "git" }
+        return "none"
+    }
+
+    private let tint = PaneTint(stops: [.named(.blue)])
+    private let git = GitInfo(
+        repoName: "montty", branchName: "main",
+        worktreeName: nil, repoPath: "/Users/ted/montty"
+    )
+
+    @Test func surfaceOverrideWinsOverEveryOtherTier() {
+        let source = Self.colorSource(
+            surfaceOverride: tint, tabOverride: tint, repoOverride: tint, gitInfo: git
+        )
+        #expect(source == "surface")
+    }
+
+    @Test func tabOverrideWinsWithoutASurfaceOverride() {
+        let source = Self.colorSource(
+            surfaceOverride: nil, tabOverride: tint, repoOverride: tint, gitInfo: git
+        )
+        #expect(source == "tab")
+    }
+
+    @Test func repoOverrideWinsWithoutSurfaceOrTab() {
+        let source = Self.colorSource(
+            surfaceOverride: nil, tabOverride: nil, repoOverride: tint, gitInfo: git
+        )
+        #expect(source == "repo")
+    }
+
+    @Test func gitWinsWithoutAnyOverride() {
+        let source = Self.colorSource(
+            surfaceOverride: nil, tabOverride: nil, repoOverride: nil, gitInfo: git
+        )
+        #expect(source == "git")
+    }
+
+    @Test func noneWhenNothingIsSet() {
+        let source = Self.colorSource(
+            surfaceOverride: nil, tabOverride: nil, repoOverride: nil, gitInfo: nil
+        )
+        #expect(source == "none")
+    }
+}
+
 #endif

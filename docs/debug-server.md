@@ -33,7 +33,7 @@ Response:
     "tab_id": "C9D0E1F2-...",
     "tab_name": "montty",
     "tab_position": 0,
-    "tab_color": "blue",
+    "tab_color": "brightRed",
     "active": true,
     "focused_in_tab": true,
     "focused": true,
@@ -42,15 +42,24 @@ Response:
     "pwd": "/Users/ted/montty",
     "size": {"rows": 24, "cols": 80, "width_px": 1200, "height_px": 800},
     "color": {
-      "effective": ["neutralBright", "#1a7f37"],
-      "source": "surface",
-      "surface_override": ["#1a7f37"],
+      "effective": ["neutralBright", "brightRed"],
+      "source": "git",
+      "surface_override": null,
       "tab_override": null,
-      "repo_override": {"identity": "/Users/ted/montty", "stops": ["cyan"]}
+      "repo_override": null
     }
   }
 ]
 ```
+
+This surface has no color override at any scope, so `git` wins and
+`effective` is the repo's own two-stop signature. `tab_color` matches
+`effective`'s trailing stop, `brightRed`, because this is the tab's focused
+surface. A surface with its own override would instead show, for example,
+`"source": "surface"` and `"effective"` equal to `"surface_override"`
+exactly -- `resolvedPaneTint` returns a winning override verbatim, with no
+merging, so a scope's `effective` and its own override field can never
+disagree.
 
 `color` describes what is actually painted for that specific surface, not the
 tab as a whole -- two panes in the same split can report different `color`
