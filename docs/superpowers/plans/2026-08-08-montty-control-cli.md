@@ -2421,12 +2421,22 @@ older shell wrapper keeps working."
 
 ---
 
-## Task 9: Relocate the socket and serve control requests
+## Task 9: Serve control requests over the socket
+
+**The socket relocation in Steps 1, 2, and 4 already landed** in commit
+`bc6feb4`, pulled forward because the hardcoded `/tmp/montty-hook.sock` meant
+every dev build launched for a manual check stole the installed app's socket and
+left the user's real montty unable to receive hook events until restarted. That
+commit changed `HookServer.socketPath` to honor `MONTTY_SOCKET`, updated the
+file's ABOUTME lines, and set `MONTTY_SOCKET` in the `justfile`'s `run` and
+`run-bg` recipes. Skip those steps; verify them rather than redoing them.
+
+What remains here is the request handling: concurrent per-connection dispatch,
+decoding a `ControlRequest`, routing it through `AppDelegate.applyControl`, and
+writing a response before closing.
 
 **Files:**
-- Modify: `Sources/App/HookServer.swift`
-- Modify: `Sources/App/AppDelegate.swift` (inject the resolved socket path)
-- Modify: `justfile` (`run`, `run-bg`)
+- Modify: `Sources/App/HookServer.swift` (accept loop, connection handling, reply)
 - Test: manual, via `just inspect-*` and `nc`
 
 **Interfaces:**
