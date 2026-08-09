@@ -5,6 +5,11 @@ import Foundation
 
 enum ControlCLI {
     static func run(arguments: [String]) -> Never {
+        // A montty that closes the connection mid-write has to read as an
+        // error, not as a killed process. The process-wide ignore ghostty_init
+        // installs is not in play here: this path never creates NSApplication.
+        signal(SIGPIPE, SIG_IGN)
+
         let invocation = parseOrExit(arguments)
 
         if case .version = invocation {
@@ -86,9 +91,18 @@ enum ControlCLI {
         guard let payload = try? request.encoded() else {
             fail("could not encode the request", .usage)
         }
-        guard let reply = roundTrip(payload, socketPath: socketPath, expectReply: true),
-              !reply.isEmpty else {
-            fail("montty is not running", .notRunning)
+        guard payload.count <= ControlTransport.maxRequestBytes else {
+            fail("request is larger than \(ControlTransport.maxRequestBytes) bytes", .usage)
+        }
+
+        let reply: Data
+        switch roundTrip(payload, socketPath: socketPath, expectReply: true) {
+        case .success(let data) where !data.isEmpty:
+            reply = data
+        case .success:
+            fail(ControlTransportError.disconnected.message, .notRunning)
+        case .failure(let error):
+            fail(error.message, .notRunning)
         }
 
         let parsed = (try? JSONSerialization.jsonObject(with: reply)) as? [String: Any]
@@ -107,11 +121,12 @@ enum ControlCLI {
         exit(code.rawValue)
     }
 
-    /// Open the socket, send `payload`, and read the reply until EOF. Returns nil
-    /// when montty is not reachable.
-    private static func roundTrip(_ payload: Data, socketPath: String, expectReply: Bool) -> Data? {
+    /// Open the socket, send `payload`, and read the reply until EOF.
+    private static func roundTrip(
+        _ payload: Data, socketPath: String, expectReply: Bool
+    ) -> Result<Data, ControlTransportError> {
         let sock = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard sock >= 0 else { return nil }
+        guard sock >= 0 else { return .failure(.notRunning) }
         defer { close(sock) }
 
         // A missing or wedged socket should fail fast, so the send side keeps
@@ -140,7 +155,12 @@ enum ControlCLI {
                 connect(sock, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
-        guard connected == 0 else { return nil }
+        guard connected == 0 else {
+            return .failure(.forFailedConnect(
+                code: errno,
+                socketExists: FileManager.default.fileExists(atPath: socketPath)
+            ))
+        }
 
         var sent = 0
         payload.withUnsafeBytes { raw in
@@ -150,8 +170,8 @@ enum ControlCLI {
                 sent += written
             }
         }
-        guard sent == payload.count else { return nil }
-        guard expectReply else { return Data() }
+        guard sent == payload.count else { return .failure(.disconnected) }
+        guard expectReply else { return .success(Data()) }
 
         var reply = Data()
         var buffer = [UInt8](repeating: 0, count: 65_536)
@@ -160,6 +180,6 @@ enum ControlCLI {
             if count <= 0 { break }
             reply.append(contentsOf: buffer[..<count])
         }
-        return reply
+        return .success(reply)
     }
 }

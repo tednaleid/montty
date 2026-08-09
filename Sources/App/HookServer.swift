@@ -82,7 +82,11 @@ enum HookServer {
             return
         }
 
-        guard listen(serverFD, 5) == 0 else {
+        // A backlog only has to outlast the accept loop's turnaround, but a
+        // short one turns a burst of hooks and CLI calls across panes into
+        // refused connections, which the CLI cannot tell from a montty that
+        // is not running.
+        guard listen(serverFD, SOMAXCONN) == 0 else {
             log.error("[HookServer] listen() failed: \(errno)")
             close(serverFD)
             serverFD = -1
@@ -127,10 +131,19 @@ enum HookServer {
         var timeout = timeval(tv_sec: 2, tv_usec: 0)
         setsockopt(clientFD, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 
-        var buffer = [UInt8](repeating: 0, count: 65_536)
-        let bytesRead = read(clientFD, &buffer, buffer.count)
-        guard bytesRead > 0 else { return }
-        let data = Data(buffer[..<bytesRead])
+        let data: Data
+        switch ControlTransport.readRequest(from: clientFD) {
+        case .empty:
+            return
+        case .tooLarge:
+            reply(
+                .failure("request is larger than \(ControlTransport.maxRequestBytes) bytes"),
+                to: clientFD
+            )
+            return
+        case .request(let bytes):
+            data = bytes
+        }
 
         let response: ControlResponse
         do {
@@ -145,6 +158,10 @@ enum HookServer {
             response = .failure("malformed request")
         }
 
+        reply(response, to: clientFD)
+    }
+
+    private static func reply(_ response: ControlResponse, to clientFD: Int32) {
         if let out = try? response.encoded() {
             out.withUnsafeBytes { _ = write(clientFD, $0.baseAddress, $0.count) }
         }
