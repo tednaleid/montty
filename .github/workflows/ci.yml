@@ -9,6 +9,8 @@ on:
 jobs:
   check:
     runs-on: macos-26
+    # A hung test would otherwise sit until the six hour ceiling.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
         with:

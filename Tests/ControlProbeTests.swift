@@ -41,7 +41,10 @@ private final class FakeServer {
         #expect(bound == 0)
         #expect(listen(listener, 8) == 0)
 
-        DispatchQueue.global().async { [self] in acceptLoop(behavior) }
+        // A dedicated thread, not the shared concurrent queue: this loop parks
+        // in a blocking call for the life of the server, and enough of those on
+        // a machine with few cores leave the queue with no thread to spare.
+        Thread.detachNewThread { [self] in acceptLoop(behavior) }
     }
 
     /// The bytes each connection sent before the server answered.

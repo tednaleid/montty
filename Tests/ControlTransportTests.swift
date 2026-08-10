@@ -21,7 +21,10 @@ import Testing
     }
 
     private func writeInBackground(_ data: Data, to descriptor: Int32) {
-        DispatchQueue.global().async {
+        // A dedicated thread for the same reason the fake server uses one: this
+        // writer blocks, and a reader waiting on it cannot afford to have it
+        // queued behind other blocked work.
+        Thread.detachNewThread {
             data.withUnsafeBytes { raw in
                 var sent = 0
                 while sent < raw.count {
@@ -40,7 +43,10 @@ import Testing
         _ data: Data, to descriptor: Int32, microsecondsPerByte: UInt32
     ) -> DispatchSemaphore {
         let finished = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async {
+        // A dedicated thread for the same reason the fake server uses one: this
+        // writer blocks, and a reader waiting on it cannot afford to have it
+        // queued behind other blocked work.
+        Thread.detachNewThread {
             for byte in data {
                 var copy = byte
                 if write(descriptor, &copy, 1) != 1 { break }
@@ -109,7 +115,7 @@ import Testing
         let started = DispatchTime.now().uptimeNanoseconds
         let outcome = ControlTransport.readRequest(from: server, deadlineNanoseconds: 50_000_000)
         let elapsed = DispatchTime.now().uptimeNanoseconds - started
-        finished.wait()
+        _ = finished.wait(timeout: .now() + 10)
 
         guard case .request(let data) = outcome else {
             Issue.record("expected the bytes that arrived before the deadline")
