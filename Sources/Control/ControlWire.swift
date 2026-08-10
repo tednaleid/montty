@@ -127,7 +127,7 @@ struct ControlRequest: Equatable {
         case .setStatus(let status):
             root["cmd"] = "set"
             root["prop"] = "status"
-            root["value"] = status.map { String(describing: $0) } ?? NSNull()
+            root["value"] = status.map(\.wireName) ?? NSNull()
         }
         return try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
     }

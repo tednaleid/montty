@@ -139,7 +139,7 @@ extension DebugServer {
            let state = tab.activityStates[monttyID] {
             entry["activity"] = [
                 "montty_surface_id": monttyID,
-                "state": String(describing: state)
+                "state": state.wireName
             ]
         }
         return entry
@@ -181,7 +181,7 @@ extension DebugServer {
                         "tab_id": tab.id.uuidString,
                         "surface_id": surfaceID.uuidString,
                         "montty_surface_id": monttyID,
-                        "state": String(describing: state)
+                        "state": state.wireName
                     ]
                     if let since = tab.activityWaitingSince[monttyID] {
                         entry["waiting_since"] = formatter.string(from: since)

@@ -146,7 +146,7 @@ enum ControlService {
                     worktree: $0.worktreeName, repoPath: $0.repoPath
                 )
             },
-            status: state.activityStates[target.monttyID].map { String(describing: $0) }
+            status: state.activityStates[target.monttyID].map(\.wireName)
         )
     }
 

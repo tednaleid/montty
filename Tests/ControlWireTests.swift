@@ -44,6 +44,18 @@ import Testing
         #expect(try ControlRequest.decode(cleared).command == .setStatus(nil))
     }
 
+    @Test func everyActivityStatusHasAStableWireName() {
+        #expect(ActivityStatus.State.working.wireName == "working")
+        #expect(ActivityStatus.State.waiting.wireName == "waiting")
+        #expect(ActivityStatus.State.idle.wireName == "idle")
+    }
+
+    @Test func encodesAStatusUnderItsWireName() throws {
+        let request = ControlRequest(surface: "M1", command: .setStatus(.waiting))
+        let json = String(data: try request.encoded(), encoding: .utf8)
+        #expect(json?.contains("\"value\":\"waiting\"") == true)
+    }
+
     @Test func decodesInfo() throws {
         let json = Data("{\"v\":1,\"cmd\":\"info\",\"surface\":\"M1\"}".utf8)
         #expect(try ControlRequest.decode(json).command == .info)
