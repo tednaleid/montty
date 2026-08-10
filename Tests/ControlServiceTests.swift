@@ -15,7 +15,7 @@ import Testing
 
     private func state() -> ControlState {
         ControlState(
-            tabName: "", autoName: "montty/", surfaceColorOverrides: [:],
+            tabName: "", displayName: "montty/", surfaceColorOverrides: [:],
             tabColorOverride: nil, repoColorOverrides: [:],
             activityStates: [:], activityWaitingSince: [:]
         )

@@ -33,7 +33,7 @@ extension Tab {
         }
         var state = ControlState(
             tabName: name,
-            autoName: autoName,
+            displayName: tabInfo.displayName,
             surfaceColorOverrides: surfaceColorOverrides,
             tabColorOverride: colorOverride,
             repoColorOverrides: repoColorOverrides,

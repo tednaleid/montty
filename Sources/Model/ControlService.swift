@@ -17,7 +17,9 @@ struct SurfaceRef: Equatable {
 /// A narrow view of exactly what a control command may change.
 struct ControlState: Equatable {
     var tabName: String
-    var autoName: String
+    /// What the sidebar and tab row show for this tab, which is the name
+    /// override when set and the focused pane's directory otherwise.
+    var displayName: String
     var surfaceColorOverrides: [UUID: PaneTint]
     var tabColorOverride: PaneTint?
     var repoColorOverrides: [String: PaneTint]
@@ -128,7 +130,7 @@ enum ControlService {
             surfaceID: target.monttyID,
             leafID: target.leafID.uuidString,
             tabID: target.tabID.uuidString,
-            tabName: state.tabName.isEmpty ? state.autoName : state.tabName,
+            tabName: state.tabName.isEmpty ? state.displayName : state.tabName,
             tabNameIsOverride: !state.tabName.isEmpty,
             scopes: ControlInfo.Scopes(
                 surface: state.surfaceColorOverrides[target.surfaceID].map(TintPayload.init),

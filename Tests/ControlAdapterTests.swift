@@ -84,6 +84,43 @@ import Testing
         #expect(tab.activityWaitingSince["M1"] != nil)
     }
 
+    @Test func infoReportsTheNameTheSidebarShowsNotTheTerminalTitle() {
+        let (tab, surfaceID) = tab(directory: "/Users/ted/Dropbox/code/montty")
+        tab.autoName = "/Users/ted/Dropbox/code/montty"
+        var repoColorOverrides: [String: PaneTint] = [:]
+
+        let result = tab.applyControl(
+            .info, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides,
+            gitInfoProvider: { _ in nil }
+        )
+
+        guard case .read(let info) = result else {
+            Issue.record("expected a read result")
+            return
+        }
+        #expect(info.tabName == "montty/")
+        #expect(info.tabName == tab.tabInfo.displayName)
+        #expect(info.tabNameIsOverride == false)
+    }
+
+    @Test func infoReportsTheOverrideWhenTheTabHasAName() {
+        let (tab, surfaceID) = tab(directory: "/Users/ted/Dropbox/code/montty")
+        tab.name = "MR !123"
+        var repoColorOverrides: [String: PaneTint] = [:]
+
+        let result = tab.applyControl(
+            .info, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides,
+            gitInfoProvider: { _ in nil }
+        )
+
+        guard case .read(let info) = result else {
+            Issue.record("expected a read result")
+            return
+        }
+        #expect(info.tabName == "MR !123")
+        #expect(info.tabNameIsOverride)
+    }
+
     @Test func aSurfaceWithNoMonttyIDIsRejected() {
         let surfaceID = UUID()
         let tab = Tab(surfaceID: surfaceID)
