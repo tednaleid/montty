@@ -28,6 +28,7 @@ montty repo    color <spec>          montty repo    color --reset
 montty tab     name  <text>          montty tab     name  --reset
 montty surface status <working|waiting|idle|clear>
 montty info
+montty hook <event>
 montty --version
 montty --help
 ```

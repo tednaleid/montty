@@ -76,7 +76,7 @@ older, tab-wide field kept for existing callers -- it always matches the
 
 `focused_in_tab` is montty's model state: which pane a given tab will focus when that tab becomes active. It can be true for several surfaces at once, one per tab. `focused` is what libghostty believes: it is true for at most one surface across the entire app, and false for every surface while the montty window is not key. The `directory_name`, `git`, and `activity` keys appear only when they apply to the surface; `color` is always present.
 
-`id` is montty's own internal handle for the surface -- not addressable over the socket. `montty_surface_id` is the value exported to each pane as `MONTTY_SURFACE_ID`; it is what the hook socket (`hook.sock`) addresses, and what a shell inside the pane can read to identify itself. It is `null` in the unlikely case a leaf has no assigned id. Use `montty_surface_id`, not `id`, when scripting requests against the socket.
+`id` is montty's own internal handle for the surface -- not addressable over the socket. `montty_surface_id` is the value exported to each pane as `MONTTY_SURFACE_ID`; it is what the control and hook socket addresses (`montty-hook.sock` in the system temporary directory, or wherever `MONTTY_SOCKET` points), and what a shell inside the pane can read to identify itself. It is `null` in the unlikely case a leaf has no assigned id. Use `montty_surface_id`, not `id`, when scripting requests against the socket.
 
 ### POST /type
 
@@ -170,6 +170,48 @@ Get current jump mode state (labels, buffer, active status).
 curl -s localhost:9876/jump-state | jq .
 ```
 
+### GET /hook-log
+
+The last 200 hook events montty received on its socket, oldest first. Each entry
+carries the `timestamp`, the `event` name, the `surface` it named, whether it
+`matched` a live surface, and the `new_state` it produced when it did.
+
+```bash
+curl -s localhost:9876/hook-log | jq .
+```
+
+### GET /claude-states
+
+The current activity state of every surface that has one, whether a hook or
+`montty surface status` set it. Each entry carries `tab_id`, `surface_id`,
+`montty_surface_id`, and `state` (`working`, `waiting`, or `idle`). A `waiting`
+surface also reports `waiting_since` and `waiting_seconds`, which is what the
+idle sweep measures.
+
+```bash
+curl -s localhost:9876/claude-states | jq .
+```
+
+### GET /palette
+
+The tab palette montty derived from the Ghostty config: the ANSI-16 colors read
+through the C API (`ansi16`), the palette actually loaded (`tabPalette`), and
+any `configErrors`. Useful when tab colors do not match the theme.
+
+```bash
+curl -s localhost:9876/palette | jq .
+```
+
+### GET /icon
+
+What macOS believes the app icon is, from four sources (the bundle keys,
+`NSApp.applicationIconImage`, `NSImage(named:)`, and LaunchServices), with the
+representations each one carries. Useful for diagnosing a stale icon cache.
+
+```bash
+curl -s localhost:9876/icon | jq .
+```
+
 ## justfile recipes
 
 | Recipe | Description |
@@ -183,8 +225,13 @@ curl -s localhost:9876/jump-state | jq .
 | `just inspect-jump` | Enter jump mode |
 | `just inspect-jump <leaf_id>` | Jump to a specific surface |
 | `just inspect-jump-state` | Show jump mode state |
+| `just inspect-action <action>` | Trigger a Ghostty keybind action |
+| `just inspect-hook-log` | Show the last 200 hook events |
+| `just inspect-claude-states` | Show per-surface activity state |
+| `just inspect-palette` | Show the tab palette and config errors |
+| `just inspect-icon` | Show app icon state |
 
-All inspect recipes except `inspect-jump` and `inspect-jump-state` accept an optional `surface=<uuid>` parameter to target a specific surface.
+`inspect-type`, `inspect-key`, `inspect-screen`, `inspect-screenshot`, `inspect-state`, and `inspect-action` accept an optional `surface=<uuid>` parameter to target a specific surface. The rest are app-wide.
 
 ## Example workflow
 
