@@ -228,7 +228,7 @@ enum HookServer {
                     isKnownSurface: true
                 )
                 if case .applied(let newState) = outcome {
-                    newStateLabel = newState.map { String(describing: $0) }
+                    newStateLabel = newState.map(\.wireName)
                 }
                 HookDirectoryTracker.apply(
                     event: message.event,
