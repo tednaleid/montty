@@ -195,7 +195,7 @@ curl -s localhost:9876/claude-states | jq .
 ### GET /palette
 
 The tab palette montty derived from the Ghostty config: the ANSI-16 colors read
-through the C API (`ansi16`), the palette actually loaded (`tabPalette`), and
+through the C API (`ansi16`), the palette actually loaded (`loadedPalette`), and
 any `configErrors`. Useful when tab colors do not match the theme.
 
 ```bash
