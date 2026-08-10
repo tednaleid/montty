@@ -125,11 +125,14 @@ enum HookServer {
     private static func handleConnection(_ clientFD: Int32) {
         defer { close(clientFD) }
 
-        // Bounds how long a connection that opens but sends nothing can hold
-        // a handler thread in read(). Without this, enough silent
-        // connections exhaust the handler pool and block hook delivery.
+        // Bounds how long a peer can hold a handler thread: one that opens but
+        // sends nothing, and one that sends a request and never reads the
+        // reply. Without these, enough such connections exhaust the handler
+        // pool and block hook delivery. ControlTransport bounds the read as a
+        // whole; these bound each call.
         var timeout = timeval(tv_sec: 2, tv_usec: 0)
         setsockopt(clientFD, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+        setsockopt(clientFD, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 
         let data: Data
         switch ControlTransport.readRequest(from: clientFD) {
