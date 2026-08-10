@@ -184,4 +184,21 @@ import Testing
         #expect(parsed?["surface_id"] as? String == "M1")
         #expect(parsed?["tab_name_is_override"] as? Bool == false)
     }
+
+    @Test func aPingIsRecognizedWithoutDecodingAsARequest() throws {
+        #expect(ControlPing.isRequest(ControlPing.request))
+        #expect(throws: ControlRequest.DecodeFailure.malformed) {
+            try ControlRequest.decode(ControlPing.request)
+        }
+        #expect(!ControlPing.isRequest(try ControlRequest(surface: "M1", command: .info).encoded()))
+    }
+
+    @Test func onlyAnOkAnswerProvesAMonttyIsListening() throws {
+        #expect(ControlPing.isReply(try ControlResponse.ok.encoded()))
+        // The answer from a server old enough not to know the ping. It reads
+        // as no montty, which is the safe direction, rather than as a crash.
+        #expect(!ControlPing.isReply(try ControlResponse.failure("malformed request").encoded()))
+        #expect(!ControlPing.isReply(Data("HTTP/1.1 200 OK".utf8)))
+        #expect(!ControlPing.isReply(Data()))
+    }
 }

@@ -139,6 +139,14 @@ enum HookServer {
             data = bytes
         }
 
+        // A liveness ping is answered here rather than decoded: it names no
+        // surface, so request decoding would call it malformed, and answering
+        // from this thread keeps the answer honest while main is busy.
+        if ControlPing.isRequest(data) {
+            reply(.ok, to: clientFD)
+            return
+        }
+
         let response: ControlResponse
         do {
             let request = try ControlRequest.decode(data)

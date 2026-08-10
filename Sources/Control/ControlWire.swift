@@ -14,6 +14,36 @@ enum ControlWire {
     static let maxNameCharacters = 256
 }
 
+/// The one request that reaches no tab and changes nothing: it asks only
+/// whether a montty is on the other end of a socket. A startup guard uses it to
+/// tell a running montty apart from a socket file left by a crash or from
+/// another program squatting on the path.
+enum ControlPing {
+    static let command = "ping"
+
+    /// What a client sends. No surface, because being alive is a property of
+    /// the process rather than of a pane.
+    static let request = Data(#"{"cmd":"\#(command)","v":\#(ControlWire.version)}"#.utf8)
+
+    /// True when `data` asks for liveness. The server checks this before
+    /// decoding a request, which requires a surface and so would call a ping
+    /// malformed.
+    static func isRequest(_ data: Data) -> Bool {
+        root(of: data)?["cmd"] as? String == command
+    }
+
+    /// True when `data` is the answer a montty that knows the ping gives. A
+    /// server that predates it answers `ok: false`, so the caller reads no
+    /// montty rather than failing.
+    static func isReply(_ data: Data) -> Bool {
+        root(of: data)?["ok"] as? Bool == true
+    }
+
+    private static func root(of data: Data) -> [String: Any]? {
+        (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
+}
+
 /// One request carries exactly one command, matching one ControlCommand.
 struct ControlRequest: Equatable {
     let surface: String
