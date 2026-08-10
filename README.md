@@ -66,6 +66,12 @@ The session lives in `~/Library/Application Support/montty/`. Setting `MONTTY_SE
 
 If montty opens with tabs missing, look for those two recovery files. Quitting montty and copying one back over `session.json` restores what it holds.
 
+### One instance
+
+Before montty starts, it asks whatever is listening on `MONTTY_SOCKET` whether it is a montty. If one answers, the launch raises that window and exits. Two montty processes sharing a socket would each rebind it, sending every hook and `montty` command to the newer one, and each would autosave over the same `session.json`.
+
+The question is scoped to the socket path, so a build with its own `MONTTY_SOCKET` runs alongside an installed montty. That is what `just run` sets, along with `MONTTY_SESSION_DIR`. Only a live answer counts: the socket file a crash leaves behind has nothing listening, so the next launch takes it over as it always did.
+
 The surface jump shortcut (default Cmd+;) can be changed through macOS System Settings under Keyboard, Keyboard Shortcuts, App Shortcuts. Add an entry for Montty with the menu title "Jump to Surface".
 
 ## Architecture
