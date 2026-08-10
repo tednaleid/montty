@@ -22,8 +22,8 @@ extension DebugServer {
 
         var entry: [String: Any] = [
             "effective": effective.stops.map(\.text),
-            "source": colorSource(
-                surfaceOverride: surfaceOverride, tabOverride: tabOverride,
+            "source": TabColor.resolvedTintSource(
+                surfaceOverride: surfaceOverride, tabColorOverride: tabOverride,
                 repoOverride: repoOverride, gitInfo: gitInfo
             ),
             "surface_override": NSNull(),
@@ -40,18 +40,6 @@ extension DebugServer {
             entry["repo_override"] = ["identity": identity, "stops": repoOverride.stops.map(\.text)]
         }
         return entry
-    }
-
-    /// Which scope wins, in the same order `TabColor.resolvedPaneTint` checks them.
-    private static func colorSource(
-        surfaceOverride: PaneTint?, tabOverride: PaneTint?,
-        repoOverride: PaneTint?, gitInfo: GitInfo?
-    ) -> String {
-        if surfaceOverride != nil { return "surface" }
-        if tabOverride != nil { return "tab" }
-        if repoOverride != nil { return "repo" }
-        if gitInfo != nil { return "git" }
-        return "none"
     }
 }
 #endif

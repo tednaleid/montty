@@ -3,10 +3,10 @@
 import Foundation
 import Testing
 
-// These tests verify the pure functions used by DebugServer.
-// The functions are duplicated here because DebugServer.swift has Ghostty
-// dependencies that can't be linked into the standalone test target.
-// If the implementations drift, the integration tests (just inspect-*) will catch it.
+// These tests verify pure functions the DebugServer depends on.
+// parseRequest and keyToText are mirrored here because they live in
+// DebugServer.swift, which has Ghostty dependencies the standalone test target
+// cannot link; the integration tests (just inspect-*) cover those two.
 
 struct DebugServerParsingTests {
 
@@ -140,18 +140,6 @@ struct DebugServerKeyMappingTests {
 
 struct DebugServerColorSourceTests {
 
-    // Mirrors DebugServer.colorSource
-    static func colorSource(
-        surfaceOverride: PaneTint?, tabOverride: PaneTint?,
-        repoOverride: PaneTint?, gitInfo: GitInfo?
-    ) -> String {
-        if surfaceOverride != nil { return "surface" }
-        if tabOverride != nil { return "tab" }
-        if repoOverride != nil { return "repo" }
-        if gitInfo != nil { return "git" }
-        return "none"
-    }
-
     private let tint = PaneTint(stops: [.named(.blue)])
     private let git = GitInfo(
         repoName: "montty", branchName: "main",
@@ -159,36 +147,41 @@ struct DebugServerColorSourceTests {
     )
 
     @Test func surfaceOverrideWinsOverEveryOtherTier() {
-        let source = Self.colorSource(
-            surfaceOverride: tint, tabOverride: tint, repoOverride: tint, gitInfo: git
+        let source = TabColor.resolvedTintSource(
+            surfaceOverride: tint, tabColorOverride: tint,
+            repoOverride: tint, gitInfo: git
         )
         #expect(source == "surface")
     }
 
     @Test func tabOverrideWinsWithoutASurfaceOverride() {
-        let source = Self.colorSource(
-            surfaceOverride: nil, tabOverride: tint, repoOverride: tint, gitInfo: git
+        let source = TabColor.resolvedTintSource(
+            surfaceOverride: nil, tabColorOverride: tint,
+            repoOverride: tint, gitInfo: git
         )
         #expect(source == "tab")
     }
 
     @Test func repoOverrideWinsWithoutSurfaceOrTab() {
-        let source = Self.colorSource(
-            surfaceOverride: nil, tabOverride: nil, repoOverride: tint, gitInfo: git
+        let source = TabColor.resolvedTintSource(
+            surfaceOverride: nil, tabColorOverride: nil,
+            repoOverride: tint, gitInfo: git
         )
         #expect(source == "repo")
     }
 
     @Test func gitWinsWithoutAnyOverride() {
-        let source = Self.colorSource(
-            surfaceOverride: nil, tabOverride: nil, repoOverride: nil, gitInfo: git
+        let source = TabColor.resolvedTintSource(
+            surfaceOverride: nil, tabColorOverride: nil,
+            repoOverride: nil, gitInfo: git
         )
         #expect(source == "git")
     }
 
     @Test func noneWhenNothingIsSet() {
-        let source = Self.colorSource(
-            surfaceOverride: nil, tabOverride: nil, repoOverride: nil, gitInfo: nil
+        let source = TabColor.resolvedTintSource(
+            surfaceOverride: nil, tabColorOverride: nil,
+            repoOverride: nil, gitInfo: nil
         )
         #expect(source == "none")
     }

@@ -118,4 +118,18 @@ extension TabColor {
         }
         return paneTint(for: info, overrides: repoColorOverrides)
     }
+
+    /// Names the scope `resolvedPaneTint` drew from, checked in the same order.
+    static func resolvedTintSource(
+        surfaceOverride: PaneTint?,
+        tabColorOverride: PaneTint?,
+        repoOverride: PaneTint?,
+        gitInfo: GitInfo?
+    ) -> String {
+        if surfaceOverride != nil { return "surface" }
+        if tabColorOverride != nil { return "tab" }
+        if repoOverride != nil { return "repo" }
+        if gitInfo != nil { return "git" }
+        return "none"
+    }
 }
