@@ -68,9 +68,13 @@ If montty opens with tabs missing, look for those two recovery files. Quitting m
 
 ### One instance
 
-Before montty starts, it asks whatever is listening on `MONTTY_SOCKET` whether it is a montty. If one answers, the launch raises that window and exits. Two montty processes sharing a socket would each rebind it, sending every hook and `montty` command to the newer one, and each would autosave over the same `session.json`.
+Before montty starts, it takes an exclusive lock on `MONTTY_SOCKET` with `.lock` appended, and holds it until the process ends. A launch that finds the lock held raises the running window and exits. The kernel hands that lock to one process at a time, so two launches cannot both pass it however closely they are timed, and it releases the lock when the holder dies for any reason, so a lock file left on disk is never a stale lock.
 
-The question is scoped to the socket path, so a build with its own `MONTTY_SOCKET` runs alongside an installed montty. That is what `just run` sets, along with `MONTTY_SESSION_DIR`. Only a live answer counts: the socket file a crash leaves behind has nothing listening, so the next launch takes it over as it always did.
+With the lock in hand, montty then asks whatever is listening on the socket whether it is a montty, and exits the same way if one answers. That finds the owner the lock cannot: a montty from a build older than the lock. Only a live answer counts, so the socket file a crash leaves behind is taken over as it always was.
+
+If the lock cannot be taken for any reason other than another montty holding it, montty logs why and launches with that question as its only guard. Refusing to start would be worse than the collision the lock prevents.
+
+Both are scoped to the socket path, so a build with its own `MONTTY_SOCKET` runs alongside an installed montty. That is what `just run` sets, along with `MONTTY_SESSION_DIR`. Two montty processes sharing a socket would each rebind it, sending every hook and `montty` command to the newer one, and each would autosave over the same `session.json`.
 
 The surface jump shortcut (default Cmd+;) can be changed through macOS System Settings under Keyboard, Keyboard Shortcuts, App Shortcuts. Add an entry for Montty with the menu title "Jump to Surface".
 
