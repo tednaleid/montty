@@ -59,16 +59,7 @@ enum HookServer {
             return
         }
 
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        socketPath.withCString { src in
-            withUnsafeMutablePointer(to: &addr) { addrPtr in
-                let pathPtr = UnsafeMutableRawPointer(addrPtr)
-                    .advanced(by: MemoryLayout.offset(of: \sockaddr_un.sun_path)!)
-                    .assumingMemoryBound(to: CChar.self)
-                _ = strlcpy(pathPtr, src, 104) // sun_path max on macOS
-            }
-        }
+        var addr = ControlTransport.address(for: socketPath)
 
         let bindResult = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in

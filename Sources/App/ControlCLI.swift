@@ -81,7 +81,7 @@ enum ControlCLI {
         var message: [String: Any] = ["event": event, "surface": surface]
         if let cwd, !cwd.isEmpty { message["cwd"] = cwd }
         if let payload = try? JSONSerialization.data(withJSONObject: message) {
-            _ = roundTrip(payload, socketPath: socketPath, expectReply: false)
+            _ = ControlTransport.roundTrip(payload, socketPath: socketPath, expectReply: false)
         }
         exit(ExitCode.ok.rawValue)
     }
@@ -96,7 +96,7 @@ enum ControlCLI {
         }
 
         let reply: Data
-        switch roundTrip(payload, socketPath: socketPath, expectReply: true) {
+        switch ControlTransport.roundTrip(payload, socketPath: socketPath, expectReply: true) {
         case .success(let data) where !data.isEmpty:
             reply = data
         case .success:
@@ -119,67 +119,5 @@ enum ControlCLI {
     private static func fail(_ message: String, _ code: ExitCode) -> Never {
         FileHandle.standardError.write(Data("montty: \(message)\n".utf8))
         exit(code.rawValue)
-    }
-
-    /// Open the socket, send `payload`, and read the reply until EOF.
-    private static func roundTrip(
-        _ payload: Data, socketPath: String, expectReply: Bool
-    ) -> Result<Data, ControlTransportError> {
-        let sock = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard sock >= 0 else { return .failure(.notRunning) }
-        defer { close(sock) }
-
-        // A missing or wedged socket should fail fast, so the send side keeps
-        // a tight timeout. The receive side has to outlast HookServer's own
-        // 2s main-thread ceiling (applyOnMain), or a montty that is merely
-        // busy -- and about to reply with its own timeout error -- reads as
-        // "not running" instead.
-        var sendTimeout = timeval(tv_sec: 1, tv_usec: 0)
-        var recvTimeout = timeval(tv_sec: 3, tv_usec: 0)
-        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &sendTimeout, socklen_t(MemoryLayout<timeval>.size))
-        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &recvTimeout, socklen_t(MemoryLayout<timeval>.size))
-
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        socketPath.withCString { src in
-            withUnsafeMutablePointer(to: &addr) { addrPtr in
-                let pathPtr = UnsafeMutableRawPointer(addrPtr)
-                    .advanced(by: MemoryLayout.offset(of: \sockaddr_un.sun_path)!)
-                    .assumingMemoryBound(to: CChar.self)
-                _ = strlcpy(pathPtr, src, 104)
-            }
-        }
-
-        let connected = withUnsafePointer(to: &addr) { ptr in
-            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                connect(sock, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        guard connected == 0 else {
-            return .failure(.forFailedConnect(
-                code: errno,
-                socketExists: FileManager.default.fileExists(atPath: socketPath)
-            ))
-        }
-
-        var sent = 0
-        payload.withUnsafeBytes { raw in
-            while sent < raw.count {
-                let written = write(sock, raw.baseAddress!.advanced(by: sent), raw.count - sent)
-                if written <= 0 { break }
-                sent += written
-            }
-        }
-        guard sent == payload.count else { return .failure(.disconnected) }
-        guard expectReply else { return .success(Data()) }
-
-        var reply = Data()
-        var buffer = [UInt8](repeating: 0, count: 65_536)
-        while true {
-            let count = read(sock, &buffer, buffer.count)
-            if count <= 0 { break }
-            reply.append(contentsOf: buffer[..<count])
-        }
-        return .success(reply)
     }
 }
