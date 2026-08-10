@@ -198,6 +198,84 @@ struct TabTests {
         #expect(changed == false)
     }
 
+    @Test func titleChangeLeavesAControlSetWaitingAlone() {
+        let surfaceID = UUID()
+        let monttyID = "mid-1"
+        let tab = Tab(surfaceID: surfaceID)
+        tab.surfaceToMonttyID[surfaceID] = monttyID
+        var repoColorOverrides: [String: PaneTint] = [:]
+        tab.applyControl(
+            .setStatus(.waiting), surfaceID: surfaceID,
+            repoColorOverrides: &repoColorOverrides
+        )
+
+        let changed = tab.clearWaitingOnTitleChange(for: surfaceID)
+
+        #expect(changed == false)
+        #expect(tab.activityStates[monttyID] == .waiting)
+    }
+
+    @Test func titleChangeStillClearsAHookWaitingAfterAnEarlierControlWaiting() {
+        let surfaceID = UUID()
+        let monttyID = "mid-1"
+        let tab = Tab(surfaceID: surfaceID)
+        tab.surfaceToMonttyID[surfaceID] = monttyID
+        var repoColorOverrides: [String: PaneTint] = [:]
+        tab.applyControl(
+            .setStatus(.waiting), surfaceID: surfaceID,
+            repoColorOverrides: &repoColorOverrides
+        )
+
+        // A later hook drives the same surface without going through the CLI.
+        _ = HookStateMachine.apply(
+            .notification, surfaceID: monttyID, to: &tab.activityStates,
+            waitingSince: &tab.activityWaitingSince, isKnownSurface: true
+        )
+        let changed = tab.clearWaitingOnTitleChange(for: surfaceID)
+
+        #expect(changed == true)
+        #expect(tab.activityStates[monttyID] == .working)
+    }
+
+    @Test func aControlSetWorkingDropsTheTitleChangeExemption() {
+        let surfaceID = UUID()
+        let monttyID = "mid-1"
+        let tab = Tab(surfaceID: surfaceID)
+        tab.surfaceToMonttyID[surfaceID] = monttyID
+        var repoColorOverrides: [String: PaneTint] = [:]
+        tab.applyControl(
+            .setStatus(.waiting), surfaceID: surfaceID,
+            repoColorOverrides: &repoColorOverrides
+        )
+        tab.applyControl(
+            .setStatus(.working), surfaceID: surfaceID,
+            repoColorOverrides: &repoColorOverrides
+        )
+        tab.activityStates[monttyID] = .waiting
+        tab.activityWaitingSince[monttyID] = Date()
+
+        #expect(tab.clearWaitingOnTitleChange(for: surfaceID) == true)
+    }
+
+    @Test func theIdleSweepStillClearsAControlSetWaiting() {
+        let surfaceID = UUID()
+        let monttyID = "mid-1"
+        let tab = Tab(surfaceID: surfaceID)
+        tab.surfaceToMonttyID[surfaceID] = monttyID
+        let now = Date()
+        var repoColorOverrides: [String: PaneTint] = [:]
+        tab.applyControl(
+            .setStatus(.waiting), surfaceID: surfaceID,
+            repoColorOverrides: &repoColorOverrides,
+            now: now.addingTimeInterval(-120)
+        )
+
+        let transitioned = tab.sweepStaleWaiting(threshold: 60, now: now)
+
+        #expect(transitioned == [monttyID])
+        #expect(tab.activityStates[monttyID] == .idle)
+    }
+
     @Test func sweepClearsWaitingOlderThanThreshold() {
         let monttyID = "mid-1"
         let tab = Tab()

@@ -38,7 +38,8 @@ extension Tab {
             tabColorOverride: colorOverride,
             repoColorOverrides: repoColorOverrides,
             activityStates: activityStates,
-            activityWaitingSince: activityWaitingSince
+            activityWaitingSince: activityWaitingSince,
+            activityWaitingFromControl: activityWaitingFromControl
         )
         let result = ControlService.apply(
             command, target: target, to: &state,
@@ -49,6 +50,7 @@ extension Tab {
         colorOverride = state.tabColorOverride
         activityStates = state.activityStates
         activityWaitingSince = state.activityWaitingSince
+        activityWaitingFromControl = state.activityWaitingFromControl
         repoColorOverrides = state.repoColorOverrides
         return result
     }

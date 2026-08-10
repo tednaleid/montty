@@ -17,7 +17,8 @@ import Testing
         ControlState(
             tabName: "", displayName: "montty/", surfaceColorOverrides: [:],
             tabColorOverride: nil, repoColorOverrides: [:],
-            activityStates: [:], activityWaitingSince: [:]
+            activityStates: [:], activityWaitingSince: [:],
+            activityWaitingFromControl: [:]
         )
     }
 
@@ -137,6 +138,22 @@ import Testing
         )
         #expect(subject.activityStates["M1"] == .working)
         #expect(subject.activityWaitingSince["M1"] == nil)
+    }
+
+    @Test func waitingSetThroughControlIsTaggedWithItsOwnEpisode() {
+        var subject = state()
+        let now = Date()
+        _ = ControlService.apply(
+            .setStatus(.waiting), target: ref(), to: &subject,
+            gitInfoProvider: git, now: now
+        )
+        #expect(subject.activityWaitingFromControl["M1"] == now)
+        #expect(subject.activityWaitingFromControl["M1"] == subject.activityWaitingSince["M1"])
+
+        _ = ControlService.apply(
+            .setStatus(.working), target: ref(), to: &subject, gitInfoProvider: git
+        )
+        #expect(subject.activityWaitingFromControl["M1"] == nil)
     }
 
     @Test func setsIdleStatusThroughTheHookStateMachine() {

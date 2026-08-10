@@ -25,6 +25,7 @@ struct ControlState: Equatable {
     var repoColorOverrides: [String: PaneTint]
     var activityStates: [String: ActivityStatus.State]
     var activityWaitingSince: [String: Date]
+    var activityWaitingFromControl: [String: Date]
 }
 
 enum ControlService {
@@ -53,26 +54,44 @@ enum ControlService {
             return .applied
 
         case .setStatus(let status):
-            let event: ClaudeHookEvent
-            switch status {
-            case .working: event = .promptSubmit
-            case .waiting: event = .notification
-            case .idle: event = .stop
-            case nil: event = .sessionEnd
-            }
-            _ = HookStateMachine.apply(
-                event,
-                surfaceID: target.monttyID,
-                to: &state.activityStates,
-                waitingSince: &state.activityWaitingSince,
-                isKnownSurface: true,
-                now: now
-            )
+            setStatus(status, target: target, to: &state, now: now)
             return .applied
 
         case .info:
             return .read(info(target: target, state: state,
                               gitInfoProvider: gitInfoProvider))
+        }
+    }
+
+    /// Status runs through the hook state machine so the CLI and the hooks
+    /// cannot drift apart.
+    private static func setStatus(
+        _ status: ActivityStatus.State?,
+        target: SurfaceRef,
+        to state: inout ControlState,
+        now: Date
+    ) {
+        let event: ClaudeHookEvent
+        switch status {
+        case .working: event = .promptSubmit
+        case .waiting: event = .notification
+        case .idle: event = .stop
+        case nil: event = .sessionEnd
+        }
+        _ = HookStateMachine.apply(
+            event,
+            surfaceID: target.monttyID,
+            to: &state.activityStates,
+            waitingSince: &state.activityWaitingSince,
+            isKnownSurface: true,
+            now: now
+        )
+        // Tag a CLI-set `waiting` so the title-change safety net leaves it
+        // alone. Hooks reach the state machine directly and stay untagged.
+        if status == .waiting, let since = state.activityWaitingSince[target.monttyID] {
+            state.activityWaitingFromControl[target.monttyID] = since
+        } else {
+            state.activityWaitingFromControl.removeValue(forKey: target.monttyID)
         }
     }
 

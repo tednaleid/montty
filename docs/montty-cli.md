@@ -84,11 +84,19 @@ just check
 montty surface status idle
 ```
 
-`waiting` persists only as long as the caller keeps the foreground -- it clears
-the moment control returns to a shell prompt, because an ordinary interactive
-prompt re-emits the terminal title, and any title change clears `waiting`.
-That makes it useful from inside a long-lived foreground process, such as a
-script blocked on user input, but not from a one-off
-`cmd && montty surface status waiting` typed at a normal prompt. `working` and
-`idle` are not cleared by a title change, so they persist however you set
-them.
+`waiting` marks the pane as needing you, and it stays marked after control
+returns to the shell prompt:
+
+```bash
+just deploy && montty surface status waiting
+```
+
+A `waiting` set here survives the terminal title changing, so a shell redrawing
+its prompt does not wipe it. Claude Code's `waiting` behaves differently on
+purpose: its TUI does not redraw the title while it is blocked, so a title
+change there means the hook that should have cleared the state was lost, and
+montty clears it.
+
+Every `waiting`, however it was set, returns to `idle` after 60 seconds so a
+pane cannot stay marked forever. `working` and `idle` persist until something
+changes them.
