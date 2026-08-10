@@ -1,3 +1,6 @@
+// ABOUTME: The control socket's wire contract: request decoding, request
+// ABOUTME: encoding, and the shape of each response envelope.
+
 import Foundation
 import Testing
 

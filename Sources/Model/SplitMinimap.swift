@@ -55,7 +55,7 @@ struct SplitMinimap: Equatable {
             let activity: ActivityStatus?
             if let monttyID = ctx.surfaceToMonttyID[leaf.surfaceID],
                let hookState = ctx.activityStates[monttyID] {
-                let sessionName = ctx.surfaceTitles[leaf.surfaceID] ?? "Claude Code"
+                let sessionName = ctx.surfaceTitles[leaf.surfaceID] ?? "Terminal"
                 activity = ActivityStatus(sessionName: sessionName, state: hookState)
             } else {
                 activity = nil

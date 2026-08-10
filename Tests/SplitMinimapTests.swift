@@ -190,6 +190,6 @@ struct SplitMinimapTests {
             surfaceToMonttyID: surfaceToMonttyID
         )
         #expect(minimap.panes[0].activity?.state == .working)
-        #expect(minimap.panes[0].activity?.sessionName == "Claude Code")
+        #expect(minimap.panes[0].activity?.sessionName == "Terminal")
     }
 }

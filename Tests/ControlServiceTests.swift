@@ -1,3 +1,6 @@
+// ABOUTME: Behavior of the control service: how each command mutates the
+// ABOUTME: narrow state slice, and what the info payload reports back.
+
 import Foundation
 import Testing
 

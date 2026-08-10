@@ -328,7 +328,8 @@ import Testing
             surfaceDirectory: fixture.worktree,
             repoColorOverrides: overrides
         )
-        #expect(worktreeTint?.stops == [.named(.cyan)], "a picked color renders solid")
+        #expect(worktreeTint?.stops == [.named(.cyan)],
+            "a picked override renders with its own stops")
         #expect(parentTint == parentWithoutOverrides,
             "worktree override should not bleed into the parent's resolved tint")
     }

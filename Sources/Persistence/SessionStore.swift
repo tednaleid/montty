@@ -87,10 +87,27 @@ final class SessionStore {
             }
         case .readable(let version):
             guard version != SessionSnapshot.currentVersion else { return }
-            let backup = directory.appendingPathComponent("session.v\(version).json")
-            try? FileManager.default.removeItem(at: backup)
-            try? FileManager.default.copyItem(at: fileURL, to: backup)
+            backUpPriorFile(version: version, in: directory)
+        }
+    }
+
+    /// The copy lands on a staging name first, so a failure cannot leave the
+    /// previous backup deleted and the new one half-written.
+    private func backUpPriorFile(version: Int, in directory: URL) {
+        let backup = directory.appendingPathComponent("session.v\(version).json")
+        let staged = directory.appendingPathComponent("session.v\(version).json.staging")
+        do {
+            try? FileManager.default.removeItem(at: staged)
+            try FileManager.default.copyItem(at: fileURL, to: staged)
+            if FileManager.default.fileExists(atPath: backup.path) {
+                _ = try FileManager.default.replaceItemAt(backup, withItemAt: staged)
+            } else {
+                try FileManager.default.moveItem(at: staged, to: backup)
+            }
             Self.logger.info("Backed up v\(version) session to \(backup.path)")
+        } catch {
+            try? FileManager.default.removeItem(at: staged)
+            Self.logger.error("Failed to back up v\(version) session: \(error)")
         }
     }
 

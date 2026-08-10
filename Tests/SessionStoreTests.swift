@@ -82,6 +82,36 @@ import Testing
         #expect(FileManager.default.fileExists(atPath: backup.path))
     }
 
+    @Test func aFailedBackupCopyLeavesTheExistingBackupInPlace() throws {
+        let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let sessionPath = dir.appendingPathComponent("session.json")
+        let json = """
+        {"version":2,"windowX":0,"windowY":0,"windowWidth":100,"windowHeight":100,
+         "activeTabID":null,"tabs":[]}
+        """
+        try Data(json.utf8).write(to: sessionPath)
+        let backup = dir.appendingPathComponent("session.v2.json")
+        try Data("earlier backup".utf8).write(to: backup)
+
+        let store = SessionStore(directory: dir)
+        _ = store.load()
+        // Make the source unreadable so the copy into the backup cannot succeed.
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0], ofItemAtPath: sessionPath.path
+        )
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o644], ofItemAtPath: sessionPath.path
+            )
+        }
+        store.save(snapshot: SessionSnapshot(tabs: []))
+
+        #expect(
+            try String(contentsOf: backup, encoding: .utf8) == "earlier backup"
+        )
+    }
+
     @Test func roundTripsGradientOverrides() throws {
         let dir = tempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
