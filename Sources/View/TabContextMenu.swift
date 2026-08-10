@@ -20,8 +20,7 @@ struct TabContextMenu: View {
 
     /// Repo identity string for the focused surface (used as override key).
     private var repoIdentity: String? {
-        guard let info = focusedGitInfo else { return nil }
-        return info.repoPath + (info.worktreeName ?? "")
+        focusedGitInfo.map { TabColor.repoIdentity(for: $0) }
     }
 
     /// Display label for the repo color menu.

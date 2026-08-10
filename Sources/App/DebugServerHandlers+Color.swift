@@ -10,7 +10,7 @@ extension DebugServer {
         let tabOverride = tab.colorOverride
         let directory = tab.effectiveSurfaceDirectories[leaf.surfaceID]
         let gitInfo = directory.flatMap(GitInfo.from(path:))
-        let identity = gitInfo.map { $0.repoPath + ($0.worktreeName ?? "") }
+        let identity = gitInfo.map { TabColor.repoIdentity(for: $0) }
         let repoOverride = identity.flatMap { appDelegate.repoColorOverrides[$0] }
 
         let effective = TabColor.resolvedPaneTint(

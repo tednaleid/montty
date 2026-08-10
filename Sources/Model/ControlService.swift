@@ -106,7 +106,7 @@ enum ControlService {
     ) -> String? {
         guard let directory = target.directory,
               let info = gitInfoProvider(directory) else { return nil }
-        return info.repoPath + (info.worktreeName ?? "")
+        return TabColor.repoIdentity(for: info)
     }
 
     private static func info(
@@ -115,7 +115,7 @@ enum ControlService {
         gitInfoProvider: (String) -> GitInfo?
     ) -> ControlInfo {
         let gitInfo = target.directory.flatMap(gitInfoProvider)
-        let identity = gitInfo.map { $0.repoPath + ($0.worktreeName ?? "") }
+        let identity = gitInfo.map { TabColor.repoIdentity(for: $0) }
         let repoTint = identity.flatMap { state.repoColorOverrides[$0] }
 
         let effective = TabColor.resolvedPaneTint(

@@ -12,7 +12,7 @@ extension TabColor {
     /// Returns nil if not in a git repo (no tinting).
     static func colorForGitInfo(_ gitInfo: GitInfo?) -> TabColor? {
         guard let gitInfo else { return nil }
-        let identity = gitInfo.repoPath + (gitInfo.worktreeName ?? "")
+        let identity = repoIdentity(for: gitInfo)
         // Gray is reserved for "no git repo" -- exclude it from the hash palette
         let colors = TabColor.allCases.filter { $0 != .gray }
         return colors[Int(polynomialHash(identity) % UInt64(colors.count))]
@@ -25,11 +25,17 @@ extension TabColor {
         return colorForGitInfo(GitInfo.from(path: dir))
     }
 
-    /// The repo identity string for a directory, used as the key in overrides.
-    /// Returns nil if not in a git repo.
+    /// The key a repo color override is stored under. Every actor that reads
+    /// or writes `repoColorOverrides` derives it here, so a saved color cannot
+    /// be orphaned by one site spelling the identity differently.
+    static func repoIdentity(for gitInfo: GitInfo) -> String {
+        gitInfo.repoPath + (gitInfo.worktreeName ?? "")
+    }
+
+    /// The repo identity for a directory. Returns nil if not in a git repo.
     static func repoIdentity(for dir: String?) -> String? {
         guard let dir, let gitInfo = GitInfo.from(path: dir) else { return nil }
-        return gitInfo.repoPath + (gitInfo.worktreeName ?? "")
+        return repoIdentity(for: gitInfo)
     }
 
     /// FNV-1a, independent of the polynomial hash behind `colorForGitInfo`, so a
@@ -64,7 +70,7 @@ extension TabColor {
     /// starts with the same pattern. A picked override renders using its own
     /// stops, solid or gradient.
     static func paneTint(for info: GitInfo, overrides: [String: PaneTint] = [:]) -> PaneTint? {
-        let identity = info.repoPath + (info.worktreeName ?? "")
+        let identity = repoIdentity(for: info)
         if let picked = overrides[identity] { return picked }
         guard let own = colorForGitInfo(info) else { return nil }
 
@@ -75,7 +81,7 @@ extension TabColor {
             repoPath: info.repoPath
         )
         let parentStops: [TintStop]
-        if let picked = overrides[parentInfo.repoPath] {
+        if let picked = overrides[repoIdentity(for: parentInfo)] {
             parentStops = picked.stops
         } else if let parentPrimary = colorForGitInfo(parentInfo) {
             let leading = knockout(for: parentInfo.repoPath, avoiding: [.named(parentPrimary)])
