@@ -54,6 +54,18 @@ just lint        # run SwiftLint
 
 Terminal theming is configured through Ghostty's config file at `~/.config/ghostty/config`. Tab state (names, colors, positions, splits) is persisted automatically in a session file. No separate montty config file is needed.
 
+### Session files
+
+The session lives in `~/Library/Application Support/montty/`. Setting `MONTTY_SESSION_DIR` points montty at a different directory, which is how a development build keeps its tabs out of the installed app's session.
+
+| File | Meaning |
+|---|---|
+| `session.json` | the live session: tabs, splits, names, colors, focus |
+| `session.corrupt-<timestamp>.json` | a `session.json` montty could not read, moved aside before the first save overwrote it |
+| `session.v<n>.json` | a copy of a session written in an older format, kept before montty upgrades it |
+
+If montty opens with tabs missing, look for those two recovery files. Quitting montty and copying one back over `session.json` restores what it holds.
+
 The surface jump shortcut (default Cmd+;) can be changed through macOS System Settings under Keyboard, Keyboard Shortcuts, App Shortcuts. Add an entry for Montty with the menu title "Jump to Surface".
 
 ## Architecture
