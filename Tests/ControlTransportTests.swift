@@ -33,6 +33,24 @@ import Testing
         }
     }
 
+    /// Writes `data` one byte at a time with a pause between bytes, the shape
+    /// of a client that keeps a connection alive without ever completing a
+    /// request. The returned semaphore signals once the writer is done.
+    private func trickle(
+        _ data: Data, to descriptor: Int32, microsecondsPerByte: UInt32
+    ) -> DispatchSemaphore {
+        let finished = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            for byte in data {
+                var copy = byte
+                if write(descriptor, &copy, 1) != 1 { break }
+                usleep(microsecondsPerByte)
+            }
+            finished.signal()
+        }
+        return finished
+    }
+
     @Test func readsARequestLargerThanTheKernelSocketBuffer() throws {
         let (client, server) = socketPair()
         defer { close(client); close(server) }
@@ -79,6 +97,36 @@ import Testing
         close(client)
 
         #expect(ControlTransport.readRequest(from: server) == .request(partial))
+    }
+
+    @Test func stopsWhenTheDeadlineForTheWholeRequestPasses() throws {
+        let (client, server) = socketPair()
+        defer { close(client); close(server) }
+
+        let payload = try ControlRequest(surface: "M1", command: .setName("trickled")).encoded()
+        let finished = trickle(payload, to: client, microsecondsPerByte: 5_000)
+
+        let started = DispatchTime.now().uptimeNanoseconds
+        let outcome = ControlTransport.readRequest(from: server, deadlineNanoseconds: 50_000_000)
+        let elapsed = DispatchTime.now().uptimeNanoseconds - started
+        finished.wait()
+
+        guard case .request(let data) = outcome else {
+            Issue.record("expected the bytes that arrived before the deadline")
+            return
+        }
+        #expect(data.count < payload.count)
+        #expect(elapsed < 250_000_000)
+    }
+
+    @Test func aPeerThatSendsNothingIsBoundedByTheReceiveTimeout() {
+        let (client, server) = socketPair()
+        defer { close(client); close(server) }
+
+        var timeout = timeval(tv_sec: 0, tv_usec: 50_000)
+        setsockopt(server, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+
+        #expect(ControlTransport.readRequest(from: server) == .empty)
     }
 
     @Test func aRefusedConnectToAnExistingSocketMeansBusyRatherThanMissing() {

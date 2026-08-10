@@ -9,6 +9,14 @@ enum ControlTransport {
     /// make a handler thread accumulate.
     static let maxRequestBytes = 1 << 20
 
+    /// Longest the whole request read may take. A descriptor's receive timeout
+    /// bounds one `read`, which a peer that trickles a byte at a time resets
+    /// forever, so the total is what actually frees the handler thread. Two
+    /// seconds is far longer than a request of any accepted size needs over a
+    /// local socket, and it keeps the answer inside the client's 3s receive
+    /// timeout.
+    static let readDeadlineNanoseconds: UInt64 = 2_000_000_000
+
     enum ReadOutcome: Equatable {
         case request(Data)
         case tooLarge
@@ -19,10 +27,16 @@ enum ControlTransport {
     /// kernel hands a large request over in several pieces, so treating the
     /// first read as the whole request decodes a prefix and calls a well
     /// formed request malformed. Bytes that never complete come back as they
-    /// arrived, once the peer closes or the descriptor's receive timeout
-    /// fires, so the caller still answers with a decode error rather than
-    /// holding the connection open.
-    static func readRequest(from descriptor: Int32) -> ReadOutcome {
+    /// arrived, once the peer closes, the descriptor's receive timeout fires,
+    /// or the deadline passes, so the caller still answers with a decode error
+    /// rather than holding the connection open.
+    static func readRequest(
+        from descriptor: Int32,
+        deadlineNanoseconds: UInt64 = readDeadlineNanoseconds
+    ) -> ReadOutcome {
+        // Monotonic, so a clock adjustment mid-read cannot extend or collapse
+        // the deadline.
+        let deadline = DispatchTime.now().uptimeNanoseconds + deadlineNanoseconds
         var data = Data()
         var buffer = [UInt8](repeating: 0, count: 65_536)
         while true {
@@ -31,6 +45,7 @@ enum ControlTransport {
             data.append(contentsOf: buffer[..<count])
             if data.count > maxRequestBytes { return .tooLarge }
             if isComplete(data) { return .request(data) }
+            if DispatchTime.now().uptimeNanoseconds >= deadline { break }
         }
         return data.isEmpty ? .empty : .request(data)
     }
