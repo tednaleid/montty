@@ -38,8 +38,10 @@ A stop is a palette name resolved through your Ghostty theme (`green`,
 `brightMagenta`, `neutralBright`; case and `-`/`_` are ignored) or a six-digit
 hex value with or without a leading `#`.
 
-A request, tab name included, is capped at 1 MiB. A larger one is rejected with
-an error rather than truncated.
+A tab name is capped at 256 characters, and a whole request at 1 MiB. Either
+limit rejects the request rather than truncating it, so a name that arrives is
+always the name that was typed. An over-long name exits 1, an over-size request
+exits 64.
 
 ## Scopes
 
@@ -69,10 +71,10 @@ montty info | jq -r .git.branch
 | exit | meaning |
 |---|---|
 | 0 | ok |
-| 1 | montty rejected the request (unknown surface, not in a repo) |
+| 1 | montty rejected the request (unknown surface, not in a repo, tab name over 256 characters) |
 | 2 | not running inside a montty pane |
 | 3 | montty is not reachable: not running, or busy and refusing connections |
-| 64 | usage error: unknown verb or property, bad color spec, extra arguments |
+| 64 | usage error: unknown verb or property, bad color spec, extra arguments, request over 1 MiB |
 
 ## Activity status
 

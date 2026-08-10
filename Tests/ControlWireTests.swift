@@ -47,6 +47,21 @@ import Testing
         #expect(try ControlRequest.decode(cleared).command == .setStatus(nil))
     }
 
+    @Test func rejectsANameLongerThanTheCapRatherThanTruncatingIt() throws {
+        let overLong = String(repeating: "n", count: ControlWire.maxNameCharacters + 1)
+        let request = ControlRequest(surface: "M1", command: .setName(overLong))
+        let payload = try request.encoded()
+        #expect(throws: ControlRequest.DecodeFailure.nameTooLong) {
+            try ControlRequest.decode(payload)
+        }
+    }
+
+    @Test func acceptsANameAtTheCap() throws {
+        let name = String(repeating: "n", count: ControlWire.maxNameCharacters)
+        let payload = try ControlRequest(surface: "M1", command: .setName(name)).encoded()
+        #expect(try ControlRequest.decode(payload).command == .setName(name))
+    }
+
     @Test func everyActivityStatusHasAStableWireName() {
         #expect(ActivityStatus.State.working.wireName == "working")
         #expect(ActivityStatus.State.waiting.wireName == "waiting")

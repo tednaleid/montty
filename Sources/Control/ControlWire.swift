@@ -6,6 +6,12 @@ import Foundation
 enum ControlWire {
     /// Bumped only when the envelope shape changes incompatibly.
     static let version = 1
+
+    /// Longest tab name a client may set. A tab name is a sidebar label, and a
+    /// row shows a few dozen characters, so 256 is room for a full pull request
+    /// title with decoration. Past that the value is not a label, and every one
+    /// of its characters is re-encoded into the session file on each autosave.
+    static let maxNameCharacters = 256
 }
 
 /// One request carries exactly one command, matching one ControlCommand.
@@ -16,6 +22,9 @@ struct ControlRequest: Equatable {
     enum DecodeFailure: Error, Equatable {
         case malformed
         case unsupportedVersion
+        /// A name past `ControlWire.maxNameCharacters`. Rejected rather than
+        /// truncated, so a caller is never told a name it never chose is set.
+        case nameTooLong
         /// No `cmd` field: a hook event from the shell wrapper, which the
         /// legacy ClaudeHookMessage path still owns.
         case legacyHook
@@ -87,6 +96,9 @@ struct ControlRequest: Equatable {
     private static func nameCommand(value: Any?, isNull: Bool) throws -> ControlCommand {
         if isNull { return .clearName }
         guard let name = value as? String else { throw DecodeFailure.malformed }
+        guard name.count <= ControlWire.maxNameCharacters else {
+            throw DecodeFailure.nameTooLong
+        }
         return .setName(name)
     }
 

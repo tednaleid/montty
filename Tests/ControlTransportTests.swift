@@ -55,8 +55,8 @@ import Testing
         let (client, server) = socketPair()
         defer { close(client); close(server) }
 
-        let name = String(repeating: "n", count: 40_000)
-        let request = ControlRequest(surface: "M1", command: .setName(name))
+        let surface = String(repeating: "M", count: 40_000)
+        let request = ControlRequest(surface: surface, command: .info)
         let payload = try request.encoded()
         #expect(payload.count > 8192)
         writeInBackground(payload, to: client)

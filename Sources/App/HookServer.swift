@@ -154,6 +154,10 @@ enum HookServer {
             return
         } catch ControlRequest.DecodeFailure.unsupportedVersion {
             response = .failure("montty CLI is newer than the app")
+        } catch ControlRequest.DecodeFailure.nameTooLong {
+            response = .failure(
+                "tab name is longer than \(ControlWire.maxNameCharacters) characters"
+            )
         } catch {
             response = .failure("malformed request")
         }
