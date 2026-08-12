@@ -1,3 +1,6 @@
+// ABOUTME: The application delegate: owns the Ghostty app, the window registry
+// ABOUTME: and its controllers, and the settings every window reads from.
+
 import Cocoa
 import Combine
 import GhosttyKit

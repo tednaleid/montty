@@ -1,3 +1,6 @@
+// ABOUTME: The saved shape of a session: app-wide settings plus one entry per
+// ABOUTME: window, decoded from both that shape and the flat single-window one.
+
 import Foundation
 
 struct SessionSnapshot: Codable {

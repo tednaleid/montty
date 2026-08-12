@@ -1,5 +1,5 @@
 // ABOUTME: Startup guard: the montty already serving the control socket keeps
-// ABOUTME: it, and a second launch raises that window instead of taking over.
+// ABOUTME: it, and a second launch raises its windows instead of taking over.
 
 import AppKit
 import Foundation
@@ -56,7 +56,8 @@ enum InstanceGuard {
         exit(EXIT_SUCCESS)
     }
 
-    /// Best effort: raise the window the user asked for. Only one montty can
+    /// Best effort: raise every window of the montty already running, which is
+    /// what the user asking for another one wants to see. Only one montty can
     /// own the socket, so more than one candidate means the owner is not
     /// identified, and nothing is activated.
     private static func activateRunningInstance() {

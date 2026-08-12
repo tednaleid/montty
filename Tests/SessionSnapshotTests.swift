@@ -1,3 +1,6 @@
+// ABOUTME: Round trips session snapshots through JSON -- split layouts, per-leaf
+// ABOUTME: directories, and color overrides at every scope survive encoding.
+
 import Foundation
 import Testing
 

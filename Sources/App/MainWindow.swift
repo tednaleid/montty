@@ -1,3 +1,6 @@
+// ABOUTME: One window's content: its tab sidebar, the draggable divider that
+// ABOUTME: sizes it, and the split panes of whichever tab is active.
+
 import SwiftUI
 
 struct MainWindow: View {
