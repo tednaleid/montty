@@ -27,6 +27,13 @@ extension AppDelegate {
     }
 
     func restoreSession(_ snapshot: SessionSnapshot) {
+        // App-wide settings first: they belong to the session, not to any
+        // window, and a file with no windows still carries them. Leaving them
+        // to the windowed path below would let the next autosave write the
+        // declared defaults over what the user had set.
+        surfaceTintEnabled = snapshot.surfaceTintEnabled
+        repoColorOverrides = snapshot.repoColorOverrides
+
         let restorable = snapshot.windows.filter { !$0.tabs.isEmpty }
         guard let app = ghostty.app, !restorable.isEmpty else {
             // A quit that closed every window saves no windows, so this is a
@@ -37,9 +44,6 @@ extension AppDelegate {
             focusActiveSurface()
             return
         }
-
-        surfaceTintEnabled = snapshot.surfaceTintEnabled
-        repoColorOverrides = snapshot.repoColorOverrides
 
         for windowSnap in restorable {
             let model = WindowModel(

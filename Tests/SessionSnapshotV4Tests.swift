@@ -118,6 +118,22 @@ import Testing
         #expect(snapshot.version == 4)
     }
 
+    /// App-wide settings belong to the session, not to any window, so a file
+    /// that saved no windows -- what closing the last one by hand writes --
+    /// still carries them.
+    @Test func keepsAppWideSettingsInAFileWithNoWindows() throws {
+        let json = #"{"version": 4, "windows": [], "surfaceTintEnabled": false, "#
+            + #""repoColorOverrides": {"/Users/dev/work/alpha": "blue"}}"#
+        let snapshot = try decode(json)
+
+        #expect(snapshot.windows.isEmpty)
+        #expect(snapshot.surfaceTintEnabled == false)
+        #expect(
+            snapshot.repoColorOverrides["/Users/dev/work/alpha"]
+                == PaneTint(stops: [.named(.blue)])
+        )
+    }
+
     @Test func decodesAnExplicitEmptyWindowsArrayAsNoWindows() throws {
         let snapshot = try decode(#"{"version": 4, "windows": []}"#)
 
