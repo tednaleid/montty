@@ -228,6 +228,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
         // A surface is born with `focused == true`, so blur the tabs it displaced.
         syncSurfaceFocus()
+        keyController?.syncTitle()
     }
 
     func closeTab(id: UUID) {
@@ -260,6 +261,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             return
         }
         syncSurfaceFocus()
+        keyController?.syncTitle()
     }
 
     /// Close a single surface within a tab's split tree.
@@ -485,12 +487,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
         surfaceView.$title
             .receive(on: DispatchQueue.main)
-            .sink { [weak tab, id = surfaceView.id] title in
+            .sink { [weak self, weak tab, id = surfaceView.id] title in
                 tab?.autoName = title
                 tab?.surfaceTitles[id] = title
                 // Safety net: a title change is strong evidence Claude is active,
                 // so clear any stuck `.waiting` state on this surface.
                 tab?.clearWaitingOnTitleChange(for: id)
+                // The reporting surface may belong to a background window, so
+                // this resolves and syncs that window specifically rather than
+                // the key window.
+                if let owner = self?.registry.locate(surfaceID: id)?.window {
+                    self?.controllers[owner.id]?.syncTitle()
+                }
             }
             .store(in: &cancellables)
 

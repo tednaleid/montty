@@ -55,20 +55,18 @@ struct MainWindow: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onChange(of: tabStore.activeTabID) { _, newID in
-            // Sync before the guard so the outgoing tab blurs even when the
-            // incoming tab has no surface view yet.
+            // Sync before the guard so the outgoing tab blurs, and the title
+            // updates, even when the incoming tab has no surface view yet.
             appDelegate.syncSurfaceFocus()
+            appDelegate.controllers[window.id]?.syncTitle()
             guard let newID = newID,
                   let tab = tabStore.tabs.first(where: { $0.id == newID }),
                   let surfaceID = tab.focusedSurfaceID,
                   let surfaceView = appDelegate.surfaceView(for: surfaceID) else { return }
             Ghostty.moveFocus(to: surfaceView)
-            updateWindowTitle(tab: tab)
         }
         .onAppear {
-            if let tab = tabStore.activeTab {
-                updateWindowTitle(tab: tab)
-            }
+            appDelegate.controllers[window.id]?.syncTitle()
         }
     }
 
@@ -94,12 +92,6 @@ struct MainWindow: View {
             .id(activeTab.id)
         } else {
             Color(nsColor: .windowBackgroundColor)
-        }
-    }
-
-    private func updateWindowTitle(tab: Tab) {
-        DispatchQueue.main.async {
-            NSApp.mainWindow?.title = "Montty - \(tab.tabInfo.displayName)"
         }
     }
 }
