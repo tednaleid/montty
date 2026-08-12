@@ -42,6 +42,23 @@ import Testing
         #expect(registry.locate(surfaceID: UUID()) == nil)
     }
 
+    @Test func routesATabIDToTheWindowThatOwnsIt() {
+        let registry = WindowRegistry()
+        registry.add()
+        let second = registry.add()
+        let tab = Tab(id: UUID(), name: "", position: 0)
+        second.tabStore.append(tab: tab)
+
+        #expect(registry.locate(tabID: tab.id)?.id == second.id)
+    }
+
+    @Test func routesNothingForATabIDNoWindowOwns() {
+        let registry = WindowRegistry()
+        registry.add()
+
+        #expect(registry.locate(tabID: UUID()) == nil)
+    }
+
     @Test func removingAWindowDropsItAndItsSurfaces() {
         let registry = WindowRegistry()
         let only = registry.add()

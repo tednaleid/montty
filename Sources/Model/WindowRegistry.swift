@@ -1,5 +1,5 @@
-// ABOUTME: Every open window in order, and the lookup that answers which window
-// ABOUTME: and tab own a given surface.
+// ABOUTME: Every open window in order, and the lookups that answer which window
+// ABOUTME: owns a given surface or tab.
 
 import Foundation
 
@@ -41,5 +41,14 @@ final class WindowRegistry {
             }
         }
         return nil
+    }
+
+    /// A tab belongs to exactly one window. Callers deciding whether closing
+    /// a tab should also close its window use this rather than assuming it's
+    /// whichever window currently holds focus.
+    func locate(tabID: UUID) -> WindowModel? {
+        windows.first { window in
+            window.tabStore.tabs.contains { $0.id == tabID }
+        }
     }
 }

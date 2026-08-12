@@ -52,11 +52,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     let undoManager: UndoManager? = nil
 
     /// Surface views keyed by surface UUID. SwiftUI can't hold NSView
-    /// references in the model layer, so AppDelegate owns them.
-    private var surfaces: [UUID: Ghostty.SurfaceView] = [:]
+    /// references in the model layer, so AppDelegate owns them. Not private:
+    /// `AppDelegate+WindowLifecycle.swift` forgets a closing window's entries.
+    var surfaces: [UUID: Ghostty.SurfaceView] = [:]
 
-    /// Combine subscriptions for surface property observation
-    private var surfaceObservers: [UUID: Set<AnyCancellable>] = [:]
+    /// Combine subscriptions for surface property observation. Not private,
+    /// for the same reason `surfaces` isn't.
+    var surfaceObservers: [UUID: Set<AnyCancellable>] = [:]
 
     /// Tick timer for the Ghostty event loop
     private var tickTimer: Timer?
@@ -65,16 +67,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// NSEvent monitor for capturing keys during jump mode
     private var jumpKeyMonitor: Any?
 
-    /// Session persistence
-    private let sessionStore = SessionStore()
+    /// Session persistence. Not private: `AppDelegate+WindowLifecycle.swift`
+    /// saves through this on every window close.
+    let sessionStore = SessionStore()
 
     /// Set once an app-wide quit is underway. AppKit closes every open window
     /// as part of `terminate(_:)`, each running through `windowWillClose` --
     /// without this flag, whichever window happens to close last would look
     /// like an ordinary "last window closing" and overwrite the complete
     /// snapshot `applicationShouldTerminate` already saved with a snapshot of
-    /// just itself.
-    private var isTerminating = false
+    /// just itself. Not private, for the same reason `sessionStore` isn't.
+    var isTerminating = false
 
     override init() {
         // Point GhosttyKit at our bundled resources (terminfo + shell
@@ -174,85 +177,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         return true
     }
 
-    // MARK: - Window lifecycle
-
-    /// Builds a window, registers it, and returns its controller. Every window
-    /// in the process is created here.
-    @discardableResult
-    func makeWindow(_ model: WindowModel = WindowModel()) -> WindowController {
-        registry.add(model)
-        let controller = WindowController(
-            model: model, ghostty: ghostty, appDelegate: self
-        )
-        controllers[model.id] = controller
-        return controller
-    }
-
-    /// A window is going away. Save state while it's still the registry's key
-    /// window if it was the last one and this wasn't already covered by an
-    /// app-wide quit, tear down its surfaces, then drop it and quit only if
-    /// that was the last window standing.
-    ///
-    /// The controller is kept alive in `controllers` past the point where the
-    /// registry forgets it, and only released on the next run loop turn --
-    /// AppKit is still using the window and its delegate for the remainder of
-    /// this close sequence.
-    func windowWillClose(_ controller: WindowController) {
-        let isLastWindow = registry.windows.count == 1
-        if isLastWindow && !isTerminating {
-            sessionStore.save(snapshot: createSnapshot())
-        }
-        for tab in controller.model.tabStore.tabs {
-            for surfaceID in tab.allSurfaceIDs {
-                surfaceObservers.removeValue(forKey: surfaceID)
-                surfaces.removeValue(forKey: surfaceID)
-            }
-        }
-        // With isReleasedWhenClosed = false, AppKit does not tear the content
-        // view hierarchy down on close the way it does when it owns the
-        // window's release -- the SwiftUI tree, and the surfaces inside it,
-        // would otherwise sit retained until the window itself deallocates,
-        // which AppKit's own window tracking can delay indefinitely. Clearing
-        // it here drops that reference immediately and deterministically.
-        controller.window.contentView = nil
-        registry.remove(id: controller.model.id)
-        if registry.windows.isEmpty {
-            NSApp.terminate(nil)
-        }
-        DispatchQueue.main.async { [weak self] in
-            self?.controllers[controller.model.id] = nil
-        }
-    }
-
-    /// Opens a window with one tab, cascaded from the window in front so the new
-    /// one does not land exactly on top of it.
-    func newWindow() {
-        let keyFrame = keyController?.window.frame
-        let controller = makeWindow()
-        if let keyFrame {
-            controller.window.setFrameTopLeftPoint(
-                NSPoint(x: keyFrame.origin.x + 24, y: keyFrame.origin.y + keyFrame.height - 24)
-            )
-        }
-        registry.keyWindowID = controller.model.id
-        createTab()
-        controller.show()
-        focusActiveSurface()
-    }
-
-    /// Closes the key window through the same `NSWindow.close()` path the red
-    /// button uses, so `windowWillClose` is the one place that decides between
-    /// dropping a window and quitting.
-    ///
-    /// Deferred a run loop turn: this runs from a Ghostty action on a surface
-    /// that lives in the window being closed, and `.close()` can synchronously
-    /// tear down that surface's view while it is still on the call stack that
-    /// invoked us. Closing on the next turn lets that call stack unwind first.
-    func closeWindow() {
-        let windowToClose = keyController?.window
-        DispatchQueue.main.async {
-            windowToClose?.close()
-        }
+    /// Becoming active again is evidence a quit this process agreed to
+    /// (`applicationShouldTerminate` always returns `.terminateNow`) did not
+    /// actually happen -- the system cancelled it for reasons outside this
+    /// app's control. Clears the flag so window closes go back to saving.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        isTerminating = false
     }
 
     // MARK: - Tab lifecycle
@@ -289,6 +219,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     func closeTab(id: UUID) {
         guard let tab = tabStore.tabs.first(where: { $0.id == id }) else { return }
+        // Resolved up front, not assumed to be the key window: the tabStore
+        // this function reads is a scaffold that currently always resolves to
+        // the key window, but the window actually owning this tab is what
+        // must close if this turns out to be its last one.
+        let owningWindow = registry.locate(tabID: id).flatMap { controllers[$0.id] }
         // Clean up all surfaces in this tab's split tree
         for surfaceID in tab.allSurfaceIDs {
             surfaceObservers.removeValue(forKey: surfaceID)
@@ -305,7 +240,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         // tear down that surface's view while it is still on the call stack
         // that invoked us. Closing on the next turn lets that stack unwind.
         if tabStore.tabs.isEmpty {
-            let windowToClose = keyController?.window
+            let windowToClose = owningWindow?.window
             DispatchQueue.main.async {
                 windowToClose?.close()
             }
@@ -641,7 +576,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     }
 
     func checkForUpdates(_ sender: Any?) {}
-    func closeAllWindows(_ sender: Any?) {}
     func toggleVisibility(_ sender: Any?) {}
     func toggleQuickTerminal(_ sender: Any?) {}
     func setSecureInput(_ mode: Ghostty.SetSecureInput) {}
