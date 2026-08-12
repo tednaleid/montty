@@ -34,16 +34,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         return controllers[id]
     }
 
-    /// The tabs of the window holding focus.
-    var tabStore: TabStore {
-        registry.keyWindow?.tabStore ?? TabStore()
-    }
-
-    /// The window holding focus.
-    var window: NSWindow? {
-        keyController?.window
-    }
-
     static func shared() -> AppDelegate? {
         NSApp?.delegate as? AppDelegate
     }
@@ -152,8 +142,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             withTimeInterval: 5.0, repeats: true
         ) { [weak self] _ in
             guard let self else { return }
-            for tab in self.tabStore.tabs {
-                tab.sweepStaleWaiting()
+            for window in self.registry.windows {
+                for tab in window.tabStore.tabs {
+                    tab.sweepStaleWaiting()
+                }
             }
         }
     }
@@ -208,10 +200,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     static let binPath = Bundle.main.executableURL?.path ?? ""
 
     func createTab() {
-        guard let app = ghostty.app else { return }
+        guard let app = ghostty.app, let window = registry.keyWindow else { return }
         let monttyID = UUID().uuidString
         var config = Ghostty.SurfaceConfiguration()
-        config.workingDirectory = focusedDirectory(of: tabStore.activeTab)
+        config.workingDirectory = focusedDirectory(of: window.tabStore.activeTab)
         config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
         config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
         config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
@@ -220,30 +212,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         let tab = Tab(surfaceID: surfaceView.id)
         tab.surfaceToMonttyID[surfaceView.id] = monttyID
         surfaces[surfaceView.id] = surfaceView
-        tabStore.append(tab: tab)
-        tabStore.activeTabID = tab.id
+        window.tabStore.append(tab: tab)
+        window.tabStore.activeTabID = tab.id
 
         // Watch for title and PWD changes from this surface
         observeSurface(surfaceView, tab: tab)
 
         // A surface is born with `focused == true`, so blur the tabs it displaced.
         syncSurfaceFocus()
-        keyController?.syncTitle()
+        controllers[window.id]?.syncTitle()
     }
 
     func closeTab(id: UUID) {
-        guard let tab = tabStore.tabs.first(where: { $0.id == id }) else { return }
-        // Resolved up front, not assumed to be the key window: the tabStore
-        // this function reads is a scaffold that currently always resolves to
-        // the key window, but the window actually owning this tab is what
-        // must close if this turns out to be its last one.
-        let owningWindow = registry.locate(tabID: id).flatMap { controllers[$0.id] }
+        // The window that owns this tab, not whichever one holds focus: a tab
+        // can be closed from a background window's sidebar, and that window is
+        // the one that loses the tab and closes if it was its last.
+        guard let owner = registry.locate(tabID: id),
+              let tab = owner.tabStore.tabs.first(where: { $0.id == id }) else { return }
         // Clean up all surfaces in this tab's split tree
         for surfaceID in tab.allSurfaceIDs {
             surfaceObservers.removeValue(forKey: surfaceID)
             surfaces.removeValue(forKey: surfaceID)
         }
-        tabStore.close(id: id)
+        owner.tabStore.close(id: id)
 
         // If no tabs remain in this window, close the window through the same
         // teardown windowWillClose uses. Quitting is windowWillClose's call,
@@ -253,21 +244,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         // surface that just closed, and closing the window synchronously can
         // tear down that surface's view while it is still on the call stack
         // that invoked us. Closing on the next turn lets that stack unwind.
-        if tabStore.tabs.isEmpty {
-            let windowToClose = owningWindow?.window
+        if owner.tabStore.tabs.isEmpty {
+            let windowToClose = controllers[owner.id]?.window
             DispatchQueue.main.async {
                 windowToClose?.close()
             }
             return
         }
         syncSurfaceFocus()
-        keyController?.syncTitle()
+        controllers[owner.id]?.syncTitle()
     }
 
     /// Close a single surface within a tab's split tree.
     /// If it's the last surface, closes the tab.
     func closeSurface(surfaceID: UUID) {
-        guard let tab = tabStore.tab(forSurfaceID: surfaceID) else { return }
+        guard let tab = registry.locate(surfaceID: surfaceID)?.tab else { return }
         guard let leaf = SplitTree.findLeaf(
             node: tab.splitRoot, surfaceID: surfaceID
         ) else { return }
@@ -294,7 +285,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Split the focused surface in the active tab.
     func splitSurface(direction: SplitDirection) {
         guard let app = ghostty.app,
-              let tab = tabStore.activeTab,
+              let tab = registry.keyWindow?.tabStore.activeTab,
               let focusedLeafID = tab.focusedLeafID else { return }
 
         let monttyID = UUID().uuidString
@@ -385,7 +376,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     /// Move the first responder to the active tab's focused surface, if any.
     func focusActiveSurface() {
-        if let surfaceID = tabStore.activeTab?.focusedSurfaceID,
+        if let surfaceID = registry.keyWindow?.tabStore.activeTab?.focusedSurfaceID,
            let surfaceView = surfaceView(for: surfaceID) {
             Ghostty.moveFocus(to: surfaceView)
         }
@@ -394,6 +385,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     // MARK: - Surface jump mode
 
     func enterJumpMode() {
+        guard let tabStore = registry.keyWindow?.tabStore else { return }
         // Collect all surfaces: active tab first, then other tabs by position
         var targets: [JumpTarget] = []
         let activeID = tabStore.activeTabID
@@ -426,7 +418,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     /// Jump to a specific surface (used by both jump mode and minimap click).
     func jumpToSurface(tabID: UUID, leafID: UUID) {
-        guard let tab = tabStore.tabs.first(where: { $0.id == tabID }) else { return }
+        guard let tabStore = registry.locate(tabID: tabID)?.tabStore,
+              let tab = tabStore.tabs.first(where: { $0.id == tabID }) else { return }
         if tabStore.activeTabID != tabID {
             tabStore.activeTabID = tabID
         }
@@ -529,7 +522,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Handle a menu item that triggers a Ghostty binding action.
     @objc func handleMenuAction(_ sender: NSMenuItem) {
         guard let action = sender.representedObject as? String,
-              let tab = tabStore.activeTab,
+              let tab = registry.keyWindow?.tabStore.activeTab,
               let surfaceID = tab.focusedSurfaceID,
               let view = surfaceView(for: surfaceID),
               let surface = view.surface else { return }

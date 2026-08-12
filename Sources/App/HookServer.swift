@@ -181,17 +181,16 @@ enum HookServer {
 
         DispatchQueue.main.async {
             defer { semaphore.signal() }
+            // The pane that ran the CLI can be in any window, so this asks
+            // every window rather than the one in front.
             guard let appDelegate = findAppDelegate(),
-                  let tab = appDelegate.tabStore.tabs.first(where: { tab in
-                      tab.surfaceToMonttyID.values.contains(request.surface)
-                  }),
-                  let surfaceID = tab.surfaceToMonttyID.first(
-                      where: { $0.value == request.surface }
-                  )?.key else {
+                  let target = appDelegate.registry.locate(monttyID: request.surface) else {
                 response = .failure(ControlError.unknownSurface.rawValue)
                 return
             }
-            switch appDelegate.applyControl(request.command, to: tab, surfaceID: surfaceID) {
+            switch appDelegate.applyControl(
+                request.command, to: target.tab, surfaceID: target.surfaceID
+            ) {
             case .applied: response = .ok
             case .read(let info): response = .info(info)
             case .rejected(let error): response = .failure(error.rawValue)
@@ -219,10 +218,9 @@ enum HookServer {
         DispatchQueue.main.async {
             guard let appDelegate = findAppDelegate() else { return }
 
-            // Find the tab that owns this MONTTY_SURFACE_ID (check before mutating).
-            let owningTab = appDelegate.tabStore.tabs.first { tab in
-                tab.surfaceToMonttyID.values.contains(message.surface)
-            }
+            // Find the tab that owns this MONTTY_SURFACE_ID, in whichever
+            // window holds it (check before mutating).
+            let owningTab = appDelegate.registry.locate(monttyID: message.surface)?.tab
 
             var newStateLabel: String?
             if let tab = owningTab {

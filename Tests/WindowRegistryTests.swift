@@ -42,6 +42,30 @@ import Testing
         #expect(registry.locate(surfaceID: UUID()) == nil)
     }
 
+    @Test func routesAMonttySurfaceIDToTheWindowTabAndSurfaceThatOwnIt() {
+        let registry = WindowRegistry()
+        registry.add()
+        let second = registry.add()
+        let surfaceID = UUID()
+        let tab = tabHolding(surfaceID)
+        tab.surfaceToMonttyID[surfaceID] = "montty-surface-id"
+        second.tabStore.append(tab: tab)
+
+        let found = registry.locate(monttyID: "montty-surface-id")
+
+        #expect(found?.window.id == second.id)
+        #expect(found?.tab.id == tab.id)
+        #expect(found?.surfaceID == surfaceID)
+    }
+
+    @Test func routesNothingForAMonttySurfaceIDNoWindowOwns() {
+        let registry = WindowRegistry()
+        let only = registry.add()
+        only.tabStore.append(tab: tabHolding(UUID()))
+
+        #expect(registry.locate(monttyID: "montty-surface-id") == nil)
+    }
+
     @Test func routesATabIDToTheWindowThatOwnsIt() {
         let registry = WindowRegistry()
         registry.add()

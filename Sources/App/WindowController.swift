@@ -47,11 +47,11 @@ final class WindowController: NSObject, NSWindowDelegate {
     func windowDidBecomeKey(_ notification: Notification) {
         appDelegate?.registry.keyWindowID = model.id
         syncTitle()
-        appDelegate?.windowDidBecomeKey(notification)
+        appDelegate?.windowDidBecomeKey(self)
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        appDelegate?.windowDidResignKey(notification)
+        appDelegate?.windowDidResignKey()
     }
 
     func windowWillClose(_ notification: Notification) {

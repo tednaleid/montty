@@ -39,7 +39,8 @@ extension AppDelegate {
         ) { [weak self] notification in
             guard let self = self,
                   let surfaceView = notification.object as? Ghostty.SurfaceView,
-                  let tab = self.tabStore.tab(forSurfaceID: surfaceView.id) else { return }
+                  let tab = self.registry.locate(surfaceID: surfaceView.id)?.tab
+            else { return }
             self.closeTab(id: tab.id)
         }
 
@@ -65,6 +66,7 @@ extension AppDelegate {
     }
 
     private func handleGotoTab(_ tabIndex: ghostty_action_goto_tab_e) {
+        guard let tabStore = registry.keyWindow?.tabStore else { return }
         let tabs = tabStore.tabs
         guard !tabs.isEmpty else { return }
 
@@ -106,7 +108,7 @@ extension AppDelegate {
         ) { [weak self] notification in
             guard let self = self,
                   let surfaceView = notification.object as? Ghostty.SurfaceView,
-                  let tab = self.tabStore.tab(forSurfaceID: surfaceView.id),
+                  let tab = self.registry.locate(surfaceID: surfaceView.id)?.tab,
                   let leaf = SplitTree.findLeaf(
                       node: tab.splitRoot, surfaceID: surfaceView.id)
             else { return }
@@ -144,7 +146,7 @@ extension AppDelegate {
             object: nil, queue: .main
         ) { [weak self] notification in
             guard let self = self,
-                  let tab = self.tabStore.activeTab,
+                  let tab = self.registry.keyWindow?.tabStore.activeTab,
                   let focusedLeafID = tab.focusedLeafID else { return }
             let direction = notification.userInfo?[
                 Ghostty.Notification.SplitDirectionKey
@@ -171,7 +173,7 @@ extension AppDelegate {
         ) { [weak self] notification in
             guard let self,
                   let surfaceView = notification.object as? Ghostty.SurfaceView,
-                  let tab = self.tabStore.tab(forSurfaceID: surfaceView.id)
+                  let tab = self.registry.locate(surfaceID: surfaceView.id)?.tab
             else { return }
             tab.splitRoot = SplitTree.equalize(node: tab.splitRoot)
         }
@@ -179,7 +181,7 @@ extension AppDelegate {
 
     private func handleResizeSplit(_ notification: Foundation.Notification) {
         guard let surfaceView = notification.object as? Ghostty.SurfaceView,
-              let tab = tabStore.tab(forSurfaceID: surfaceView.id),
+              let tab = registry.locate(surfaceID: surfaceView.id)?.tab,
               let focusedLeafID = tab.focusedLeafID,
               let directionRaw = notification.userInfo?[
                   Ghostty.Notification.ResizeSplitDirectionKey

@@ -71,7 +71,7 @@ extension DebugServer {
         }
         // Use the tab model's focused surface, not AppKit's
         if let appDel = AppDelegate.shared(),
-           let tab = appDel.tabStore.activeTab,
+           let tab = appDel.registry.keyWindow?.tabStore.activeTab,
            let surfaceID = tab.focusedSurfaceID {
             return appDel.surfaceView(for: surfaceID)
         }
@@ -87,16 +87,19 @@ extension DebugServer {
                 return
             }
             var results: [[String: Any]] = []
-            for tab in appDelegate.tabStore.tabs {
-                let isActiveTab = tab.id == appDelegate.tabStore.activeTabID
-                let info = tab.tabInfo
-                for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
-                    var entry = surfaceEntry(
-                        leaf: leaf, tab: tab, info: info,
-                        isActiveTab: isActiveTab, appDelegate: appDelegate
-                    )
-                    addSurfaceViewData(leaf: leaf, appDelegate: appDelegate, entry: &entry)
-                    results.append(entry)
+            for window in appDelegate.registry.windows {
+                for tab in window.tabStore.tabs {
+                    let isActiveTab = tab.id == window.tabStore.activeTabID
+                    let info = tab.tabInfo
+                    for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
+                        var entry = surfaceEntry(
+                            leaf: leaf, tab: tab, info: info,
+                            isActiveTab: isActiveTab, appDelegate: appDelegate
+                        )
+                        entry["window_id"] = window.id.uuidString
+                        addSurfaceViewData(leaf: leaf, appDelegate: appDelegate, entry: &entry)
+                        results.append(entry)
+                    }
                 }
             }
             sendJSONArray(results, connection: connection)
@@ -174,7 +177,7 @@ extension DebugServer {
             let formatter = ISO8601DateFormatter()
             formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             var results: [[String: Any]] = []
-            for tab in appDelegate.tabStore.tabs {
+            for tab in appDelegate.registry.windows.flatMap({ $0.tabStore.tabs }) {
                 for (surfaceID, monttyID) in tab.surfaceToMonttyID {
                     guard let state = tab.activityStates[monttyID] else { continue }
                     var entry: [String: Any] = [
@@ -523,8 +526,9 @@ extension DebugServer {
                     sendJSON(["error": "Invalid UUID: \(leafIDStr)"], status: 400, connection: connection)
                     return
                 }
-                // Find which tab contains this leaf
-                guard let tab = appDel.tabStore.tabs.first(where: {
+                // Find which tab contains this leaf, in any window
+                let allTabs = appDel.registry.windows.flatMap { $0.tabStore.tabs }
+                guard let tab = allTabs.first(where: {
                     SplitTree.allLeaves(node: $0.splitRoot).contains { $0.id == leafID }
                 }) else {
                     sendJSON(["error": "Leaf not found: \(leafIDStr)"], status: 404, connection: connection)

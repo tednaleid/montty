@@ -3,6 +3,14 @@
 
 import Foundation
 
+/// Where one surface lives: the window and tab that own it, and the surface ID
+/// its view is keyed by.
+struct SurfaceLocation {
+    let window: WindowModel
+    let tab: Tab
+    let surfaceID: UUID
+}
+
 @Observable
 final class WindowRegistry {
     private(set) var windows: [WindowModel] = []
@@ -32,12 +40,28 @@ final class WindowRegistry {
         windows.first { $0.id == id }
     }
 
-    /// A surface belongs to exactly one tab in exactly one window. Callers that
-    /// hold only a `MONTTY_SURFACE_ID` use this to find both.
-    func locate(surfaceID: UUID) -> (window: WindowModel, tab: Tab)? {
+    /// A surface belongs to exactly one tab in exactly one window. Callers
+    /// holding a surface ID use this to find both.
+    func locate(surfaceID: UUID) -> SurfaceLocation? {
         for window in windows {
             if let tab = window.tabStore.tab(forSurfaceID: surfaceID) {
-                return (window, tab)
+                return SurfaceLocation(window: window, tab: tab, surfaceID: surfaceID)
+            }
+        }
+        return nil
+    }
+
+    /// A `MONTTY_SURFACE_ID` names one surface in one tab of one window. The
+    /// hook socket and the montty CLI carry only that string, so this is how
+    /// they reach the pane that sent them wherever it lives.
+    func locate(monttyID: String) -> SurfaceLocation? {
+        for window in windows {
+            for tab in window.tabStore.tabs {
+                if let surfaceID = tab.surfaceToMonttyID.first(
+                    where: { $0.value == monttyID }
+                )?.key {
+                    return SurfaceLocation(window: window, tab: tab, surfaceID: surfaceID)
+                }
             }
         }
         return nil
