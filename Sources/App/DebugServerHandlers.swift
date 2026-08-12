@@ -432,9 +432,15 @@ extension DebugServer {
         DispatchQueue.main.async {
             // A surface can live in a background window; raise the window that
             // owns the requested surface so the capture below isn't occluded.
-            if let appDelegate = AppDelegate.shared(),
-               let view = surface(forID: surfaceID),
-               let located = appDelegate.registry.locate(surfaceID: view.id) {
+            // No surface parameter means "whatever window is currently in
+            // front" -- only a surface id that fails to resolve is an error.
+            if let surfaceID {
+                guard let appDelegate = AppDelegate.shared(),
+                      let view = surface(forID: surfaceID),
+                      let located = appDelegate.registry.locate(surfaceID: view.id) else {
+                    sendJSON(["error": "No surface found"], status: 404, connection: connection)
+                    return
+                }
                 appDelegate.controllers[located.window.id]?.window.makeKeyAndOrderFront(nil)
             }
             // Capture the full window (including sidebar and titlebar)
