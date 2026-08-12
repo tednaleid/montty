@@ -91,16 +91,18 @@ extension AppDelegate {
         focusActiveSurface()
     }
 
-    /// Closes the key window through the same `NSWindow.close()` path the red
+    /// Closes the given window through the same `NSWindow.close()` path the red
     /// button uses, so `windowWillClose` is the one place that decides between
-    /// dropping a window and quitting.
+    /// dropping a window and quitting. A caller that could not resolve a window
+    /// passes nil, and the window in front closes.
     ///
     /// Deferred a run loop turn: this runs from a Ghostty action on a surface
     /// that lives in the window being closed, and `.close()` can synchronously
     /// tear down that surface's view while it is still on the call stack that
     /// invoked us. Closing on the next turn lets that call stack unwind first.
-    func closeWindow() {
-        let windowToClose = keyController?.window
+    func closeWindow(_ window: WindowModel?) {
+        let controller = window.flatMap { controllers[$0.id] } ?? keyController
+        let windowToClose = controller?.window
         DispatchQueue.main.async {
             windowToClose?.close()
         }
@@ -117,7 +119,7 @@ extension AppDelegate {
     /// still list one that closing again would be a no-op for, but
     /// shouldn't be asked to close a second time regardless.
     ///
-    /// Deferred a run loop turn for the same reason `closeWindow()` is: this
+    /// Deferred a run loop turn for the same reason `closeWindow(_:)` is: this
     /// can run from a Ghostty action on a surface in one of the windows being
     /// closed, and closing synchronously risks tearing down that surface's
     /// view while it is still on the call stack that invoked us.

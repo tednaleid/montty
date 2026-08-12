@@ -1,3 +1,6 @@
+// ABOUTME: Routes Ghostty's tab, split, and focus actions to the window that
+// ABOUTME: raised them, resolved from the surface the notification carries.
+
 import Foundation
 import GhosttyKit
 
@@ -40,8 +43,9 @@ extension AppDelegate {
         center.addObserver(
             forName: .ghosttyCloseWindow,
             object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.closeWindow()
+        ) { [weak self] notification in
+            guard let self else { return }
+            self.closeWindow(self.window(for: notification))
         }
 
         center.addObserver(
