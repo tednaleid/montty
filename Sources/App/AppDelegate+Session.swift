@@ -33,7 +33,7 @@ extension AppDelegate {
             // normal cold launch and needs focus like any other.
             let controller = makeWindow()
             controller.show()
-            createTab()
+            createTab(in: controller.model)
             focusActiveSurface()
             return
         }

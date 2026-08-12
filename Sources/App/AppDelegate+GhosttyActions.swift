@@ -4,6 +4,16 @@ import GhosttyKit
 // MARK: - Ghostty action routing
 
 extension AppDelegate {
+    /// The window owning the surface a Ghostty action came from. Actions
+    /// posted against an app target rather than a surface carry no object,
+    /// and those mean the window in front.
+    private func window(for notification: Foundation.Notification) -> WindowModel? {
+        guard let surfaceView = notification.object as? Ghostty.SurfaceView else {
+            return registry.keyWindow
+        }
+        return registry.locate(surfaceID: surfaceView.id)?.window
+    }
+
     func observeGhosttyActions() {
         let center = NotificationCenter.default
         observeTabActions(center)
@@ -15,8 +25,9 @@ extension AppDelegate {
         center.addObserver(
             forName: Ghostty.Notification.ghosttyNewTab,
             object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.createTab()
+        ) { [weak self] notification in
+            guard let self, let window = self.window(for: notification) else { return }
+            self.createTab(in: window)
         }
 
         center.addObserver(
@@ -60,13 +71,14 @@ extension AppDelegate {
             guard let self = self,
                   let tabIndex = notification.userInfo?[
                       Ghostty.Notification.GotoTabKey
-                  ] as? ghostty_action_goto_tab_e else { return }
-            self.handleGotoTab(tabIndex)
+                  ] as? ghostty_action_goto_tab_e,
+                  let window = self.window(for: notification) else { return }
+            self.handleGotoTab(tabIndex, in: window)
         }
     }
 
-    private func handleGotoTab(_ tabIndex: ghostty_action_goto_tab_e) {
-        guard let tabStore = registry.keyWindow?.tabStore else { return }
+    private func handleGotoTab(_ tabIndex: ghostty_action_goto_tab_e, in window: WindowModel) {
+        let tabStore = window.tabStore
         let tabs = tabStore.tabs
         guard !tabs.isEmpty else { return }
 
@@ -128,7 +140,7 @@ extension AppDelegate {
             forName: Ghostty.Notification.ghosttyNewSplit,
             object: nil, queue: .main
         ) { [weak self] notification in
-            guard let self = self else { return }
+            guard let self, let window = self.window(for: notification) else { return }
             let ghosttyDirection = notification.userInfo?["direction"]
                 as? ghostty_action_split_direction_e
             let splitDirection: SplitDirection
@@ -138,15 +150,15 @@ extension AppDelegate {
             case GHOSTTY_SPLIT_DIRECTION_DOWN: splitDirection = .down
             default: splitDirection = .right
             }
-            self.splitSurface(direction: splitDirection)
+            self.splitSurface(direction: splitDirection, in: window)
         }
 
         center.addObserver(
             forName: Ghostty.Notification.ghosttyFocusSplit,
             object: nil, queue: .main
         ) { [weak self] notification in
-            guard let self = self,
-                  let tab = self.registry.keyWindow?.tabStore.activeTab,
+            guard let self,
+                  let tab = self.window(for: notification)?.tabStore.activeTab,
                   let focusedLeafID = tab.focusedLeafID else { return }
             let direction = notification.userInfo?[
                 Ghostty.Notification.SplitDirectionKey

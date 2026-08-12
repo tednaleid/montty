@@ -86,7 +86,7 @@ extension AppDelegate {
             )
         }
         registry.keyWindowID = controller.model.id
-        createTab()
+        createTab(in: controller.model)
         controller.show()
         focusActiveSurface()
     }

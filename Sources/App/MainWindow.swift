@@ -14,7 +14,7 @@ struct MainWindow: View {
             if appDelegate.sidebarVisible {
                 TabSidebar(
                     tabStore: tabStore,
-                    onNewTab: { appDelegate.createTab() },
+                    onNewTab: { appDelegate.createTab(in: window) },
                     onCloseTab: { appDelegate.closeTab(id: $0) },
                     onControl: { tab, command in
                         guard let surfaceID = tab.focusedSurfaceID else { return }

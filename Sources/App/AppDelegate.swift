@@ -199,8 +199,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// grammar, so a pane can reach it by absolute path regardless of PATH.
     static let binPath = Bundle.main.executableURL?.path ?? ""
 
-    func createTab() {
-        guard let app = ghostty.app, let window = registry.keyWindow else { return }
+    /// Adds a tab to the given window and focuses it.
+    func createTab(in window: WindowModel) {
+        guard let app = ghostty.app else { return }
         let monttyID = UUID().uuidString
         var config = Ghostty.SurfaceConfiguration()
         config.workingDirectory = focusedDirectory(of: window.tabStore.activeTab)
@@ -282,10 +283,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         }
     }
 
-    /// Split the focused surface in the active tab.
-    func splitSurface(direction: SplitDirection) {
+    /// Split the focused surface in the given window's active tab.
+    func splitSurface(direction: SplitDirection, in window: WindowModel) {
         guard let app = ghostty.app,
-              let tab = registry.keyWindow?.tabStore.activeTab,
+              let tab = window.tabStore.activeTab,
               let focusedLeafID = tab.focusedLeafID else { return }
 
         let monttyID = UUID().uuidString
@@ -418,11 +419,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     /// Jump to a specific surface (used by both jump mode and minimap click).
     func jumpToSurface(tabID: UUID, leafID: UUID) {
-        guard let tabStore = registry.locate(tabID: tabID)?.tabStore,
-              let tab = tabStore.tabs.first(where: { $0.id == tabID }) else { return }
-        if tabStore.activeTabID != tabID {
-            tabStore.activeTabID = tabID
+        guard let owner = registry.locate(tabID: tabID),
+              let tab = owner.tabStore.tabs.first(where: { $0.id == tabID }) else { return }
+        if owner.tabStore.activeTabID != tabID {
+            owner.tabStore.activeTabID = tabID
         }
+        // The target can be in a background window, and a window that is not
+        // in front cannot hand its surface the first responder, so raise the
+        // owning window before moving focus.
+        controllers[owner.id]?.window.makeKeyAndOrderFront(nil)
         setFocusedLeaf(leafID, in: tab)
     }
 
