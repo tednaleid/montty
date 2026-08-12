@@ -34,13 +34,14 @@ import Testing
     }
 
     @Test func clampsToTheScreenWithMoreOverlapArea() {
-        let secondScreen = CGRect(x: 1920, y: 0, width: 1920, height: 1080)
-        let frame = WindowFrame(x: 1700, y: 100, width: 1200, height: 600)
+        let wide = CGRect(x: 0, y: 0, width: 3000, height: 1000)
+        let narrow = CGRect(x: 3000, y: 0, width: 400, height: 1000)
+        let frame = WindowFrame(x: 2600, y: 0, width: 600, height: 1000)
 
-        let clamped = frame.clamped(toVisible: [mainScreen, secondScreen])
+        let clamped = frame.clamped(toVisible: [wide, narrow])
 
-        #expect(clamped.x >= secondScreen.minX)
-        #expect(clamped.x + clamped.width <= secondScreen.maxX)
+        #expect(clamped.width == 600)
+        #expect(clamped.x + clamped.width <= wide.maxX)
     }
 
     @Test func keepsAFrameFullyContainedInOneScreen() {
