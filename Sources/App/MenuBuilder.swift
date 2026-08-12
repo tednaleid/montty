@@ -186,6 +186,8 @@ enum MenuBuilder {
     private static func buildWindowMenu(_ ctx: MenuContext) -> NSMenuItem {
         let menu = NSMenu(title: "Window")
 
+        addAction(to: menu, title: "Close Window", action: "close_window", ctx: ctx)
+        menu.addItem(.separator())
         menu.addItem(
             withTitle: "Minimize",
             action: #selector(NSWindow.performMiniaturize(_:)),

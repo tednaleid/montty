@@ -7,88 +7,102 @@ import GhosttyKit
 
 extension AppDelegate {
     func createSnapshot() -> SessionSnapshot {
-        let frame = window?.frame ?? .zero
-        let tabSnapshots = tabStore.tabs.map { tab -> TabSnapshot in
-            var dirs: [UUID: String] = [:]
-            var colors: [UUID: PaneTint] = [:]
-            for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
-                if let pwd = surfaceView(for: leaf.surfaceID)?.pwd {
-                    dirs[leaf.id] = pwd
-                }
-                if let tint = tab.surfaceColorOverrides[leaf.surfaceID] {
-                    colors[leaf.id] = tint
-                }
-            }
-            return TabSnapshot(
-                tabID: tab.id,
-                name: tab.name,
-                position: tab.position,
-                focusedLeafID: tab.focusedLeafID,
-                splitLayout: tab.splitRoot,
-                leafDirectories: dirs,
-                leafColorOverrides: colors,
-                colorOverride: tab.colorOverride
-            )
-        }
-        return SessionSnapshot(
+        SessionSnapshot(
             surfaceTintEnabled: surfaceTintEnabled,
-            windows: [WindowSnapshot(
-                windowID: singleWindowID,
-                frame: WindowFrame(frame),
-                sidebarWidth: registry.keyWindow?.sidebarWidth ?? 200,
-                activeTabID: tabStore.activeTabID,
-                tabs: tabSnapshots
-            )],
-            keyWindowID: singleWindowID,
+            windows: registry.windows.map { window in
+                WindowSnapshot(
+                    windowID: window.id,
+                    frame: WindowFrame(controllers[window.id]?.window.frame ?? .zero),
+                    sidebarWidth: window.sidebarWidth,
+                    activeTabID: window.tabStore.activeTabID,
+                    tabs: window.tabStore.tabs.map(tabSnapshot(of:))
+                )
+            },
+            keyWindowID: registry.keyWindowID,
             repoColorOverrides: repoColorOverrides
         )
     }
 
+    /// One tab's persisted shape, including each leaf's working directory and
+    /// color override keyed by leaf rather than by the surface id, which is
+    /// minted fresh on restore.
+    private func tabSnapshot(of tab: Tab) -> TabSnapshot {
+        var dirs: [UUID: String] = [:]
+        var colors: [UUID: PaneTint] = [:]
+        for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
+            if let pwd = surfaceView(for: leaf.surfaceID)?.pwd {
+                dirs[leaf.id] = pwd
+            }
+            if let tint = tab.surfaceColorOverrides[leaf.surfaceID] {
+                colors[leaf.id] = tint
+            }
+        }
+        return TabSnapshot(
+            tabID: tab.id,
+            name: tab.name,
+            position: tab.position,
+            focusedLeafID: tab.focusedLeafID,
+            splitLayout: tab.splitRoot,
+            leafDirectories: dirs,
+            leafColorOverrides: colors,
+            colorOverride: tab.colorOverride
+        )
+    }
+
     func restoreSession(_ snapshot: SessionSnapshot) {
-        guard let app = ghostty.app, let windowSnap = snapshot.windows.first,
-              !windowSnap.tabs.isEmpty else {
+        let restorable = snapshot.windows.filter { !$0.tabs.isEmpty }
+        guard let app = ghostty.app, !restorable.isEmpty else {
             // A quit that closed every window saves no windows, so this is a
             // normal cold launch and needs focus like any other.
+            let controller = makeWindow()
+            controller.show()
             createTab()
             focusActiveSurface()
             return
         }
 
-        registry.keyWindow?.sidebarWidth = windowSnap.sidebarWidth
         surfaceTintEnabled = snapshot.surfaceTintEnabled
         repoColorOverrides = snapshot.repoColorOverrides
 
-        for tabSnap in windowSnap.tabs.sorted(by: { $0.position < $1.position }) {
-            let tab = Tab(
-                id: tabSnap.tabID,
-                name: tabSnap.name,
-                position: tabSnap.position
+        for windowSnap in restorable {
+            let model = WindowModel(
+                id: windowSnap.windowID,
+                sidebarWidth: windowSnap.sidebarWidth,
+                frame: windowSnap.frame
             )
-            // Rebuild the split tree with fresh surfaces
-            tab.splitRoot = restoreSplitNode(
-                tabSnap.splitLayout,
-                directories: tabSnap.leafDirectories,
-                colors: tabSnap.leafColorOverrides,
-                app: app, tab: tab
-            )
-            tab.focusedLeafID = tabSnap.focusedLeafID
-            tab.colorOverride = tabSnap.colorOverride
-            tabStore.append(tab: tab)
+            let controller = makeWindow(model)
+            for tabSnap in windowSnap.tabs.sorted(by: { $0.position < $1.position }) {
+                let tab = Tab(
+                    id: tabSnap.tabID, name: tabSnap.name, position: tabSnap.position
+                )
+                tab.splitRoot = restoreSplitNode(
+                    tabSnap.splitLayout,
+                    directories: tabSnap.leafDirectories,
+                    colors: tabSnap.leafColorOverrides,
+                    app: app, tab: tab
+                )
+                tab.focusedLeafID = tabSnap.focusedLeafID
+                tab.colorOverride = tabSnap.colorOverride
+                model.tabStore.append(tab: tab)
+            }
+            model.tabStore.activeTabID =
+                windowSnap.activeTabID ?? model.tabStore.tabs.first?.id
+            controller.show()
         }
 
-        tabStore.activeTabID = windowSnap.activeTabID ?? tabStore.tabs.first?.id
+        registry.keyWindowID = snapshot.keyWindowID ?? registry.windows.first?.id
+        keyController?.window.makeKeyAndOrderFront(nil)
 
-        // Restore window frame and sync focus after SwiftUI has laid out
-        // the view hierarchy. Must happen after layout because:
-        // 1. Window frame needs the views to exist
-        // 2. Each surface calls becomeFirstResponder when added to the
-        //    window, resetting focus -- we need the last word.
+        // Frames and focus settle after SwiftUI lays the hierarchy out. Each
+        // surface calls becomeFirstResponder when it joins a window, so focus
+        // needs the last word.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             guard let self else { return }
-            let saved = windowSnap.frame
-            if !saved.isEmpty {
-                let visible = NSScreen.screens.map(\.visibleFrame)
-                self.window?.setFrame(saved.clamped(toVisible: visible).rect, display: true)
+            let visible = NSScreen.screens.map(\.visibleFrame)
+            for window in self.registry.windows where !window.frame.isEmpty {
+                self.controllers[window.id]?.window.setFrame(
+                    window.frame.clamped(toVisible: visible).rect, display: true
+                )
             }
             self.syncSurfaceFocus()
             self.focusActiveSurface()

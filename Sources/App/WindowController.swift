@@ -27,6 +27,10 @@ final class WindowController: NSObject, NSWindowDelegate {
         )
         window.title = "Montty"
         window.delegate = self
+        // This controller, not AppKit, owns the window's lifetime -- it stays
+        // alive in AppDelegate.controllers past the close, so AppKit must not
+        // also release its own retain when the window closes.
+        window.isReleasedWhenClosed = false
     }
 
     func show() {
