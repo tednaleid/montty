@@ -71,7 +71,12 @@ extension AppDelegate {
             controller.show()
         }
 
-        registry.keyWindowID = snapshot.keyWindowID ?? registry.windows.first?.id
+        // A saved key window is only a pointer, and the window it names may
+        // not be among the restored ones -- `restorable` drops any window that
+        // saved no tabs. An ID that resolves to nothing falls back to the
+        // first window rather than leaving the pointer dangling.
+        let savedKey = snapshot.keyWindowID.flatMap { registry.window(id: $0)?.id }
+        registry.keyWindowID = savedKey ?? registry.windows.first?.id
         keyController?.window.makeKeyAndOrderFront(nil)
 
         // Frames and focus settle after SwiftUI lays the hierarchy out. Each
