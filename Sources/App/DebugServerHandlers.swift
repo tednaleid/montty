@@ -97,6 +97,7 @@ extension DebugServer {
                             isActiveTab: isActiveTab, appDelegate: appDelegate
                         )
                         entry["window_id"] = window.id.uuidString
+                        entry["window_is_key"] = window.id == appDelegate.registry.keyWindowID
                         addSurfaceViewData(leaf: leaf, appDelegate: appDelegate, entry: &entry)
                         results.append(entry)
                     }
@@ -429,6 +430,13 @@ extension DebugServer {
 
     private static func handleScreenshot(surfaceID: String?, connection: NWConnection) {
         DispatchQueue.main.async {
+            // A surface can live in a background window; raise the window that
+            // owns the requested surface so the capture below isn't occluded.
+            if let appDelegate = AppDelegate.shared(),
+               let view = surface(forID: surfaceID),
+               let located = appDelegate.registry.locate(surfaceID: view.id) {
+                appDelegate.controllers[located.window.id]?.window.makeKeyAndOrderFront(nil)
+            }
             // Capture the full window (including sidebar and titlebar)
             guard let window = NSApp?.mainWindow
                     ?? NSApp?.keyWindow

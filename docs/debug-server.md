@@ -41,6 +41,8 @@ Response:
     "split_count": 1,
     "title": "zsh",
     "pwd": "/Users/ted/montty",
+    "window_id": "D4C3B2A1-...",
+    "window_is_key": true,
     "size": {"rows": 24, "cols": 80, "width_px": 1200, "height_px": 800},
     "color": {
       "effective": ["neutralBright", "brightRed"],
@@ -77,6 +79,8 @@ older, tab-wide field kept for existing callers -- it always matches the
 `focused_in_tab` is montty's model state: which pane a given tab will focus when that tab becomes active. It can be true for several surfaces at once, one per tab. `focused` is what libghostty believes: it is true for at most one surface across the entire app, and false for every surface while the montty window is not key. The `directory_name`, `git`, and `activity` keys appear only when they apply to the surface; `color` is always present.
 
 `id` is montty's own internal handle for the surface -- not addressable over the socket. `montty_surface_id` is the value exported to each pane as `MONTTY_SURFACE_ID`; it is what the control and hook socket addresses (`montty-hook.sock` in the system temporary directory, or wherever `MONTTY_SOCKET` points), and what a shell inside the pane can read to identify itself. It is `null` in the unlikely case a leaf has no assigned id. Use `montty_surface_id`, not `id`, when scripting requests against the socket.
+
+`window_id` is the window the surface's tab belongs to; every surface in the same window reports the same `window_id`. `window_is_key` is true for every surface in whichever window currently has keyboard focus, false for surfaces in every other window -- it follows focus as it moves between windows, independent of `focused`, which is about the surface within its own window.
 
 ### POST /type
 
@@ -117,7 +121,9 @@ Response:
 
 ### GET /screenshot
 
-Capture the terminal view as a PNG image.
+Capture the terminal view as a PNG image. Raises the window that owns the
+requested surface before capturing, so a surface in a background window is
+captured un-occluded rather than whatever window happens to be in front.
 
 ```bash
 curl -s localhost:9876/screenshot -o screenshot.png
@@ -217,6 +223,7 @@ curl -s localhost:9876/icon | jq .
 | Recipe | Description |
 |--------|-------------|
 | `just inspect-surfaces` | List all surfaces |
+| `just inspect-windows` | List open windows with their key state and tab count |
 | `just inspect-type "text"` | Type text into terminal |
 | `just inspect-key return` | Send a key event |
 | `just inspect-screen` | Read terminal text |
