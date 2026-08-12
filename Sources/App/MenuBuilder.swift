@@ -128,6 +128,8 @@ enum MenuBuilder {
     private static func buildFileMenu(_ ctx: MenuContext) -> NSMenuItem {
         let menu = NSMenu(title: "File")
 
+        addAction(to: menu, title: "New Window", action: "new_window", ctx: ctx)
+        menu.addItem(.separator())
         addAction(to: menu, title: "New Tab", action: "new_tab", ctx: ctx)
         menu.addItem(.separator())
         addAction(to: menu, title: "New Split Right", action: "new_split:right", ctx: ctx)

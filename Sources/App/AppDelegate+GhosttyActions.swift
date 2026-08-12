@@ -20,6 +20,13 @@ extension AppDelegate {
         }
 
         center.addObserver(
+            forName: Ghostty.Notification.ghosttyNewWindow,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.newWindow()
+        }
+
+        center.addObserver(
             forName: .ghosttyCloseTab,
             object: nil, queue: .main
         ) { [weak self] notification in

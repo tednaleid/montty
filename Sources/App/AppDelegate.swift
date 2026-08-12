@@ -197,6 +197,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         }
     }
 
+    /// Opens a window with one tab, cascaded from the window in front so the new
+    /// one does not land exactly on top of it.
+    func newWindow() {
+        let origin = keyController?.window.frame.origin
+        let controller = makeWindow()
+        if let origin {
+            controller.window.setFrameTopLeftPoint(
+                NSPoint(x: origin.x + 24, y: origin.y + controller.window.frame.height - 24)
+            )
+        }
+        registry.keyWindowID = controller.model.id
+        createTab()
+        controller.show()
+        focusActiveSurface()
+    }
+
     // MARK: - Tab lifecycle
 
     /// Port for the debug HTTP server (debug builds only).
