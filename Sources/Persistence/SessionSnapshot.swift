@@ -23,9 +23,12 @@ struct SessionSnapshot: Codable {
 
     /// Reads both shapes. A file with a `windows` array is version 4. A file
     /// without one carries a single window in flat top-level keys, and becomes
-    /// one window here. Every key is optional so a file from a later version
+    /// one window here. Every key at the `SessionSnapshot` and `WindowSnapshot`
+    /// level is optional, so a file whose shape has moved on at those levels
     /// decodes to an empty session rather than throwing, which would send it to
-    /// quarantine as though it were corrupt.
+    /// quarantine as though it were corrupt. Tabs are decoded by `TabSnapshot`,
+    /// which still requires its own fields, so a shape change within a tab can
+    /// still throw.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decodeIfPresent(Int.self, forKey: .version)

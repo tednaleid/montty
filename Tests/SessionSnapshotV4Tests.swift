@@ -76,8 +76,50 @@ import Testing
         #expect(snapshot.keyWindowID == snapshot.windows[0].windowID)
     }
 
-    @Test func decodesAFileWithNoWindowsKeyAsNoWindows() throws {
+    @Test func decodesAV4WindowMissingEachOptionalFieldUsingDefaults() throws {
+        let tabID = UUID()
+
+        func fullFields() -> [String: String] {
+            [
+                "windowID": "\"\(UUID().uuidString)\"",
+                "frame": #"{"x": 10, "y": 20, "width": 300, "height": 400}"#,
+                "sidebarWidth": "250",
+                "activeTabID": "\"\(tabID.uuidString)\"",
+                "tabs": "[]"
+            ]
+        }
+
+        func decodeWindow(omitting key: String) throws -> WindowSnapshot {
+            var fields = fullFields()
+            fields.removeValue(forKey: key)
+            let body = fields.map { "\"\($0.key)\": \($0.value)" }.joined(separator: ",")
+            let snapshot = try decode(#"{"version": 4, "windows": [{\#(body)}]}"#)
+            #expect(snapshot.windows.count == 1)
+            return snapshot.windows[0]
+        }
+
+        // windowID has no meaningful default to assert beyond "decoding
+        // succeeds", since the fallback mints a fresh random UUID.
+        _ = try decodeWindow(omitting: "windowID")
+
+        #expect(
+            try decodeWindow(omitting: "frame").frame
+                == WindowFrame(x: 0, y: 0, width: 0, height: 0)
+        )
+        #expect(try decodeWindow(omitting: "sidebarWidth").sidebarWidth == 200)
+        #expect(try decodeWindow(omitting: "activeTabID").activeTabID == nil)
+        #expect(try decodeWindow(omitting: "tabs").tabs.isEmpty)
+    }
+
+    @Test func treatsAMissingWindowsKeyAsALegacyFileWithNoWindows() throws {
         let snapshot = try decode(#"{"version": 4, "surfaceTintEnabled": true}"#)
+
+        #expect(snapshot.windows.isEmpty)
+        #expect(snapshot.version == 4)
+    }
+
+    @Test func decodesAnExplicitEmptyWindowsArrayAsNoWindows() throws {
+        let snapshot = try decode(#"{"version": 4, "windows": []}"#)
 
         #expect(snapshot.windows.isEmpty)
         #expect(snapshot.version == 4)
