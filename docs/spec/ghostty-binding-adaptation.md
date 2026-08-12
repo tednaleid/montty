@@ -89,9 +89,9 @@ The `action()` static method is a big switch statement dispatching ~40 action ty
 - `GHOSTTY_ACTION_PWD` (line 548) -- update working directory
 - `GHOSTTY_ACTION_CONFIG_CHANGE` (line 2144) -- config hot-reload
 - `GHOSTTY_ACTION_OPEN_CONFIG` (line 551) -- open config in editor
-- `GHOSTTY_ACTION_NEW_WINDOW` (line 491) -- open a new window with its own tab
-- `GHOSTTY_ACTION_CLOSE_WINDOW` (line 503) / `GHOSTTY_ACTION_CLOSE_ALL_WINDOWS`
-  (line 635) -- close a window, or every window, tearing down its tabs and
+- `GHOSTTY_ACTION_NEW_WINDOW` (line 494) -- open a new window with its own tab
+- `GHOSTTY_ACTION_CLOSE_WINDOW` (line 506) / `GHOSTTY_ACTION_CLOSE_ALL_WINDOWS`
+  (line 638) -- close a window, or every window, tearing down its tabs and
   shells and quitting once none remain
 
 **Actions to stub out or ignore (not needed for montty v1):**
