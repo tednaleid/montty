@@ -64,8 +64,13 @@ extension DebugServer {
     }
 
     /// Find a surface by UUID string, or return the focused/first surface.
+    ///
+    /// An id that does not parse is an error, not an absent id. Falling through
+    /// to the focused surface would send a mistyped id's request to the key
+    /// window, which is a different window from the one the caller named.
     static func surface(forID id: String?) -> Ghostty.SurfaceView? {
-        if let id = id, let uuid = UUID(uuidString: id) {
+        if let id {
+            guard let uuid = UUID(uuidString: id) else { return nil }
             return AppDelegate.shared()?.surfaceView(for: uuid)
                 ?? findSurfaces().first { $0.id == uuid }
         }

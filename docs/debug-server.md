@@ -126,6 +126,11 @@ Capture the terminal view as a PNG image. Raises the window that owns the
 requested surface before capturing, so a surface in a background window is
 captured un-occluded rather than whatever window happens to be in front.
 
+Without a `surface` parameter it captures the window macOS reports as main or
+key, falling back to the first visible window. While montty is not the frontmost
+application there is no main or key window, so that fallback picks an arbitrary
+one. Name a surface when it matters which window you get.
+
 ```bash
 curl -s localhost:9876/screenshot -o screenshot.png
 ```
