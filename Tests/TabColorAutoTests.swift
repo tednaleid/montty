@@ -143,18 +143,27 @@ import Testing
         #expect(resolved == .named(.red))
     }
 
-    @Test func noOverrideFallsBackToSurfaceColor() {
-        // Use the actual repo directory so GitInfo.from(path:) resolves
-        let repoDir = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent().path
-        let expected = TabColor.colorForWorktree(repoDir)
-        #expect(expected != nil, "Test must run inside a git repo")
+    /// With nothing overridden, the tint comes from the git signature. Stated
+    /// against an injected GitInfo rather than the directory the suite happens
+    /// to sit in: inside a git worktree `primary` is a knockout stop chosen to
+    /// avoid the parent repo's colors, so comparing it to `colorForWorktree`'s
+    /// raw hash only holds when `worktreeName` is nil.
+    @Test func noOverrideFallsBackToGitSignature() {
+        let info = GitInfo(
+            repoName: "montty",
+            branchName: "main",
+            worktreeName: nil,
+            repoPath: "/Users/dev/work/montty"
+        )
+        let expected = TabColor.colorForGitInfo(info)
+        #expect(expected != nil)
 
         let resolved = TabColor.resolvedPaneTint(
             surfaceOverride: nil,
             tabColorOverride: nil,
-            surfaceDirectory: repoDir,
-            repoColorOverrides: [:]
+            surfaceDirectory: info.repoPath,
+            repoColorOverrides: [:],
+            gitInfoProvider: { _ in info }
         )?.primary
         #expect(resolved == expected.map(TintStop.named))
     }
