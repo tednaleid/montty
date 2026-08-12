@@ -36,7 +36,7 @@ import Testing
 
         let store = SessionStore(directory: dir)
         #expect(store.load() == nil)
-        store.save(snapshot: SessionSnapshot(tabs: []))
+        store.save(snapshot: SessionSnapshot())
 
         let backup = dir.appendingPathComponent("session.v99.json")
         #expect(FileManager.default.fileExists(atPath: backup.path))
@@ -52,7 +52,7 @@ import Testing
 
         let store = SessionStore(directory: dir)
         #expect(store.load() == nil)
-        store.save(snapshot: SessionSnapshot(tabs: []))
+        store.save(snapshot: SessionSnapshot())
 
         let names = try FileManager.default
             .contentsOfDirectory(atPath: dir.path)
@@ -76,7 +76,7 @@ import Testing
 
         let store = SessionStore(directory: dir)
         _ = store.load()
-        store.save(snapshot: SessionSnapshot(tabs: []))
+        store.save(snapshot: SessionSnapshot())
 
         let backup = dir.appendingPathComponent("session.v2.json")
         #expect(FileManager.default.fileExists(atPath: backup.path))
@@ -105,7 +105,7 @@ import Testing
                 [.posixPermissions: 0o644], ofItemAtPath: sessionPath.path
             )
         }
-        store.save(snapshot: SessionSnapshot(tabs: []))
+        store.save(snapshot: SessionSnapshot())
 
         #expect(
             try String(contentsOf: backup, encoding: .utf8) == "earlier backup"
@@ -118,7 +118,7 @@ import Testing
         let store = SessionStore(directory: dir)
         let tint = PaneTint(stops: [.named(.neutralBright), .hex(RGB(r: 0x1A, g: 0x7F, b: 0x37))])
         store.save(snapshot: SessionSnapshot(
-            tabs: [], repoColorOverrides: ["/repo": tint]
+            repoColorOverrides: ["/repo": tint]
         ))
         #expect(store.load()?.repoColorOverrides["/repo"] == tint)
     }
@@ -129,27 +129,28 @@ import Testing
         let store = SessionStore(directory: dir)
         let leafID = UUID()
         let snapshot = SessionSnapshot(
-            windowX: 50, windowY: 50, windowWidth: 1000, windowHeight: 700,
-            sidebarWidth: 230,
-            activeTabID: nil,
-            tabs: [
-                TabSnapshot(
-                    tabID: UUID(),
-                    name: "",
-                    position: 0,
-                    focusedLeafID: leafID,
-                    splitLayout: .leaf(SurfaceLeaf(id: leafID)),
-                    leafDirectories: [:]
-                )
-            ]
+            windows: [WindowSnapshot(
+                windowID: UUID(), frame: WindowFrame(x: 50, y: 50, width: 1000, height: 700),
+                sidebarWidth: 230, activeTabID: nil,
+                tabs: [
+                    TabSnapshot(
+                        tabID: UUID(),
+                        name: "",
+                        position: 0,
+                        focusedLeafID: leafID,
+                        splitLayout: .leaf(SurfaceLeaf(id: leafID)),
+                        leafDirectories: [:]
+                    )
+                ]
+            )]
         )
 
         store.save(snapshot: snapshot)
         let loaded = store.load()
 
         #expect(loaded != nil)
-        #expect(loaded?.sidebarWidth == 230)
-        #expect(loaded?.windowWidth == 1000)
+        #expect(loaded?.windows[0].sidebarWidth == 230)
+        #expect(loaded?.windows[0].frame.width == 1000)
     }
 
     @Test func loadFromEmptyDirectoryReturnsNil() throws {

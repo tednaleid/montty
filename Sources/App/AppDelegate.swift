@@ -33,6 +33,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// The main application window, created in applicationDidFinishLaunching.
     var window: NSWindow!
 
+    /// Identifies this process's one window until the registry replaces it.
+    let singleWindowID = UUID()
+
     static func shared() -> AppDelegate? {
         NSApp?.delegate as? AppDelegate
     }

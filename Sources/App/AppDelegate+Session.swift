@@ -1,6 +1,7 @@
 // ABOUTME: Builds and restores SessionSnapshot state -- tab layout, per-surface
 // ABOUTME: working directories, and color overrides survive a relaunch.
 
+import AppKit
 import Foundation
 import GhosttyKit
 
@@ -30,32 +31,34 @@ extension AppDelegate {
             )
         }
         return SessionSnapshot(
-            windowX: frame.origin.x,
-            windowY: frame.origin.y,
-            windowWidth: frame.width,
-            windowHeight: frame.height,
-            sidebarWidth: sidebarWidth,
             surfaceTintEnabled: surfaceTintEnabled,
-            activeTabID: tabStore.activeTabID,
-            tabs: tabSnapshots,
+            windows: [WindowSnapshot(
+                windowID: singleWindowID,
+                frame: WindowFrame(frame),
+                sidebarWidth: sidebarWidth,
+                activeTabID: tabStore.activeTabID,
+                tabs: tabSnapshots
+            )],
+            keyWindowID: singleWindowID,
             repoColorOverrides: repoColorOverrides
         )
     }
 
     func restoreSession(_ snapshot: SessionSnapshot) {
-        guard let app = ghostty.app, !snapshot.tabs.isEmpty else {
-            // Quitting by closing the last tab saves a snapshot with no tabs, so
-            // this path is a normal cold launch and needs focus like any other.
+        guard let app = ghostty.app, let windowSnap = snapshot.windows.first,
+              !windowSnap.tabs.isEmpty else {
+            // A quit that closed every window saves no windows, so this is a
+            // normal cold launch and needs focus like any other.
             createTab()
             focusActiveSurface()
             return
         }
 
-        sidebarWidth = snapshot.sidebarWidth
+        sidebarWidth = windowSnap.sidebarWidth
         surfaceTintEnabled = snapshot.surfaceTintEnabled
         repoColorOverrides = snapshot.repoColorOverrides
 
-        for tabSnap in snapshot.tabs.sorted(by: { $0.position < $1.position }) {
+        for tabSnap in windowSnap.tabs.sorted(by: { $0.position < $1.position }) {
             let tab = Tab(
                 id: tabSnap.tabID,
                 name: tabSnap.name,
@@ -73,7 +76,7 @@ extension AppDelegate {
             tabStore.append(tab: tab)
         }
 
-        tabStore.activeTabID = snapshot.activeTabID ?? tabStore.tabs.first?.id
+        tabStore.activeTabID = windowSnap.activeTabID ?? tabStore.tabs.first?.id
 
         // Restore window frame and sync focus after SwiftUI has laid out
         // the view hierarchy. Must happen after layout because:
@@ -82,12 +85,10 @@ extension AppDelegate {
         //    window, resetting focus -- we need the last word.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             guard let self else { return }
-            if snapshot.windowWidth > 0, snapshot.windowHeight > 0 {
-                let frame = CGRect(
-                    x: snapshot.windowX, y: snapshot.windowY,
-                    width: snapshot.windowWidth, height: snapshot.windowHeight
-                )
-                self.window?.setFrame(frame, display: true)
+            let saved = windowSnap.frame
+            if !saved.isEmpty {
+                let visible = NSScreen.screens.map(\.visibleFrame)
+                self.window?.setFrame(saved.clamped(toVisible: visible).rect, display: true)
             }
             self.syncSurfaceFocus()
             self.focusActiveSurface()

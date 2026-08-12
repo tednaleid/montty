@@ -1,53 +1,113 @@
 import Foundation
 
 struct SessionSnapshot: Codable {
-    static let currentVersion = 3
+    static let currentVersion = 4
 
     var version: Int = Self.currentVersion
+    var surfaceTintEnabled: Bool = true
+    var windows: [WindowSnapshot] = []
+    var keyWindowID: UUID?
+    var repoColorOverrides: [String: PaneTint] = [:]
+
+    init(
+        surfaceTintEnabled: Bool = true,
+        windows: [WindowSnapshot] = [],
+        keyWindowID: UUID? = nil,
+        repoColorOverrides: [String: PaneTint] = [:]
+    ) {
+        self.surfaceTintEnabled = surfaceTintEnabled
+        self.windows = windows
+        self.keyWindowID = keyWindowID
+        self.repoColorOverrides = repoColorOverrides
+    }
+
+    /// Reads both shapes. A file with a `windows` array is version 4. A file
+    /// without one carries a single window in flat top-level keys, and becomes
+    /// one window here. Every key is optional so a file from a later version
+    /// decodes to an empty session rather than throwing, which would send it to
+    /// quarantine as though it were corrupt.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decodeIfPresent(Int.self, forKey: .version)
+            ?? Self.currentVersion
+        surfaceTintEnabled = try container.decodeIfPresent(
+            Bool.self, forKey: .surfaceTintEnabled) ?? true
+        repoColorOverrides = try container.decodeIfPresent(
+            [String: PaneTint].self, forKey: .repoColorOverrides) ?? [:]
+
+        if let windows = try container.decodeIfPresent(
+            [WindowSnapshot].self, forKey: .windows
+        ) {
+            self.windows = windows
+            keyWindowID = try container.decodeIfPresent(UUID.self, forKey: .keyWindowID)
+            return
+        }
+
+        let legacy = try LegacyWindow(from: decoder)
+        windows = legacy.tabs.isEmpty ? [] : [legacy.asWindowSnapshot()]
+        keyWindowID = windows.first?.windowID
+    }
+}
+
+struct WindowSnapshot: Codable {
+    var windowID: UUID
+    var frame: WindowFrame
+    var sidebarWidth: Double
+    var activeTabID: UUID?
+    var tabs: [TabSnapshot]
+}
+
+extension WindowSnapshot {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        windowID = try container.decodeIfPresent(UUID.self, forKey: .windowID) ?? UUID()
+        frame = try container.decodeIfPresent(WindowFrame.self, forKey: .frame)
+            ?? WindowFrame(x: 0, y: 0, width: 0, height: 0)
+        sidebarWidth = try container.decodeIfPresent(
+            Double.self, forKey: .sidebarWidth) ?? 200
+        activeTabID = try container.decodeIfPresent(UUID.self, forKey: .activeTabID)
+        tabs = try container.decodeIfPresent([TabSnapshot].self, forKey: .tabs) ?? []
+    }
+}
+
+/// The single window a session before version 4 stored in flat top-level keys.
+private struct LegacyWindow: Decodable {
     var windowX: Double = 0
     var windowY: Double = 0
     var windowWidth: Double = 0
     var windowHeight: Double = 0
     var sidebarWidth: Double = 200
-    var surfaceTintEnabled: Bool = true
     var activeTabID: UUID?
-    var tabs: [TabSnapshot]
-    var repoColorOverrides: [String: PaneTint] = [:]
+    var tabs: [TabSnapshot] = []
 
-    init(
-        windowX: Double = 0, windowY: Double = 0,
-        windowWidth: Double = 0, windowHeight: Double = 0,
-        sidebarWidth: Double = 200,
-        surfaceTintEnabled: Bool = true,
-        activeTabID: UUID? = nil,
-        tabs: [TabSnapshot] = [],
-        repoColorOverrides: [String: PaneTint] = [:]
-    ) {
-        self.windowX = windowX
-        self.windowY = windowY
-        self.windowWidth = windowWidth
-        self.windowHeight = windowHeight
-        self.sidebarWidth = sidebarWidth
-        self.surfaceTintEnabled = surfaceTintEnabled
-        self.activeTabID = activeTabID
-        self.tabs = tabs
-        self.repoColorOverrides = repoColorOverrides
+    /// `LegacyWindow` conforms only to `Decodable`, so nothing else triggers
+    /// synthesis of `CodingKeys` -- it is spelled out here instead.
+    private enum CodingKeys: String, CodingKey {
+        case windowX, windowY, windowWidth, windowHeight, sidebarWidth, activeTabID, tabs
     }
 
+    func asWindowSnapshot() -> WindowSnapshot {
+        WindowSnapshot(
+            windowID: UUID(),
+            frame: WindowFrame(
+                x: windowX, y: windowY, width: windowWidth, height: windowHeight),
+            sidebarWidth: sidebarWidth,
+            activeTabID: activeTabID,
+            tabs: tabs
+        )
+    }
+}
+
+extension LegacyWindow {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        version = try container.decodeIfPresent(Int.self, forKey: .version) ?? Self.currentVersion
-        windowX = try container.decode(Double.self, forKey: .windowX)
-        windowY = try container.decode(Double.self, forKey: .windowY)
-        windowWidth = try container.decode(Double.self, forKey: .windowWidth)
-        windowHeight = try container.decode(Double.self, forKey: .windowHeight)
+        windowX = try container.decodeIfPresent(Double.self, forKey: .windowX) ?? 0
+        windowY = try container.decodeIfPresent(Double.self, forKey: .windowY) ?? 0
+        windowWidth = try container.decodeIfPresent(Double.self, forKey: .windowWidth) ?? 0
+        windowHeight = try container.decodeIfPresent(Double.self, forKey: .windowHeight) ?? 0
         sidebarWidth = try container.decodeIfPresent(Double.self, forKey: .sidebarWidth) ?? 200
-        surfaceTintEnabled = try container.decodeIfPresent(Bool.self, forKey: .surfaceTintEnabled) ?? true
         activeTabID = try container.decodeIfPresent(UUID.self, forKey: .activeTabID)
-        tabs = try container.decode([TabSnapshot].self, forKey: .tabs)
-        repoColorOverrides = try container.decodeIfPresent(
-            [String: PaneTint].self, forKey: .repoColorOverrides
-        ) ?? [:]
+        tabs = try container.decodeIfPresent([TabSnapshot].self, forKey: .tabs) ?? []
     }
 }
 
