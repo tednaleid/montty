@@ -1,0 +1,83 @@
+{
+  "activeTabID" : "F37C9AE3-63B1-4257-9E89-014FAA80DBCE",
+  "repoColorOverrides" : {
+
+  },
+  "sidebarWidth" : 200,
+  "surfaceTintEnabled" : true,
+  "tabs" : [
+    {
+      "focusedLeafID" : "67E94212-A035-46B8-85C3-32A764282122",
+      "leafDirectories" : [
+        "0D19CEBB-9072-406B-8423-26FC3E4A0A20",
+        "\/Users\/dev\/work\/alpha",
+        "67E94212-A035-46B8-85C3-32A764282122",
+        "\/Users\/dev\/work\/alpha"
+      ],
+      "name" : "",
+      "position" : 0,
+      "splitLayout" : {
+        "branch" : {
+          "first" : {
+            "leaf" : {
+              "id" : "67E94212-A035-46B8-85C3-32A764282122",
+              "surfaceID" : "359A5A3F-0778-4A66-BFD8-02757AFD08BF"
+            },
+            "type" : "leaf"
+          },
+          "id" : "555E126B-368D-4205-95D1-C68C7D163F73",
+          "orientation" : "vertical",
+          "ratio" : 0.7544381905190134,
+          "second" : {
+            "leaf" : {
+              "id" : "0D19CEBB-9072-406B-8423-26FC3E4A0A20",
+              "surfaceID" : "939FFBBD-D610-4440-A637-D15B5CD0FC02"
+            },
+            "type" : "leaf"
+          }
+        },
+        "type" : "split"
+      },
+      "tabID" : "F37C9AE3-63B1-4257-9E89-014FAA80DBCE"
+    },
+    {
+      "focusedLeafID" : "BBFE2129-A9AF-4FBC-974D-335BF4040095",
+      "leafDirectories" : [
+        "BBFE2129-A9AF-4FBC-974D-335BF4040095",
+        "\/Users\/dev\/work\/beta"
+      ],
+      "name" : "",
+      "position" : 1,
+      "splitLayout" : {
+        "leaf" : {
+          "id" : "BBFE2129-A9AF-4FBC-974D-335BF4040095",
+          "surfaceID" : "D9877D79-9458-4D7C-9BAA-3C3A9E727999"
+        },
+        "type" : "leaf"
+      },
+      "tabID" : "8DEA4477-4FF2-4114-BEF3-970E7168A8CF"
+    },
+    {
+      "focusedLeafID" : "ADFB59EC-FBA3-40DB-AFF3-E8AE81B2DA56",
+      "leafDirectories" : [
+        "ADFB59EC-FBA3-40DB-AFF3-E8AE81B2DA56",
+        "\/Users\/dev\/work\/delta"
+      ],
+      "name" : "",
+      "position" : 2,
+      "splitLayout" : {
+        "leaf" : {
+          "id" : "ADFB59EC-FBA3-40DB-AFF3-E8AE81B2DA56",
+          "surfaceID" : "55267545-A92A-431D-83AC-FE5647CCA919"
+        },
+        "type" : "leaf"
+      },
+      "tabID" : "26EE800B-87DF-4C6C-8978-4DEC6C357E69"
+    }
+  ],
+  "version" : 2,
+  "windowHeight" : 2121,
+  "windowWidth" : 2089,
+  "windowX" : 858,
+  "windowY" : 39
+}

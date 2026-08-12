@@ -1,0 +1,126 @@
+{
+  "activeTabID" : "8DEA4477-4FF2-4114-BEF3-970E7168A8CF",
+  "repoColorOverrides" : {
+
+  },
+  "sidebarWidth" : 200,
+  "surfaceTintEnabled" : true,
+  "tabs" : [
+    {
+      "focusedLeafID" : "67E94212-A035-46B8-85C3-32A764282122",
+      "leafColorOverrides" : [
+
+      ],
+      "leafDirectories" : [
+        "0D19CEBB-9072-406B-8423-26FC3E4A0A20",
+        "\/Users\/dev\/work\/alpha",
+        "67E94212-A035-46B8-85C3-32A764282122",
+        "\/Users\/dev\/work\/alpha"
+      ],
+      "name" : "",
+      "position" : 0,
+      "splitLayout" : {
+        "branch" : {
+          "first" : {
+            "leaf" : {
+              "id" : "67E94212-A035-46B8-85C3-32A764282122",
+              "surfaceID" : "2E46B4D7-5DAD-47B3-BCB7-33D10EA9FA0F"
+            },
+            "type" : "leaf"
+          },
+          "id" : "555E126B-368D-4205-95D1-C68C7D163F73",
+          "orientation" : "vertical",
+          "ratio" : 0.7544381905190134,
+          "second" : {
+            "leaf" : {
+              "id" : "0D19CEBB-9072-406B-8423-26FC3E4A0A20",
+              "surfaceID" : "8D35868B-725E-4198-8AC9-71DAE3245722"
+            },
+            "type" : "leaf"
+          }
+        },
+        "type" : "split"
+      },
+      "tabID" : "F37C9AE3-63B1-4257-9E89-014FAA80DBCE"
+    },
+    {
+      "focusedLeafID" : "BBFE2129-A9AF-4FBC-974D-335BF4040095",
+      "leafColorOverrides" : [
+
+      ],
+      "leafDirectories" : [
+        "AF14DE58-69BA-4701-AF61-641502920767",
+        "\/Users\/dev\/work\/beta",
+        "BBFE2129-A9AF-4FBC-974D-335BF4040095",
+        "\/Users\/dev\/work\/beta"
+      ],
+      "name" : "",
+      "position" : 1,
+      "splitLayout" : {
+        "branch" : {
+          "first" : {
+            "leaf" : {
+              "id" : "BBFE2129-A9AF-4FBC-974D-335BF4040095",
+              "surfaceID" : "C46FEBF8-48A0-4FEA-A9A9-21E7180F4FB4"
+            },
+            "type" : "leaf"
+          },
+          "id" : "38771840-AB77-4E04-BBAB-A293205BAC33",
+          "orientation" : "vertical",
+          "ratio" : 0.7947881761608425,
+          "second" : {
+            "leaf" : {
+              "id" : "AF14DE58-69BA-4701-AF61-641502920767",
+              "surfaceID" : "FA46FBB5-A13A-4329-9DAF-601446EE7314"
+            },
+            "type" : "leaf"
+          }
+        },
+        "type" : "split"
+      },
+      "tabID" : "8DEA4477-4FF2-4114-BEF3-970E7168A8CF"
+    },
+    {
+      "focusedLeafID" : "7AE55A30-F331-443E-B89F-55BE2CAB4320",
+      "leafColorOverrides" : [
+
+      ],
+      "leafDirectories" : [
+        "CA2D5FDD-832D-4BBF-AE88-40C9189FE87E",
+        "\/Users\/dev\/work\/gamma",
+        "7AE55A30-F331-443E-B89F-55BE2CAB4320",
+        "\/Users\/dev\/work\/gamma"
+      ],
+      "name" : "",
+      "position" : 2,
+      "splitLayout" : {
+        "branch" : {
+          "first" : {
+            "leaf" : {
+              "id" : "7AE55A30-F331-443E-B89F-55BE2CAB4320",
+              "surfaceID" : "E2422E6C-2462-4E47-8BFD-366E2B2E276F"
+            },
+            "type" : "leaf"
+          },
+          "id" : "9D76BC8C-279E-4792-8185-318C3AF28679",
+          "orientation" : "vertical",
+          "ratio" : 0.811276328386788,
+          "second" : {
+            "leaf" : {
+              "id" : "CA2D5FDD-832D-4BBF-AE88-40C9189FE87E",
+              "surfaceID" : "7A4C5C13-3FA8-4216-9C41-84FD4505060E"
+            },
+            "type" : "leaf"
+          }
+        },
+        "type" : "split"
+      },
+      "tabID" : "034C3E5E-DA63-404A-8E1A-DEBFAB268AA3"
+    }
+  ],
+  "version" : 3,
+  "windowHeight" : 2121,
+  "windowWidth" : 2089,
+  "windowX" : 661,
+  "windowY" : 39
+}
