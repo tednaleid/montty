@@ -35,7 +35,7 @@ extension AppDelegate {
             windows: [WindowSnapshot(
                 windowID: singleWindowID,
                 frame: WindowFrame(frame),
-                sidebarWidth: sidebarWidth,
+                sidebarWidth: registry.keyWindow?.sidebarWidth ?? 200,
                 activeTabID: tabStore.activeTabID,
                 tabs: tabSnapshots
             )],
@@ -54,7 +54,7 @@ extension AppDelegate {
             return
         }
 
-        sidebarWidth = windowSnap.sidebarWidth
+        registry.keyWindow?.sidebarWidth = windowSnap.sidebarWidth
         surfaceTintEnabled = snapshot.surfaceTintEnabled
         repoColorOverrides = snapshot.repoColorOverrides
 

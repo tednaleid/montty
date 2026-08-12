@@ -15,9 +15,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Surface jump mode state (nil = normal mode).
     @Published var jumpState: JumpState?
 
-    /// Sidebar width, persisted across sessions.
-    @Published var sidebarWidth: Double = 200
-
     /// Whether the sidebar is visible.
     @Published var sidebarVisible = true
 
@@ -37,14 +34,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         return controllers[id]
     }
 
-    /// The tabs of the window holding focus. Call sites that used to read the
-    /// one and only store read this instead.
+    /// The tabs of the window holding focus.
     var tabStore: TabStore {
         registry.keyWindow?.tabStore ?? TabStore()
     }
 
-    /// The window holding focus. Call sites that used to read the one and
-    /// only window read this instead.
+    /// The window holding focus.
     var window: NSWindow? {
         keyController?.window
     }
@@ -74,7 +69,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     private var jumpKeyMonitor: Any?
 
     /// Session persistence
-    let sessionStore = SessionStore()
+    private let sessionStore = SessionStore()
 
     override init() {
         // Point GhosttyKit at our bundled resources (terminfo + shell
@@ -181,13 +176,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         return controller
     }
 
-    /// A window is going away. Drop it, and quit when it was the last one.
+    /// A window is going away. Save state while it's still the registry's key
+    /// window if it was the last one, then drop it and quit.
+    ///
+    /// The controller is kept alive in `controllers` past the point where the
+    /// registry forgets it, and only released on the next run loop turn --
+    /// AppKit is still using the window and its delegate for the remainder of
+    /// this close sequence.
     func windowWillClose(_ controller: WindowController) {
-        registry.remove(id: controller.model.id)
-        controllers[controller.model.id] = nil
-        if registry.windows.isEmpty {
+        let isLastWindow = registry.windows.count == 1
+        if isLastWindow {
             sessionStore.save(snapshot: createSnapshot())
+        }
+        registry.remove(id: controller.model.id)
+        if registry.windows.isEmpty {
             NSApp.terminate(nil)
+        }
+        DispatchQueue.main.async { [weak self] in
+            self?.controllers[controller.model.id] = nil
         }
     }
 

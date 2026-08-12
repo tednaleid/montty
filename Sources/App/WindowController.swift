@@ -1,5 +1,5 @@
-// ABOUTME: Owns one NSWindow and the model state behind it, so the application
-// ABOUTME: delegate no longer stands in for the single window it used to have.
+// ABOUTME: Owns one NSWindow and the WindowModel behind it, and is that
+// ABOUTME: window's NSWindowDelegate, forwarding key-state changes to AppDelegate.
 
 import AppKit
 import SwiftUI
@@ -35,6 +35,11 @@ final class WindowController: NSObject, NSWindowDelegate {
 
     func windowDidBecomeKey(_ notification: Notification) {
         appDelegate?.registry.keyWindowID = model.id
+        appDelegate?.windowDidBecomeKey(notification)
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        appDelegate?.windowDidResignKey(notification)
     }
 
     func windowWillClose(_ notification: Notification) {
