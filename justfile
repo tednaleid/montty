@@ -120,40 +120,44 @@ run-bg: build
     @sleep 2
     @echo "Montty launched in background. Use 'just stop' to quit."
 
-# Quit the running app gracefully. Never touches a host Montty that happens
-# to be an ancestor of the invoking shell -- that's the Montty you're sitting
-# inside, not the debug build you just launched with `just run-bg`.
+# PIDs of every Montty running out of this repo's build directory.
+#
+# Selecting on the executable path is what makes `stop` and `kill` safe: an
+# installed Montty runs from /Applications and can never match, so neither
+# recipe can reach the Montty hosting your shell no matter where you run it
+# from. `ps` rather than `pgrep` because macOS `pgrep Montty` misses a build
+# launched through Launch Services, and `comm` carries the full path.
+[private]
+dev-pids:
+    @ps -eo pid=,comm= | awk -v prefix="{{build_dir}}/" 'index($2, prefix) == 1 { print $1 }'
+
+# Quit the debug app gracefully. Leaves an installed Montty alone.
 stop:
     #!/usr/bin/env bash
     set -euo pipefail
-    # Walk the ancestor chain from our invoking shell to find a host Montty PID, if any.
-    host_pid=""
-    pid=$PPID
-    while [ -n "$pid" ] && [ "$pid" -gt 1 ]; do
-        name=$(ps -o comm= -p "$pid" 2>/dev/null | awk -F/ '{print $NF}' | tr -d ' \n' || true)
-        if [ "$name" = "Montty" ]; then
-            host_pid=$pid
-            break
-        fi
-        pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' \n' || true)
+    stopped=0
+    for pid in $(just dev-pids); do
+        kill -TERM "$pid" 2>/dev/null && stopped=$((stopped+1)) || true
     done
-    # List every running Montty process. Use ps rather than pgrep because
-    # macOS `pgrep Montty` silently misses the released build launched via
-    # Launch Services -- ps sees both. Match by comm basename == "Montty".
-    killed=0
-    for t in $(ps -eo pid=,comm= | awk '{n=split($2,a,"/"); if (a[n]=="Montty") print $1}'); do
-        [ "$t" = "$host_pid" ] && continue
-        kill -TERM "$t" 2>/dev/null && killed=$((killed+1)) || true
-    done
-    if [ "$killed" -eq 0 ]; then
-        echo "No debug Montty instance to stop (host PID: ${host_pid:-none})"
+    if [ "$stopped" -eq 0 ]; then
+        echo "No debug Montty to stop"
     else
-        echo "Stopped $killed debug Montty instance(s) (host PID: ${host_pid:-none})"
+        echo "Stopped $stopped debug Montty instance(s)"
     fi
 
-# Force-kill the running app (no cleanup)
+# Force-kill the debug app (no cleanup). Leaves an installed Montty alone.
 kill:
-    @pkill -f 'Montty.app/Contents/MacOS/Montty' 2>/dev/null || echo "Montty is not running"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    killed=0
+    for pid in $(just dev-pids); do
+        kill -9 "$pid" 2>/dev/null && killed=$((killed+1)) || true
+    done
+    if [ "$killed" -eq 0 ]; then
+        echo "No debug Montty to kill"
+    else
+        echo "Force-killed $killed debug Montty instance(s)"
+    fi
 
 # -- Debug server inspection (localhost:9876, debug builds only) --
 
