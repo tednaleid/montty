@@ -43,6 +43,7 @@ Response:
     "pwd": "/Users/ted/montty",
     "window_id": "D4C3B2A1-...",
     "window_is_key": true,
+    "window_frame": {"x": 661, "y": 39, "width": 1400, "height": 900},
     "size": {"rows": 24, "cols": 80, "width_px": 1200, "height_px": 800},
     "color": {
       "effective": ["neutralBright", "brightRed"],
@@ -80,7 +81,7 @@ older, tab-wide field kept for existing callers -- it always matches the
 
 `id` is montty's own internal handle for the surface -- not addressable over the socket. `montty_surface_id` is the value exported to each pane as `MONTTY_SURFACE_ID`; it is what the control and hook socket addresses (`montty-hook.sock` in the system temporary directory, or wherever `MONTTY_SOCKET` points), and what a shell inside the pane can read to identify itself. It is `null` in the unlikely case a leaf has no assigned id. Use `montty_surface_id`, not `id`, when scripting requests against the socket.
 
-`window_id` is the window the surface's tab belongs to; every surface in the same window reports the same `window_id`. `window_is_key` marks the window that receives commands -- new tabs, keybind actions, and other window-scoped requests land there -- and is true for every surface in that window. It names the window that most recently held keyboard focus, and stays set on that window while montty itself is not the frontmost application; it does not clear when focus moves away. For a surface's actual keyboard focus, use `focused` instead -- the two fields can disagree whenever montty is in the background, since `window_is_key` keeps pointing at the last-active window while every surface's `focused` drops to false.
+`window_id` is the window the surface's tab belongs to; every surface in the same window reports the same `window_frame` and `window_id`. `window_frame` is that window's on-screen position and size in screen coordinates, in the same `x`/`y`/`width`/`height` shape the session file stores. `window_is_key` marks the window that receives commands -- new tabs, keybind actions, and other window-scoped requests land there -- and is true for every surface in that window. It names the window that most recently held keyboard focus, and stays set on that window while montty itself is not the frontmost application; it does not clear when focus moves away. For a surface's actual keyboard focus, use `focused` instead -- the two fields can disagree whenever montty is in the background, since `window_is_key` keeps pointing at the last-active window while every surface's `focused` drops to false.
 
 ### POST /type
 

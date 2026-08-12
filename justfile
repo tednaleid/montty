@@ -163,7 +163,7 @@ inspect-surfaces:
 
 # List open windows with their key state and tab count
 inspect-windows:
-    @curl -sf localhost:9876/surfaces | jq 'group_by(.window_id) | map({window_id: .[0].window_id, is_key: .[0].window_is_key, surfaces: length})'
+    @curl -sf localhost:9876/surfaces | jq 'group_by(.window_id) | map({window_id: .[0].window_id, is_key: .[0].window_is_key, frame: .[0].window_frame, surfaces: length})'
 
 # Send text to the running terminal
 inspect-type text surface="":

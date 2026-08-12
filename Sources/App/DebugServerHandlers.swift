@@ -88,6 +88,12 @@ extension DebugServer {
             }
             var results: [[String: Any]] = []
             for window in appDelegate.registry.windows {
+                // Reported in the x/y/width/height shape the session file
+                // stores, so both describe a window's geometry the same way.
+                let frame = WindowFrame(appDelegate.controllers[window.id]?.window.frame ?? .zero)
+                let windowFrame: [String: Double] = [
+                    "x": frame.x, "y": frame.y, "width": frame.width, "height": frame.height
+                ]
                 for tab in window.tabStore.tabs {
                     let isActiveTab = tab.id == window.tabStore.activeTabID
                     let info = tab.tabInfo
@@ -98,6 +104,7 @@ extension DebugServer {
                         )
                         entry["window_id"] = window.id.uuidString
                         entry["window_is_key"] = window.id == appDelegate.registry.keyWindowID
+                        entry["window_frame"] = windowFrame
                         addSurfaceViewData(leaf: leaf, appDelegate: appDelegate, entry: &entry)
                         results.append(entry)
                     }
