@@ -1,8 +1,9 @@
 # Onboarding
 
-Montty is a single-window macOS terminal app built on top of GhosttyKit (MIT).
-It adds a vertical tab sidebar, splits, per-tab color coding, session restore,
-Claude Code status indicators, and a Cmd+; surface-jump mode.
+Montty is a macOS terminal app built on top of GhosttyKit (MIT), where one
+process can own several windows, each with its own tabs and splits. It adds a
+vertical tab sidebar, splits, per-tab color coding, session restore, Claude
+Code status indicators, and a Cmd+; surface-jump mode.
 
 ## Stack
 

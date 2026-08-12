@@ -26,7 +26,7 @@ Build "montty" -- a macOS terminal app on top of GhosttyKit (MIT licensed) with:
 
 ## Success Criteria
 
-- [ ] Single window with vertical tab sidebar renders terminal surfaces
+- [ ] A window with a vertical tab sidebar renders terminal surfaces
 - [ ] Tab font is significantly larger than cmux's default; directory name is the primary display
 - [ ] Creating 6-8 tabs and switching between them feels instant
 - [ ] Tabs never move unless the user drags them
@@ -42,7 +42,7 @@ Build "montty" -- a macOS terminal app on top of GhosttyKit (MIT licensed) with:
 ## Scope
 
 ### In scope
-- Single macOS window with vertical tab sidebar (left side)
+- One process, many macOS windows, each with its own vertical tab sidebar (left side)
 - Tab operations: create, close, rename, reorder (drag), assign color
 - Tab display: large font, directory name prominent, user-assigned color indicator
 - Per-tab splits: horizontal and vertical, resize dividers, focus navigation
@@ -53,7 +53,6 @@ Build "montty" -- a macOS terminal app on top of GhosttyKit (MIT licensed) with:
 - justfile with setup/build/test/lint recipes
 
 ### Out of scope
-- Multiple windows (single window only in v1)
 - Browser panels, markdown panels, or any non-terminal panel type
 - Remote sessions or daemon (cmuxd)
 - Analytics, telemetry, or crash reporting

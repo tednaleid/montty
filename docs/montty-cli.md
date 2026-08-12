@@ -19,8 +19,8 @@ error rather than a tab named `MR`. The GUI launches only with no arguments at
 all, or with a flag montty does not define, which is how macOS starts the app
 (`-psn_0_12345`, `-NSDocumentRevisionsDebugMode`).
 
-A GUI launch while montty is already running raises the window that is already
-open and exits, rather than starting a second app. So a mistyped flag such as
+A GUI launch while montty is already running raises every window already open
+and exits, rather than starting a second app. So a mistyped flag such as
 `montty --verison` costs a window raise, not a second montty taking over the
 first one's socket and session file. See [One instance](../README.md#one-instance).
 

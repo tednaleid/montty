@@ -70,7 +70,7 @@ If montty opens with tabs missing, look for those two recovery files. Quitting m
 
 ### One instance
 
-Before montty starts, it takes an exclusive lock on `MONTTY_SOCKET` with `.lock` appended, and holds it until the process ends. A launch that finds the lock held raises the running window and exits. The kernel hands that lock to one process at a time, so two launches cannot both pass it however closely they are timed, and it releases the lock when the holder dies for any reason, so a lock file left on disk is never a stale lock.
+Before montty starts, it takes an exclusive lock on `MONTTY_SOCKET` with `.lock` appended, and holds it until the process ends. A launch that finds the lock held raises every window of the running instance and exits. The kernel hands that lock to one process at a time, so two launches cannot both pass it however closely they are timed, and it releases the lock when the holder dies for any reason, so a lock file left on disk is never a stale lock.
 
 With the lock in hand, montty then asks whatever is listening on the socket whether it is a montty, and exits the same way if one answers. That finds the owner the lock cannot: a montty from a build older than the lock. Only a live answer counts, so the socket file a crash leaves behind is taken over as it always was.
 
