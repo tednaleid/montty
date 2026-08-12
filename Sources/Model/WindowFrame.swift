@@ -41,8 +41,6 @@ struct WindowFrame: Codable, Equatable {
             $0.intersection(rect).area < $1.intersection(rect).area
         }) ?? frames.first else { return self }
 
-        if target.intersection(rect).area > 0, target.contains(rect) { return self }
-
         let width = min(self.width, target.width)
         let height = min(self.height, target.height)
         // swiftlint:disable:next identifier_name

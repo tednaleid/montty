@@ -33,7 +33,17 @@ import Testing
         #expect(clamped.height <= mainScreen.height)
     }
 
-    @Test func keepsAFrameOnTheScreenItOverlapsMost() {
+    @Test func clampsToTheScreenWithMoreOverlapArea() {
+        let secondScreen = CGRect(x: 1920, y: 0, width: 1920, height: 1080)
+        let frame = WindowFrame(x: 1700, y: 100, width: 1200, height: 600)
+
+        let clamped = frame.clamped(toVisible: [mainScreen, secondScreen])
+
+        #expect(clamped.x >= secondScreen.minX)
+        #expect(clamped.x + clamped.width <= secondScreen.maxX)
+    }
+
+    @Test func keepsAFrameFullyContainedInOneScreen() {
         let secondScreen = CGRect(x: 1920, y: 0, width: 1920, height: 1080)
         let frame = WindowFrame(x: 2000, y: 100, width: 800, height: 600)
 
