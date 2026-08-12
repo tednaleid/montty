@@ -6,46 +6,23 @@ import Foundation
 import GhosttyKit
 
 extension AppDelegate {
+    /// A thin call into the pure builder, supplying the two values only this
+    /// layer can: a window's real on-screen frame, and a surface's working
+    /// directory.
     func createSnapshot() -> SessionSnapshot {
-        SessionSnapshot(
-            surfaceTintEnabled: surfaceTintEnabled,
-            windows: registry.windows.map { window in
-                WindowSnapshot(
-                    windowID: window.id,
-                    frame: WindowFrame(controllers[window.id]?.window.frame ?? .zero),
-                    sidebarWidth: window.sidebarWidth,
-                    activeTabID: window.tabStore.activeTabID,
-                    tabs: window.tabStore.tabs.map(tabSnapshot(of:))
-                )
-            },
+        SessionSnapshotBuilder.snapshot(
+            windows: registry.windows,
             keyWindowID: registry.keyWindowID,
-            repoColorOverrides: repoColorOverrides
-        )
-    }
-
-    /// One tab's persisted shape, including each leaf's working directory and
-    /// color override keyed by leaf rather than by the surface id, which is
-    /// minted fresh on restore.
-    private func tabSnapshot(of tab: Tab) -> TabSnapshot {
-        var dirs: [UUID: String] = [:]
-        var colors: [UUID: PaneTint] = [:]
-        for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
-            if let pwd = surfaceView(for: leaf.surfaceID)?.pwd {
-                dirs[leaf.id] = pwd
-            }
-            if let tint = tab.surfaceColorOverrides[leaf.surfaceID] {
-                colors[leaf.id] = tint
-            }
-        }
-        return TabSnapshot(
-            tabID: tab.id,
-            name: tab.name,
-            position: tab.position,
-            focusedLeafID: tab.focusedLeafID,
-            splitLayout: tab.splitRoot,
-            leafDirectories: dirs,
-            leafColorOverrides: colors,
-            colorOverride: tab.colorOverride
+            surfaceTintEnabled: surfaceTintEnabled,
+            repoColorOverrides: repoColorOverrides,
+            environment: SessionEnvironment(
+                frame: { [weak self] window in
+                    WindowFrame(self?.controllers[window.id]?.window.frame ?? .zero)
+                },
+                directory: { [weak self] surfaceID in
+                    self?.surfaceView(for: surfaceID)?.pwd
+                }
+            )
         )
     }
 

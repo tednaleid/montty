@@ -76,8 +76,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// without this flag, whichever window happens to close last would look
     /// like an ordinary "last window closing" and overwrite the complete
     /// snapshot `applicationShouldTerminate` already saved with a snapshot of
-    /// just itself. Not private, for the same reason `sessionStore` isn't.
+    /// just itself. Never cleared once set; see `applicationShouldTerminate`.
+    /// Not private, for the same reason `sessionStore` isn't.
     var isTerminating = false
+
+    /// The last complete, non-empty snapshot `applicationShouldTerminate`
+    /// captured for a real app-wide quit, kept in memory as a second,
+    /// independent guard beside `isTerminating`: the close path refuses to
+    /// write an empty snapshot while this is set, even if `isTerminating`
+    /// were somehow wrong. `nil` means no quit has ever been requested in
+    /// this process, so an empty snapshot from a window closed by hand is
+    /// exactly what belongs on disk. Not private, for the same reason
+    /// `sessionStore` isn't.
+    var lastQuitSnapshot: SessionSnapshot?
 
     override init() {
         // Point GhosttyKit at our bundled resources (terminfo + shell
@@ -151,10 +162,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// part of quitting. Skipped when nothing is open, which happens when
     /// this fires as a side effect of `windowWillClose` requesting the quit
     /// after the last window already closed and saved itself.
+    ///
+    /// `isTerminating` is never cleared once set (see its declaration): a
+    /// stranded `true` after a quit the system cancels costs at most a
+    /// skipped save on some later window close, while clearing it wrongly
+    /// mid-quit -- which an activation firing between this call and AppKit
+    /// closing windows one by one cannot be ruled out -- risks the close
+    /// path overwriting this save with an empty one. Stranding is the
+    /// cheaper failure, so nothing clears the flag.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         isTerminating = true
         if !registry.windows.isEmpty {
-            sessionStore.save(snapshot: createSnapshot())
+            let snapshot = createSnapshot()
+            sessionStore.save(snapshot: snapshot)
+            lastQuitSnapshot = snapshot
         }
         return .terminateNow
     }
@@ -175,14 +196,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
-    }
-
-    /// Becoming active again is evidence a quit this process agreed to
-    /// (`applicationShouldTerminate` always returns `.terminateNow`) did not
-    /// actually happen -- the system cancelled it for reasons outside this
-    /// app's control. Clears the flag so window closes go back to saving.
-    func applicationDidBecomeActive(_ notification: Notification) {
-        isTerminating = false
     }
 
     // MARK: - Tab lifecycle
