@@ -58,6 +58,8 @@ Terminal theming is configured through Ghostty's config file at `~/.config/ghost
 
 The session lives in `~/Library/Application Support/montty/`. Setting `MONTTY_SESSION_DIR` points montty at a different directory, which is how a development build keeps its tabs out of the installed app's session.
 
+The windows open when montty quits are the windows it restores on the next launch. A window closed by hand before quitting is not saved, so it does not come back.
+
 | File | Meaning |
 |---|---|
 | `session.json` | the live session: tabs, splits, names, colors, focus |

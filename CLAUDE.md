@@ -13,5 +13,6 @@ Implementation specs are in `docs/spec/`. Start with `contract.md` for the overv
 - Tests should run fast (target: full suite under 5 seconds).
 - `Sources/Ghostty/` is upstream code copied from the Ghostty submodule. Minimize modifications to make upstream syncs easier. Mark every montty-local change there with a `// MONTTY:` comment. SwiftLint excludes this directory.
 - Ghostty's C API calls must happen on the main actor.
-- Single window app. No multi-window support.
+- One process, many windows. Cmd-N opens a window that owns its own tabs and
+  splits. Tabs do not move between windows.
 - Tab state (names, colors, positions) is persisted automatically in a session JSON file. No user-facing config file for tab settings. Terminal theming comes from `~/.config/ghostty/config`.

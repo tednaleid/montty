@@ -62,6 +62,9 @@ signature:
 Each scope has its own Reset in the tab's right-click menu, so anything set here
 can be cleared from the GUI.
 
+Every command targets the surface it runs in, which resolves no matter which
+window holds it. There is no window scope.
+
 ## Examples
 
 ```bash
