@@ -11,7 +11,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     )
 
     @Published var ghostty: Ghostty.App
-    let tabStore = TabStore()
 
     /// Surface jump mode state (nil = normal mode).
     @Published var jumpState: JumpState?
@@ -30,8 +29,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Indexed by TabColor.orderedCases position. Empty before config loads.
     var tabPalette: [NSColor] = []
 
-    /// The main application window, created in applicationDidFinishLaunching.
-    var window: NSWindow!
+    let registry = WindowRegistry()
+    var controllers: [UUID: WindowController] = [:]
+
+    var keyController: WindowController? {
+        guard let id = registry.keyWindow?.id else { return nil }
+        return controllers[id]
+    }
+
+    /// The tabs of the window holding focus. Call sites that used to read the
+    /// one and only store read this instead.
+    var tabStore: TabStore {
+        registry.keyWindow?.tabStore ?? TabStore()
+    }
+
+    /// The window holding focus. Call sites that used to read the one and
+    /// only window read this instead.
+    var window: NSWindow? {
+        keyController?.window
+    }
 
     /// Identifies this process's one window until the registry replaces it.
     let singleWindowID = UUID()
@@ -58,7 +74,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     private var jumpKeyMonitor: Any?
 
     /// Session persistence
-    private let sessionStore = SessionStore()
+    let sessionStore = SessionStore()
 
     override init() {
         // Point GhosttyKit at our bundled resources (terminfo + shell
@@ -79,23 +95,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     // MARK: - NSApplicationDelegate
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Create the main window with SwiftUI content
-        let hostingView = NSHostingView(rootView:
-            MainWindow(tabStore: tabStore)
-                .environmentObject(ghostty)
-                .environmentObject(self)
-        )
-
-        window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.contentView = hostingView
-        window.title = "Montty"
-        window.delegate = self
-        window.makeKeyAndOrderFront(nil)
+        let controller = makeWindow()
+        controller.show()
         NSApp.activate()
 
         // Start the Ghostty event loop tick timer
@@ -164,6 +165,30 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
+    }
+
+    // MARK: - Window lifecycle
+
+    /// Builds a window, registers it, and returns its controller. Every window
+    /// in the process is created here.
+    @discardableResult
+    func makeWindow(_ model: WindowModel = WindowModel()) -> WindowController {
+        registry.add(model)
+        let controller = WindowController(
+            model: model, ghostty: ghostty, appDelegate: self
+        )
+        controllers[model.id] = controller
+        return controller
+    }
+
+    /// A window is going away. Drop it, and quit when it was the last one.
+    func windowWillClose(_ controller: WindowController) {
+        registry.remove(id: controller.model.id)
+        controllers[controller.model.id] = nil
+        if registry.windows.isEmpty {
+            sessionStore.save(snapshot: createSnapshot())
+            NSApp.terminate(nil)
+        }
     }
 
     // MARK: - Tab lifecycle

@@ -3,7 +3,9 @@ import SwiftUI
 struct MainWindow: View {
     @EnvironmentObject var ghostty: Ghostty.App
     @EnvironmentObject var appDelegate: AppDelegate
-    var tabStore: TabStore
+    var window: WindowModel
+
+    private var tabStore: TabStore { window.tabStore }
 
     @State private var dragStartWidth: CGFloat = 0
 
@@ -25,7 +27,7 @@ struct MainWindow: View {
                         appDelegate.jumpToSurface(tabID: tabID, leafID: leafID)
                     }
                 )
-                .frame(width: appDelegate.sidebarWidth)
+                .frame(width: window.sidebarWidth)
 
                 // Draggable divider between sidebar and terminal
                 Rectangle()
@@ -37,10 +39,10 @@ struct MainWindow: View {
                         DragGesture(minimumDistance: 1)
                             .onChanged { value in
                                 if dragStartWidth == 0 {
-                                    dragStartWidth = appDelegate.sidebarWidth
+                                    dragStartWidth = window.sidebarWidth
                                 }
                                 let newWidth = dragStartWidth + value.translation.width
-                                appDelegate.sidebarWidth = min(max(newWidth, 150), 400)
+                                window.sidebarWidth = min(max(newWidth, 150), 400)
                             }
                             .onEnded { _ in
                                 dragStartWidth = 0
