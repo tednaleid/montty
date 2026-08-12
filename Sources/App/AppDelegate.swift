@@ -386,6 +386,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     // MARK: - Surface jump mode
 
     func enterJumpMode() {
+        // Jump moves focus inside the window in front of you, so only that
+        // window's leaves get labeled -- labeling every window's leaves would
+        // make the label set larger and its labels longer for no gain.
         guard let tabStore = registry.keyWindow?.tabStore else { return }
         // Collect all surfaces: active tab first, then other tabs by position
         var targets: [JumpTarget] = []
