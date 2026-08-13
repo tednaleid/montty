@@ -23,6 +23,9 @@ GhosttyKit.xcframework
 .llm
 .claude/settings.local.json
 
+# Git worktrees created by wt
+.claude/worktrees/
+
 # veer runtime database
 .veer/veer.db
 
