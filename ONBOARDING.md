@@ -65,7 +65,7 @@ splits. `Sources/App/` holds the AppKit entry point (`main.swift`),
 ## How to run
 
 ```bash
-just setup && just generate && just run
+just setup && just run
 ```
 
 ## Dig deeper

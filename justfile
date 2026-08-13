@@ -94,11 +94,14 @@ generate:
 build_dir := "/tmp/montty-build"
 
 # Build the app
-build:
+# Depends on `generate` because montty.xcodeproj is gitignored and lists its
+# sources explicitly: a project generated before a file existed cannot compile
+# it, so pulling a branch that added one would otherwise fail to build.
+build: generate
     xcodebuild -project montty.xcodeproj -scheme montty -configuration Debug build SYMROOT={{build_dir}}
 
 # Run unit tests
-test:
+test: generate
     xcodebuild -project montty.xcodeproj -scheme montty-unit -destination 'platform=macOS' test SYMROOT={{build_dir}}
 
 # Run SwiftLint
