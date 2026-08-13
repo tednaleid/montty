@@ -45,4 +45,69 @@ final class WindowUseCases {
         outcome.save = !registry.windows.isEmpty
         return outcome
     }
+
+    /// Open a window with one tab, inheriting the working directory of the
+    /// surface it was opened from. The model joins the registry now; the
+    /// outcome describes only the AppKit work.
+    func newWindow(from surfaceID: UUID?) -> WindowOutcome {
+        let cascadeFrom = registry.keyWindow?.id
+        let window = registry.add(WindowModel())
+        let tab = Tab(position: 0)
+        window.tabStore.append(tab: tab)
+        window.tabStore.activeTabID = tab.id
+        registry.keyWindowID = window.id
+
+        // `Tab.init` seeds one leaf with a placeholder surface id. Take that
+        // leaf's id: `surfacesCreated` remaps it to the id Ghostty mints.
+        guard let leaf = SplitTree.allLeaves(node: tab.splitRoot).first else {
+            return WindowOutcome()
+        }
+
+        var outcome = WindowOutcome()
+        outcome.createWindows = [
+            WindowPlan(windowID: window.id, frame: nil, cascadeFrom: cascadeFrom)
+        ]
+        outcome.createSurfaces = [
+            SurfacePlan(
+                leafID: leaf.id,
+                windowID: window.id,
+                tabID: tab.id,
+                monttyID: UUID().uuidString,
+                workingDirectory: surfaceID.flatMap(directory(ofSurface:))
+            )
+        ]
+        outcome.raiseWindow = window.id
+        return outcome
+    }
+
+    /// Close the window owning `surfaceID`. A caller that could not resolve one
+    /// passes nil and the window in front closes. This only asks: the teardown
+    /// happens when AppKit reports the close through `windowDidClose`.
+    func closeWindow(containing surfaceID: UUID?) -> WindowOutcome {
+        let target = surfaceID.flatMap { registry.locate(surfaceID: $0)?.window }
+            ?? registry.keyWindow
+        guard let target else { return WindowOutcome() }
+
+        var outcome = WindowOutcome()
+        outcome.closeWindows = [target.id]
+        return outcome
+    }
+
+    /// Bind the surface ids Ghostty minted to the leaves that asked for them.
+    func surfacesCreated(_ bindings: [UUID: UUID]) -> WindowOutcome {
+        for window in registry.windows {
+            for tab in window.tabStore.tabs {
+                tab.bindSurfaces(bindings)
+            }
+        }
+        var outcome = WindowOutcome()
+        outcome.save = true
+        return outcome
+    }
+
+    /// The working directory recorded for a surface, used so a new window opens
+    /// where you were.
+    private func directory(ofSurface surfaceID: UUID) -> String? {
+        registry.locate(surfaceID: surfaceID)?.tab.surfaceDirectories[surfaceID]
+    }
 }

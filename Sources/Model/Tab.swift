@@ -98,6 +98,16 @@ final class Tab: Identifiable {
         SplitTree.allLeaves(node: splitRoot).map(\.surfaceID)
     }
 
+    /// Point each leaf at the surface created for it. Leaves not named in
+    /// `bindings` keep the surface they already have.
+    func bindSurfaces(_ bindings: [UUID: UUID]) {
+        splitRoot = SplitTree.mapLeaves(node: splitRoot) { leaf in
+            guard let surfaceID = bindings[leaf.id] else { return leaf }
+            surfaceToMonttyID[surfaceID] = surfaceToMonttyID[leaf.surfaceID]
+            return SurfaceLeaf(id: leaf.id, surfaceID: surfaceID)
+        }
+    }
+
     /// Safety net: if the given surface is currently `.waiting`, transition to `.working`.
     /// Called when a new title arrives — a title change is strong evidence Claude is active.
     /// A `.waiting` the control CLI set is exempt, because an ordinary shell reprints

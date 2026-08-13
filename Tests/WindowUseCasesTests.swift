@@ -91,4 +91,79 @@ import Testing
         #expect(outcome == WindowOutcome())
         #expect(useCases.registry.windows.count == 1)
     }
+
+    @Test func closingByASurfaceTargetsThatSurfacesWindow() {
+        let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1, 1])
+        useCases.registry.keyWindowID = windows[1].id
+        let surfaceInFirst = windows[0].tabStore.tabs[0].allSurfaceIDs[0]
+
+        let outcome = useCases.closeWindow(containing: surfaceInFirst)
+
+        #expect(outcome.closeWindows == [windows[0].id])
+    }
+
+    /// A caller that cannot resolve a surface falls back to the window in front.
+    @Test func closingWithNoSurfaceTargetsTheKeyWindow() {
+        let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1, 1])
+        useCases.registry.keyWindowID = windows[1].id
+
+        let outcome = useCases.closeWindow(containing: nil)
+
+        #expect(outcome.closeWindows == [windows[1].id])
+    }
+
+    /// The shell turns `closeWindows` into NSWindow.close(), which comes back as
+    /// windowDidClose. Naming the same window in both would loop.
+    @Test func closingDoesNotTearDownDirectly() {
+        let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1, 1])
+
+        let outcome = useCases.closeWindow(containing: nil)
+
+        #expect(outcome.destroySurfaces.isEmpty)
+        #expect(outcome.save == false)
+        #expect(useCases.registry.windows.count == 2)
+        _ = windows
+    }
+
+    @Test func aNewWindowIsRegisteredAndAsksForOneSurface() {
+        let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1])
+        useCases.registry.keyWindowID = windows[0].id
+
+        let outcome = useCases.newWindow(from: nil)
+
+        #expect(useCases.registry.windows.count == 2)
+        #expect(outcome.createWindows.count == 1)
+        #expect(outcome.createSurfaces.count == 1)
+
+        let created = outcome.createWindows[0]
+        #expect(created.cascadeFrom == windows[0].id)
+        #expect(outcome.raiseWindow == created.windowID)
+        #expect(outcome.createSurfaces[0].windowID == created.windowID)
+    }
+
+    /// A new window opens where you were, the rule createTab already applies.
+    @Test func aNewWindowInheritsTheGivenSurfacesDirectory() {
+        let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1])
+        let surface = windows[0].tabStore.tabs[0].allSurfaceIDs[0]
+        windows[0].tabStore.tabs[0].surfaceDirectories[surface] = "/Users/dev/work/alpha"
+
+        let outcome = useCases.newWindow(from: surface)
+
+        #expect(outcome.createSurfaces[0].workingDirectory == "/Users/dev/work/alpha")
+    }
+
+    /// Ghostty mints surface ids, so binding them to leaves is a second step.
+    @Test func bindingSurfacesFillsInTheLeavesAndSaves() {
+        let (useCases, _) = makeUseCases(windowSurfaceCounts: [1])
+        let outcome = useCases.newWindow(from: nil)
+        let plan = outcome.createSurfaces[0]
+        let surfaceID = UUID()
+
+        let bound = useCases.surfacesCreated([plan.leafID: surfaceID])
+
+        #expect(bound.save == true)
+        let located = useCases.registry.locate(surfaceID: surfaceID)
+        #expect(located?.window.id == plan.windowID)
+        #expect(located?.tab.id == plan.tabID)
+    }
 }

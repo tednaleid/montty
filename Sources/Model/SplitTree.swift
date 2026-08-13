@@ -98,6 +98,23 @@ enum SplitTree {
         }
     }
 
+    /// Rebuild the tree with every leaf replaced by the result of `transform`.
+    /// Branch ids, orientation, and ratio are carried over unchanged.
+    static func mapLeaves(node: SplitNode, _ transform: (SurfaceLeaf) -> SurfaceLeaf) -> SplitNode {
+        switch node {
+        case .leaf(let leaf):
+            return .leaf(transform(leaf))
+        case .split(let branch):
+            return .split(SplitBranch(
+                id: branch.id,
+                orientation: branch.orientation,
+                ratio: branch.ratio,
+                first: mapLeaves(node: branch.first, transform),
+                second: mapLeaves(node: branch.second, transform)
+            ))
+        }
+    }
+
     /// Find the next leaf after the given leaf ID, wrapping around.
     static func nextLeaf(node: SplitNode, after leafID: UUID) -> SurfaceLeaf? {
         let leaves = allLeaves(node: node)

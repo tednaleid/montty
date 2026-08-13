@@ -161,6 +161,42 @@ struct SplitTreeTests {
         #expect(notFound == nil)
     }
 
+    @Test func mapLeavesRemapsEveryLeafAndPreservesBranchShape() {
+        let leafA = SurfaceLeaf()
+        let leafB = SurfaceLeaf()
+        let branch = SplitBranch(
+            orientation: .vertical, ratio: 0.3,
+            first: .leaf(leafA), second: .leaf(leafB)
+        )
+        let root = SplitNode.split(branch)
+        let replacementA = SurfaceLeaf(id: leafA.id, surfaceID: UUID())
+        let replacementB = SurfaceLeaf(id: leafB.id, surfaceID: UUID())
+
+        let result = SplitTree.mapLeaves(node: root) { leaf in
+            leaf.id == leafA.id ? replacementA : replacementB
+        }
+
+        guard case .split(let mapped) = result else {
+            Issue.record("Expected split branch")
+            return
+        }
+        #expect(mapped.id == branch.id)
+        #expect(mapped.orientation == .vertical)
+        #expect(mapped.ratio == 0.3)
+
+        guard case .leaf(let first) = mapped.first else {
+            Issue.record("Expected leaf")
+            return
+        }
+        #expect(first.surfaceID == replacementA.surfaceID)
+
+        guard case .leaf(let second) = mapped.second else {
+            Issue.record("Expected leaf")
+            return
+        }
+        #expect(second.surfaceID == replacementB.surfaceID)
+    }
+
     @Test func closeInNestedTree() {
         let leaf1 = SurfaceLeaf()
         let leaf2 = SurfaceLeaf()
