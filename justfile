@@ -175,7 +175,7 @@ inspect-windows:
 inspect-shells:
     #!/usr/bin/env bash
     set -euo pipefail
-    roots="$(just dev-pids)"
+    roots="$(just dev-pids | tr '\n' ' ')"
     ps -eo pid=,ppid=,tty=,comm= | awk -v roots="$roots" '
         BEGIN {
             n = split(roots, r)
