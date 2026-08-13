@@ -169,11 +169,41 @@ inspect-surfaces:
 inspect-windows:
     @curl -sf localhost:9876/surfaces | jq 'group_by(.window_id) | map({window_id: .[0].window_id, is_key: .[0].window_is_key, frame: .[0].window_frame, surfaces: length})'
 
-# Live shell PIDs, mapped to the surface each one runs in. A leak check is a
-# set difference: capture this, close a window, confirm those pids are gone.
+# Every process descended from a dev-build montty: the login/shell pair for
+# each open pane, plus whatever a pane is currently running. A leak check is
+# a set difference: capture this, close a window, confirm those pids are gone.
 inspect-shells:
-    @ps axeww 2>/dev/null | awk 'match($0, /MONTTY_SURFACE_ID=[0-9A-Fa-f-]+/) { \
-        print "{\"pid\": " $1 ", \"surface\": \"" substr($0, RSTART+18, RLENGTH-18) "\"}" }' | jq -s .
+    #!/usr/bin/env bash
+    set -euo pipefail
+    roots="$(just dev-pids)"
+    ps -eo pid=,ppid=,tty=,comm= | awk -v roots="$roots" '
+        BEGIN {
+            n = split(roots, r)
+            for (i = 1; i <= n; i++) root[r[i]] = 1
+        }
+        {
+            rows++
+            P[rows] = $1; PP[rows] = $2; T[rows] = $3; C[rows] = $4
+        }
+        END {
+            changed = 1
+            while (changed) {
+                changed = 0
+                for (i = 1; i <= rows; i++) {
+                    if (!(i in included) && !(P[i] in root) && ((PP[i] in root) || (PP[i] in includedPid))) {
+                        included[i] = 1
+                        includedPid[P[i]] = 1
+                        changed = 1
+                    }
+                }
+            }
+            for (i = 1; i <= rows; i++) {
+                if (i in included) {
+                    print "{\"pid\": " P[i] ", \"ppid\": " PP[i] ", \"tty\": \"" T[i] "\", \"command\": \"" C[i] "\"}"
+                }
+            }
+        }
+    ' | jq -s .
 
 # Send text to the running terminal
 inspect-type text surface="":
