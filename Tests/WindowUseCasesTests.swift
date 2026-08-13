@@ -234,8 +234,8 @@ import Testing
         let saved = SessionSnapshot(
             surfaceTintEnabled: true,
             windows: [
-                windowSnapshot(leafID: leafOne, directory: "/Users/dev/work/alpha"),
-                windowSnapshot(leafID: leafTwo, directory: "/Users/dev/work/beta")
+                windowSnapshot(leafID: leafOne, directory: "/Users/dev/work/alpha", name: "", colorOverride: nil),
+                windowSnapshot(leafID: leafTwo, directory: "/Users/dev/work/beta", name: "", colorOverride: nil)
             ],
             keyWindowID: nil,
             repoColorOverrides: [:]
@@ -259,7 +259,7 @@ import Testing
                     windowID: UUID(), frame: WindowFrame(x: 0, y: 0, width: 800, height: 600),
                     sidebarWidth: 200, activeTabID: nil, tabs: []
                 ),
-                windowSnapshot(leafID: UUID(), directory: nil)
+                windowSnapshot(leafID: UUID(), directory: nil, name: "", colorOverride: nil)
             ],
             keyWindowID: nil, repoColorOverrides: [:]
         )
@@ -288,8 +288,8 @@ import Testing
     /// restored first.
     @Test func restoringHonorsTheSavedKeyWindowWhenItWasRestored() {
         let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
-        let first = windowSnapshot(leafID: UUID(), directory: "/Users/dev/work/alpha")
-        let second = windowSnapshot(leafID: UUID(), directory: "/Users/dev/work/beta")
+        let first = windowSnapshot(leafID: UUID(), directory: "/Users/dev/work/alpha", name: "", colorOverride: nil)
+        let second = windowSnapshot(leafID: UUID(), directory: "/Users/dev/work/beta", name: "", colorOverride: nil)
         let saved = SessionSnapshot(
             surfaceTintEnabled: true,
             windows: [first, second],
@@ -309,7 +309,7 @@ import Testing
     /// window it actually holds.
     @Test func restoringFallsBackToAWindowItActuallyHasWhenTheSavedKeyWindowWasNotRestored() {
         let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
-        let restored = windowSnapshot(leafID: UUID(), directory: "/Users/dev/work/alpha")
+        let restored = windowSnapshot(leafID: UUID(), directory: "/Users/dev/work/alpha", name: "", colorOverride: nil)
         let saved = SessionSnapshot(
             surfaceTintEnabled: true,
             windows: [restored],
@@ -338,13 +338,84 @@ import Testing
         #expect(Set(snapshot.windows.map(\.windowID)) == Set(windows.map(\.id)))
     }
 
+    /// The two values only the shell can answer -- a window's live on-screen
+    /// frame and a surface's live working directory -- must reach the
+    /// snapshot through the closures `snapshot` builds. A window the shell
+    /// gave no frame for falls back to the model's own frame, not to zero.
+    @Test func aSnapshotUsesTheShellsFramesAndDirectoriesFallingBackToTheModelFrame() {
+        let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1, 1])
+        windows[1].frame = WindowFrame(x: 5, y: 6, width: 700, height: 500)
+        let trackedSurface = windows[0].tabStore.tabs[0].allSurfaceIDs[0]
+        let liveFrame = WindowFrame(x: 10, y: 20, width: 300, height: 400)
+
+        let snapshot = useCases.snapshot(
+            surfaceTintEnabled: true,
+            repoColorOverrides: [:],
+            frames: [windows[0].id: liveFrame],
+            directories: [trackedSurface: "/Users/dev/work/alpha"]
+        )
+
+        let tracked = snapshot.windows.first { $0.windowID == windows[0].id }
+        let untracked = snapshot.windows.first { $0.windowID == windows[1].id }
+        #expect(tracked?.frame == liveFrame)
+        #expect(untracked?.frame == windows[1].frame)
+        #expect(tracked?.tabs.first?.leafDirectories.values.first == "/Users/dev/work/alpha")
+    }
+
+    /// Every field a saved tab carries must survive restore intact: its name,
+    /// which leaf had focus, its color override, which tab was active, and
+    /// the order tabs appear in -- even when the file lists them out of
+    /// position order.
+    @Test func restoringRebuildsEachTabsNameFocusColorOrderAndActiveTab() {
+        let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
+        let firstLeaf = UUID(), secondLeaf = UUID()
+        let firstTabID = UUID(), secondTabID = UUID()
+        let firstTab = TabSnapshot(
+            tabID: firstTabID, name: "alpha", position: 0, focusedLeafID: firstLeaf,
+            splitLayout: .leaf(SurfaceLeaf(id: firstLeaf, surfaceID: UUID())),
+            leafDirectories: [:], leafColorOverrides: [:],
+            colorOverride: PaneTint(stops: [.named(.blue)])
+        )
+        let secondTab = TabSnapshot(
+            tabID: secondTabID, name: "beta", position: 1, focusedLeafID: secondLeaf,
+            splitLayout: .leaf(SurfaceLeaf(id: secondLeaf, surfaceID: UUID())),
+            leafDirectories: [:], leafColorOverrides: [:],
+            colorOverride: PaneTint(stops: [.named(.green)])
+        )
+        let saved = SessionSnapshot(
+            surfaceTintEnabled: true,
+            windows: [
+                WindowSnapshot(
+                    windowID: UUID(), frame: WindowFrame(x: 0, y: 0, width: 1200, height: 800),
+                    sidebarWidth: 260, activeTabID: secondTabID,
+                    tabs: [secondTab, firstTab]
+                )
+            ],
+            keyWindowID: nil, repoColorOverrides: [:]
+        )
+
+        _ = useCases.restore(saved)
+
+        let window = useCases.registry.windows.first
+        #expect(window?.sidebarWidth == 260)
+        #expect(window?.tabStore.tabs.map(\.id) == [firstTabID, secondTabID])
+        #expect(window?.tabStore.tabs.map(\.name) == ["alpha", "beta"])
+        #expect(window?.tabStore.tabs.first?.focusedLeafID == firstLeaf)
+        #expect(window?.tabStore.tabs.last?.focusedLeafID == secondLeaf)
+        #expect(window?.tabStore.tabs.first?.colorOverride == PaneTint(stops: [.named(.blue)]))
+        #expect(window?.tabStore.tabs.last?.colorOverride == PaneTint(stops: [.named(.green)]))
+        #expect(window?.tabStore.activeTabID == secondTabID)
+    }
+
     /// A window snapshot with one tab holding one leaf at `leafID`.
-    private func windowSnapshot(leafID: UUID, directory: String?) -> WindowSnapshot {
+    private func windowSnapshot(
+        leafID: UUID, directory: String?, name: String, colorOverride: PaneTint?
+    ) -> WindowSnapshot {
         let tab = TabSnapshot(
-            tabID: UUID(), name: "", position: 0, focusedLeafID: leafID,
+            tabID: UUID(), name: name, position: 0, focusedLeafID: leafID,
             splitLayout: .leaf(SurfaceLeaf(id: leafID, surfaceID: UUID())),
             leafDirectories: directory.map { [leafID: $0] } ?? [:],
-            leafColorOverrides: [:], colorOverride: nil
+            leafColorOverrides: [:], colorOverride: colorOverride
         )
         return WindowSnapshot(
             windowID: UUID(),
