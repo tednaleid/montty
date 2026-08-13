@@ -35,6 +35,9 @@ struct SurfacePlan: Equatable {
     let leafID: UUID
     let windowID: UUID
     let tabID: UUID
+    /// Montty's own id for this surface, exported into the pane's shell as
+    /// `MONTTY_SURFACE_ID`; hook events and the control CLI address a surface
+    /// by this id, not by `leafID` or the surface id Ghostty mints.
     let monttyID: String
     let workingDirectory: String?
 }
