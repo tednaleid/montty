@@ -3,81 +3,55 @@
 
 import AppKit
 import Foundation
-import GhosttyKit
 
 extension AppDelegate {
     /// A thin call into the pure builder, supplying the two values only this
-    /// layer can: a window's real on-screen frame, and a surface's working
-    /// directory.
+    /// layer can: a window's real on-screen frame, and a surface's live
+    /// working directory.
     func createSnapshot() -> SessionSnapshot {
-        SessionSnapshotBuilder.snapshot(
-            windows: registry.windows,
-            keyWindowID: registry.keyWindowID,
+        var frames: [UUID: WindowFrame] = [:]
+        for window in registry.windows {
+            if let live = controllers[window.id]?.window.frame {
+                frames[window.id] = WindowFrame(live)
+            }
+        }
+        var directories: [UUID: String] = [:]
+        for (surfaceID, view) in surfaces {
+            if let pwd = view.pwd { directories[surfaceID] = pwd }
+        }
+        return useCases.snapshot(
             surfaceTintEnabled: surfaceTintEnabled,
             repoColorOverrides: repoColorOverrides,
-            environment: SessionEnvironment(
-                frame: { [weak self] window in
-                    WindowFrame(self?.controllers[window.id]?.window.frame ?? .zero)
-                },
-                directory: { [weak self] surfaceID in
-                    self?.surfaceView(for: surfaceID)?.pwd
-                }
-            )
+            frames: frames,
+            directories: directories
         )
     }
 
-    func restoreSession(_ snapshot: SessionSnapshot) {
-        // App-wide settings first: they belong to the session, not to any
-        // window, and a file with no windows still carries them. Leaving them
-        // to the windowed path below would let the next autosave write the
-        // declared defaults over what the user had set.
-        surfaceTintEnabled = snapshot.surfaceTintEnabled
-        repoColorOverrides = snapshot.repoColorOverrides
+    /// Rebuilds the registry from a saved session (or opens one fresh window
+    /// when there is none) and creates every surface it names. `nil` reaches
+    /// the use case as-is -- a cold launch with nothing saved still needs to
+    /// tell `restore` that, rather than being coerced into an empty snapshot
+    /// that looks the same as a saved-but-empty one.
+    func restoreSession(_ snapshot: SessionSnapshot?) {
+        apply(useCases.restore(snapshot))
 
-        let restorable = snapshot.windows.filter { !$0.tabs.isEmpty }
-        guard let app = ghostty.app, !restorable.isEmpty else {
-            // A quit that closed every window saves no windows, so this is a
-            // normal cold launch and needs focus like any other.
-            let controller = makeWindow()
-            controller.show()
-            createTab(in: controller.model)
-            focusActiveSurface()
-            return
-        }
-
-        for windowSnap in restorable {
-            let model = WindowModel(
-                id: windowSnap.windowID,
-                sidebarWidth: windowSnap.sidebarWidth,
-                frame: windowSnap.frame
-            )
-            let controller = makeWindow(model)
-            for tabSnap in windowSnap.tabs.sorted(by: { $0.position < $1.position }) {
-                let tab = Tab(
-                    id: tabSnap.tabID, name: tabSnap.name, position: tabSnap.position
-                )
-                tab.splitRoot = restoreSplitNode(
-                    tabSnap.splitLayout,
-                    directories: tabSnap.leafDirectories,
-                    colors: tabSnap.leafColorOverrides,
-                    app: app, tab: tab
-                )
-                tab.focusedLeafID = tabSnap.focusedLeafID
-                tab.colorOverride = tabSnap.colorOverride
-                model.tabStore.append(tab: tab)
+        // Per-surface color overrides are saved keyed by leaf id, because
+        // Ghostty mints a fresh surface id on every restore. `apply` above
+        // binds each leaf to that fresh id, so the override map is re-keyed
+        // here now that the mapping exists, rather than in the use case,
+        // which never sees a surface id at all.
+        for windowSnap in snapshot?.windows ?? [] {
+            guard let window = registry.window(id: windowSnap.windowID) else { continue }
+            for tabSnap in windowSnap.tabs where !tabSnap.leafColorOverrides.isEmpty {
+                guard let tab = window.tabStore.tabs.first(where: { $0.id == tabSnap.tabID })
+                else { continue }
+                for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
+                    if let tint = tabSnap.leafColorOverrides[leaf.id] {
+                        tab.surfaceColorOverrides[leaf.surfaceID] = tint
+                    }
+                }
             }
-            model.tabStore.activeTabID =
-                windowSnap.activeTabID ?? model.tabStore.tabs.first?.id
-            controller.show()
         }
-
-        // A saved key window is only a pointer, and the window it names may
-        // not be among the restored ones -- `restorable` drops any window that
-        // saved no tabs. An ID that resolves to nothing falls back to the
-        // first window rather than leaving the pointer dangling.
-        let savedKey = snapshot.keyWindowID.flatMap { registry.window(id: $0)?.id }
-        registry.keyWindowID = savedKey ?? registry.windows.first?.id
-        keyController?.window.makeKeyAndOrderFront(nil)
 
         // Frames and focus settle after SwiftUI lays the hierarchy out. Each
         // surface calls becomeFirstResponder when it joins a window, so focus
@@ -92,51 +66,6 @@ extension AppDelegate {
             }
             self.syncSurfaceFocus()
             self.focusActiveSurface()
-        }
-    }
-
-    /// Recursively rebuild a SplitNode tree, creating fresh Ghostty surfaces
-    /// for each leaf with the saved working directory and keying the color
-    /// override map back onto the fresh surface ID it mints for each leaf.
-    private func restoreSplitNode(
-        _ node: SplitNode,
-        directories: [UUID: String],
-        colors: [UUID: PaneTint],
-        app: ghostty_app_t,
-        tab: Tab
-    ) -> SplitNode {
-        switch node {
-        case .leaf(let leaf):
-            let monttyID = UUID().uuidString
-            var config = Ghostty.SurfaceConfiguration()
-            config.workingDirectory = directories[leaf.id]
-            config.environmentVariables["MONTTY_SURFACE_ID"] = monttyID
-            config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
-            config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
-            config.environmentVariables["MONTTY_BIN"] = Self.binPath
-            let surfaceView = Ghostty.SurfaceView(app, baseConfig: config)
-            registerSurface(surfaceView, tab: tab, monttyID: monttyID)
-            // Set surface directory for immediate UI display (surface will
-            // update it via observer once the shell reports its pwd)
-            if let dir = directories[leaf.id] {
-                tab.surfaceDirectories[surfaceView.id] = dir
-            }
-            if let tint = colors[leaf.id] {
-                tab.surfaceColorOverrides[surfaceView.id] = tint
-            }
-            return .leaf(SurfaceLeaf(id: leaf.id, surfaceID: surfaceView.id))
-        case .split(let branch):
-            return .split(SplitBranch(
-                id: branch.id,
-                orientation: branch.orientation,
-                ratio: branch.ratio,
-                first: restoreSplitNode(
-                    branch.first, directories: directories,
-                    colors: colors, app: app, tab: tab),
-                second: restoreSplitNode(
-                    branch.second, directories: directories,
-                    colors: colors, app: app, tab: tab)
-            ))
         }
     }
 }

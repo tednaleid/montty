@@ -108,7 +108,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         // nothing to restore -- restoreSession owns all startup window
         // creation, so a saved multi-window session doesn't also get an
         // extra blank window from here.
-        restoreSession(sessionStore.load() ?? SessionSnapshot())
+        restoreSession(sessionStore.load())
 
         // Observe Ghostty action notifications for tab operations
         observeGhosttyActions()

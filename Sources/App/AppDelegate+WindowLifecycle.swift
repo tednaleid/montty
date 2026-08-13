@@ -61,19 +61,6 @@ extension AppDelegate {
         return controller
     }
 
-    /// Builds a window for a model this layer minted itself, registering it.
-    /// The restore path mints its own models; a window the use cases ask for
-    /// arrives as a plan instead.
-    @discardableResult
-    func makeWindow(_ model: WindowModel = WindowModel()) -> WindowController {
-        registry.add(model)
-        let controller = WindowController(
-            model: model, ghostty: ghostty, appDelegate: self
-        )
-        controllers[model.id] = controller
-        return controller
-    }
-
     /// Creates the surfaces an outcome asked for, then hands the ids Ghostty
     /// minted back to the use cases, which bind them onto the leaves that
     /// asked for them. Focus and titles settle afterward, once every leaf
