@@ -117,4 +117,81 @@ final class WindowUseCases {
     private func directory(ofSurface surfaceID: UUID) -> String? {
         registry.locate(surfaceID: surfaceID)?.tab.surfaceDirectories[surfaceID]
     }
+
+    /// Rebuild the registry from a saved session. Windows join the registry
+    /// now; the outcome names the AppKit work and the surfaces to create.
+    func restore(_ snapshot: SessionSnapshot?) -> WindowOutcome {
+        var outcome = WindowOutcome()
+        if let snapshot {
+            outcome.applySettings = SettingsUpdate(
+                surfaceTintEnabled: snapshot.surfaceTintEnabled,
+                repoColorOverrides: snapshot.repoColorOverrides
+            )
+        }
+
+        let restorable = (snapshot?.windows ?? []).filter { !$0.tabs.isEmpty }
+        guard !restorable.isEmpty else {
+            var fresh = newWindow(from: nil)
+            fresh.applySettings = outcome.applySettings
+            return fresh
+        }
+
+        for saved in restorable {
+            let window = registry.add(WindowModel(
+                id: saved.windowID,
+                sidebarWidth: saved.sidebarWidth,
+                frame: saved.frame
+            ))
+            for savedTab in saved.tabs.sorted(by: { $0.position < $1.position }) {
+                let tab = Tab(id: savedTab.tabID, name: savedTab.name, position: savedTab.position)
+                tab.splitRoot = savedTab.splitLayout
+                tab.focusedLeafID = savedTab.focusedLeafID
+                tab.colorOverride = savedTab.colorOverride
+                window.tabStore.append(tab: tab)
+
+                for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
+                    outcome.createSurfaces.append(SurfacePlan(
+                        leafID: leaf.id,
+                        windowID: window.id,
+                        tabID: tab.id,
+                        monttyID: UUID().uuidString,
+                        workingDirectory: savedTab.leafDirectories[leaf.id]
+                    ))
+                }
+            }
+            window.tabStore.activeTabID = saved.activeTabID ?? window.tabStore.tabs.first?.id
+            outcome.createWindows.append(WindowPlan(
+                windowID: window.id,
+                frame: saved.frame.isEmpty ? nil : saved.frame,
+                cascadeFrom: nil
+            ))
+        }
+
+        let savedKey = snapshot?.keyWindowID
+        registry.keyWindowID = savedKey.flatMap { registry.window(id: $0) != nil ? $0 : nil }
+            ?? registry.windows.first?.id
+        outcome.raiseWindow = registry.keyWindowID
+        return outcome
+    }
+
+    /// The session montty would write right now. Takes the values only the
+    /// shell can answer -- a window's on-screen frame and a surface's live
+    /// working directory -- and the settings that live there.
+    func snapshot(
+        surfaceTintEnabled: Bool,
+        repoColorOverrides: [String: PaneTint],
+        frames: [UUID: WindowFrame],
+        directories: [UUID: String]
+    ) -> SessionSnapshot {
+        SessionSnapshotBuilder.snapshot(
+            windows: registry.windows,
+            keyWindowID: registry.keyWindowID,
+            surfaceTintEnabled: surfaceTintEnabled,
+            repoColorOverrides: repoColorOverrides,
+            environment: SessionEnvironment(
+                frame: { frames[$0.id] ?? $0.frame },
+                directory: { directories[$0] }
+            )
+        )
+    }
 }
