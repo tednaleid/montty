@@ -112,6 +112,19 @@ import Testing
         #expect(outcome.closeWindows == [windows[1].id])
     }
 
+    /// A surface id that was given but does not resolve must not fall back to
+    /// closing the window in front -- that is the defect this decision exists
+    /// to prevent, just with a stale id instead of a discarded one.
+    @Test func closingWithAnUnknownSurfaceDoesNothing() {
+        let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1, 1])
+        useCases.registry.keyWindowID = windows[1].id
+
+        let outcome = useCases.closeWindow(containing: UUID())
+
+        #expect(outcome == WindowOutcome())
+        #expect(useCases.registry.windows.count == 2)
+    }
+
     /// The shell turns `closeWindows` into NSWindow.close(), which comes back as
     /// windowDidClose. Naming the same window in both would loop.
     @Test func closingDoesNotTearDownDirectly() {
@@ -165,5 +178,22 @@ import Testing
         let located = useCases.registry.locate(surfaceID: surfaceID)
         #expect(located?.window.id == plan.windowID)
         #expect(located?.tab.id == plan.tabID)
+    }
+
+    /// The shell registers a surface's monttyID under the minted id before
+    /// reporting it back through surfacesCreated. Binding must not wipe that
+    /// mapping out from under it.
+    @Test func bindingSurfacesPreservesAMonttyIDTheShellAlreadyRecorded() {
+        let (useCases, _) = makeUseCases(windowSurfaceCounts: [1])
+        let outcome = useCases.newWindow(from: nil)
+        let plan = outcome.createSurfaces[0]
+        let surfaceID = UUID()
+        let tab = useCases.registry.window(id: plan.windowID)?
+            .tabStore.tabs.first { $0.id == plan.tabID }
+        tab?.surfaceToMonttyID[surfaceID] = "already-registered-montty-id"
+
+        _ = useCases.surfacesCreated([plan.leafID: surfaceID])
+
+        #expect(tab?.surfaceToMonttyID[surfaceID] == "already-registered-montty-id")
     }
 }

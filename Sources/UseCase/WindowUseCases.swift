@@ -80,12 +80,19 @@ final class WindowUseCases {
         return outcome
     }
 
-    /// Close the window owning `surfaceID`. A caller that could not resolve one
-    /// passes nil and the window in front closes. This only asks: the teardown
-    /// happens when AppKit reports the close through `windowDidClose`.
+    /// Close the window owning `surfaceID`. `nil` means the caller has no
+    /// surface to give, and the window in front closes. A surface id that was
+    /// given but does not resolve to a window returns an inert outcome rather
+    /// than closing whichever window happens to be in front. This only asks:
+    /// the teardown happens when AppKit reports the close through
+    /// `windowDidClose`.
     func closeWindow(containing surfaceID: UUID?) -> WindowOutcome {
-        let target = surfaceID.flatMap { registry.locate(surfaceID: $0)?.window }
-            ?? registry.keyWindow
+        let target: WindowModel?
+        if let surfaceID {
+            target = registry.locate(surfaceID: surfaceID)?.window
+        } else {
+            target = registry.keyWindow
+        }
         guard let target else { return WindowOutcome() }
 
         var outcome = WindowOutcome()

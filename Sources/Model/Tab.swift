@@ -99,11 +99,16 @@ final class Tab: Identifiable {
     }
 
     /// Point each leaf at the surface created for it. Leaves not named in
-    /// `bindings` keep the surface they already have.
+    /// `bindings` keep the surface they already have. A monttyID already
+    /// recorded for the leaf's placeholder surface carries over to the new
+    /// id; a monttyID already recorded under the new id (the shell may have
+    /// registered it before this call) is left untouched.
     func bindSurfaces(_ bindings: [UUID: UUID]) {
         splitRoot = SplitTree.mapLeaves(node: splitRoot) { leaf in
             guard let surfaceID = bindings[leaf.id] else { return leaf }
-            surfaceToMonttyID[surfaceID] = surfaceToMonttyID[leaf.surfaceID]
+            if let monttyID = surfaceToMonttyID[leaf.surfaceID] {
+                surfaceToMonttyID[surfaceID] = monttyID
+            }
             return SurfaceLeaf(id: leaf.id, surfaceID: surfaceID)
         }
     }
