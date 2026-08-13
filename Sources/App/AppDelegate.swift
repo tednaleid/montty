@@ -518,6 +518,43 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         NSWorkspace.shared.open(URL(fileURLWithPath: configPath))
     }
 
+    /// Open the focused pane's working directory in the user's editor.
+    ///
+    /// Reads `effectiveSurfaceDirectories` rather than the surface's own `pwd`
+    /// so a pane whose Claude Code session has moved into a worktree opens the
+    /// worktree, matching what the sidebar and the tab context menu already show.
+    func openFocusedDirectoryInEditor() {
+        guard let tab = registry.keyWindow?.tabStore.activeTab,
+              let surfaceID = tab.focusedSurfaceID,
+              let launch = EditorLaunch.plan(
+                  directory: tab.effectiveSurfaceDirectories[surfaceID]
+              )
+        else {
+            // No directory yet, or it has been deleted. A keystroke that does
+            // nothing at all reads as a dropped key.
+            NSSound.beep()
+            return
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: launch.executablePath)
+        process.arguments = launch.arguments
+        process.currentDirectoryURL = URL(fileURLWithPath: launch.workingDirectory)
+        // The shell would otherwise inherit montty's own streams and could
+        // sit waiting on stdin.
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+        } catch {
+            Self.logger.error(
+                "openFocusedDirectoryInEditor: \(error.localizedDescription)")
+            NSSound.beep()
+        }
+    }
+
     // MARK: - Ghostty action routing
 
     // MARK: - Tab palette
