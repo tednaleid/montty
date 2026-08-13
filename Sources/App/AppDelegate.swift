@@ -1,5 +1,5 @@
-// ABOUTME: The application delegate: owns the Ghostty app, the window registry
-// ABOUTME: and its controllers, and the settings every window reads from.
+// ABOUTME: The application delegate: owns the Ghostty app, the window use cases
+// ABOUTME: and their controllers, and the settings every window reads from.
 
 import Cocoa
 import Combine
@@ -29,7 +29,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Indexed by TabColor.orderedCases position. Empty before config loads.
     var tabPalette: [NSColor] = []
 
-    let registry = WindowRegistry()
+    /// Every window lifecycle decision. This layer asks, then runs the AppKit
+    /// work the answer names through `apply(_:)`.
+    let useCases = WindowUseCases()
+
+    /// The registry the use cases own. Every existing reader keeps working.
+    var registry: WindowRegistry { useCases.registry }
+
     var controllers: [UUID: WindowController] = [:]
 
     var keyController: WindowController? {
@@ -63,25 +69,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Session persistence. Not private: `AppDelegate+WindowLifecycle.swift`
     /// saves through this on every window close.
     let sessionStore = SessionStore()
-
-    /// Set once an app-wide quit is underway. AppKit closes every open window
-    /// as part of `terminate(_:)`, each running through `windowWillClose` --
-    /// without this flag, whichever window happens to close last would look
-    /// like an ordinary "last window closing" and overwrite the complete
-    /// snapshot `applicationShouldTerminate` already saved with a snapshot of
-    /// just itself. Never cleared once set; see `applicationShouldTerminate`.
-    /// Not private, for the same reason `sessionStore` isn't.
-    var isTerminating = false
-
-    /// The last complete, non-empty snapshot `applicationShouldTerminate`
-    /// captured for a real app-wide quit, kept in memory as a second,
-    /// independent guard beside `isTerminating`: the close path refuses to
-    /// write an empty snapshot while this is set, even if `isTerminating`
-    /// were somehow wrong. `nil` means no quit has ever been requested in
-    /// this process, so an empty snapshot from a window closed by hand is
-    /// exactly what belongs on disk. Not private, for the same reason
-    /// `sessionStore` isn't.
-    var lastQuitSnapshot: SessionSnapshot?
 
     override init() {
         // Point GhosttyKit at our bundled resources (terminfo + shell
@@ -153,25 +140,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         }
     }
 
-    /// Save every open window before AppKit starts closing them one by one as
-    /// part of quitting. Skipped when nothing is open, which happens when
-    /// this fires as a side effect of `windowWillClose` requesting the quit
-    /// after the last window already closed and saved itself.
+    /// Saves every open window before AppKit starts closing them one by one as
+    /// part of quitting. The use case latches the quit, so the per-window
+    /// closes that follow leave this complete snapshot alone, and it declines
+    /// the save when nothing is open -- which happens when this fires as a
+    /// side effect of the last window already having closed and saved itself.
     ///
-    /// `isTerminating` is never cleared once set (see its declaration): a
-    /// stranded `true` after a quit the system cancels costs at most a
-    /// skipped save on some later window close, while clearing it wrongly
-    /// mid-quit -- which an activation firing between this call and AppKit
-    /// closing windows one by one cannot be ruled out -- risks the close
-    /// path overwriting this save with an empty one. Stranding is the
-    /// cheaper failure, so nothing clears the flag.
+    /// Deliberately not routed through `apply(_:)`: an outcome's `quit` reaches
+    /// AppKit as `NSApp.terminate(nil)`, and honoring one from inside the
+    /// terminate AppKit is already running would re-enter it.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        isTerminating = true
-        if !registry.windows.isEmpty {
-            let snapshot = createSnapshot()
-            sessionStore.save(snapshot: snapshot)
-            lastQuitSnapshot = snapshot
-        }
+        let outcome = useCases.applicationShouldTerminate()
+        if outcome.save { saveSession() }
         return .terminateNow
     }
 
@@ -378,9 +358,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         return surfaces[surfaceID]?.pwd
     }
 
+    /// The surface holding focus in the front window's active tab, if any.
+    func focusedSurfaceID() -> UUID? {
+        registry.keyWindow?.tabStore.activeTab?.focusedSurfaceID
+    }
+
     /// Move the first responder to the active tab's focused surface, if any.
     func focusActiveSurface() {
-        if let surfaceID = registry.keyWindow?.tabStore.activeTab?.focusedSurfaceID,
+        if let surfaceID = focusedSurfaceID(),
            let surfaceView = surfaceView(for: surfaceID) {
             Ghostty.moveFocus(to: surfaceView)
         }

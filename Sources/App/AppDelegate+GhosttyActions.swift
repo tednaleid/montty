@@ -44,8 +44,12 @@ extension AppDelegate {
             forName: .ghosttyCloseWindow,
             object: nil, queue: .main
         ) { [weak self] notification in
-            guard let self else { return }
-            self.closeWindow(self.window(for: notification))
+            // The surface the action came from, or nil for an app target,
+            // which means the window in front. Resolving which window that is
+            // belongs to the use case, not here.
+            self?.closeWindow(
+                containing: (notification.object as? Ghostty.SurfaceView)?.id
+            )
         }
 
         center.addObserver(

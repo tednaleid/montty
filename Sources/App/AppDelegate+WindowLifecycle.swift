@@ -4,8 +4,57 @@
 import Cocoa
 
 extension AppDelegate {
-    /// Builds a window, registers it, and returns its controller. Every window
-    /// in the process is created here.
+    /// Run the AppKit work an outcome names. The one place a decision becomes
+    /// an effect.
+    ///
+    /// `save` runs before `quit` because a last-window close names both, and
+    /// terminating first would lose the write.
+    func apply(_ outcome: WindowOutcome) {
+        if let settings = outcome.applySettings {
+            surfaceTintEnabled = settings.surfaceTintEnabled
+            repoColorOverrides = settings.repoColorOverrides
+        }
+        for plan in outcome.createWindows {
+            makeWindow(plan)
+        }
+        createAndBindSurfaces(outcome.createSurfaces)
+        for surfaceID in outcome.destroySurfaces {
+            surfaceObservers.removeValue(forKey: surfaceID)
+            surfaces.removeValue(forKey: surfaceID)
+        }
+        closeWindows(ids: outcome.closeWindows)
+        if let id = outcome.raiseWindow {
+            controllers[id]?.window.makeKeyAndOrderFront(nil)
+            focusActiveSurface()
+        }
+        if outcome.save { saveSession() }
+        if outcome.quit { NSApp.terminate(nil) }
+    }
+
+    /// Builds the NSWindow for a model the use cases have already registered,
+    /// cascading it off the window it was opened from so the new one does not
+    /// land exactly on top of it. Only this layer can read that window's
+    /// on-screen frame, which is why the plan names the source window rather
+    /// than the offset.
+    @discardableResult
+    func makeWindow(_ plan: WindowPlan) -> WindowController? {
+        guard let model = registry.window(id: plan.windowID) else { return nil }
+        let controller = WindowController(
+            model: model, ghostty: ghostty, appDelegate: self
+        )
+        controllers[model.id] = controller
+        if let source = plan.cascadeFrom, let from = controllers[source]?.window.frame {
+            controller.window.setFrameTopLeftPoint(
+                NSPoint(x: from.origin.x + 24, y: from.origin.y + from.height - 24)
+            )
+        }
+        controller.show()
+        return controller
+    }
+
+    /// Builds a window for a model this layer minted itself, registering it.
+    /// The restore path mints its own models; a window the use cases ask for
+    /// arrives as a plan instead.
     @discardableResult
     func makeWindow(_ model: WindowModel = WindowModel()) -> WindowController {
         registry.add(model)
@@ -16,23 +65,81 @@ extension AppDelegate {
         return controller
     }
 
+    /// Creates the surfaces an outcome asked for, then hands the ids Ghostty
+    /// minted back to the use cases, which bind them onto the leaves that
+    /// asked for them. Focus and titles settle afterward, once every leaf
+    /// points at a surface that exists: a surface is born with
+    /// `focused == true`, so the tabs it displaced need blurring.
+    ///
+    /// The recursion is bounded. `surfacesCreated` names only a save, so the
+    /// nested `apply` cannot ask for more surfaces.
+    private func createAndBindSurfaces(_ plans: [SurfacePlan]) {
+        guard !plans.isEmpty else { return }
+        apply(useCases.surfacesCreated(createSurfaces(plans)))
+        syncSurfaceFocus()
+        for windowID in Set(plans.map(\.windowID)) {
+            controllers[windowID]?.syncTitle()
+        }
+    }
+
+    /// Creates one Ghostty surface per plan and reports which surface id each
+    /// leaf ended up with. Ghostty mints those ids, so binding them to leaves
+    /// is a second step the domain cannot take on its own.
+    private func createSurfaces(_ plans: [SurfacePlan]) -> [UUID: UUID] {
+        guard let app = ghostty.app else { return [:] }
+        var bindings: [UUID: UUID] = [:]
+        for plan in plans {
+            guard let tab = registry.window(id: plan.windowID)?
+                .tabStore.tabs.first(where: { $0.id == plan.tabID }) else { continue }
+            var config = Ghostty.SurfaceConfiguration()
+            config.workingDirectory = plan.workingDirectory
+            config.environmentVariables["MONTTY_SURFACE_ID"] = plan.monttyID
+            config.environmentVariables["MONTTY_PORT"] = String(Self.hookPort)
+            config.environmentVariables["MONTTY_SOCKET"] = HookServer.socketPath
+            config.environmentVariables["MONTTY_BIN"] = Self.binPath
+            let surfaceView = Ghostty.SurfaceView(app, baseConfig: config)
+            registerSurface(surfaceView, tab: tab, monttyID: plan.monttyID)
+            // The directory the pane opened in, until its own shell reports a
+            // pwd through the observer. A window opened from this pane before
+            // that first report inherits this rather than nothing.
+            if let directory = plan.workingDirectory {
+                tab.surfaceDirectories[surfaceView.id] = directory
+            }
+            bindings[plan.leafID] = surfaceView.id
+        }
+        return bindings
+    }
+
+    /// Closes windows through the same `NSWindow.close()` path the red button
+    /// uses, so `windowWillClose` is the one place that decides between
+    /// dropping a window and quitting.
+    ///
+    /// Deferred a run loop turn: a close can be asked for by a Ghostty action
+    /// on a surface that lives in the window being closed, and `.close()` can
+    /// synchronously tear down that surface's view while it is still on the
+    /// call stack that invoked us. Closing on the next turn lets that call
+    /// stack unwind first.
+    private func closeWindows(ids: [UUID]) {
+        guard !ids.isEmpty else { return }
+        let windows = ids.compactMap { controllers[$0]?.window }
+        DispatchQueue.main.async {
+            for window in windows {
+                window.close()
+            }
+        }
+    }
+
     /// A window is going away, with intent -- closing a window is not the
     /// same as quitting, so whatever remains afterward (possibly nothing) is
-    /// what belongs on the next launch, not what just closed. Tears down its
-    /// surfaces, drops it from the registry, saves the survivors, then quits
-    /// only if that was the last window standing.
+    /// what belongs on the next launch, not what just closed. The use case
+    /// drops it from the registry and decides whether to save and whether that
+    /// was the last window standing; this runs the AppKit half.
     ///
     /// The controller is kept alive in `controllers` past the point where the
     /// registry forgets it, and only released on the next run loop turn --
     /// AppKit is still using the window and its delegate for the remainder of
     /// this close sequence.
     func windowWillClose(_ controller: WindowController) {
-        for tab in controller.model.tabStore.tabs {
-            for surfaceID in tab.allSurfaceIDs {
-                surfaceObservers.removeValue(forKey: surfaceID)
-                surfaces.removeValue(forKey: surfaceID)
-            }
-        }
         // With isReleasedWhenClosed = false, AppKit does not tear the content
         // view hierarchy down on close the way it does when it owns the
         // window's release -- the SwiftUI tree, and the surfaces inside it,
@@ -40,95 +147,40 @@ extension AppDelegate {
         // which AppKit's own window tracking can delay indefinitely. Clearing
         // it here drops that reference immediately and deterministically.
         controller.window.contentView = nil
-        registry.remove(id: controller.model.id)
-        saveAfterWindowClose()
-        if registry.windows.isEmpty {
-            NSApp.terminate(nil)
-        }
+        apply(useCases.windowDidClose(id: controller.model.id))
         DispatchQueue.main.async { [weak self] in
             self?.controllers[controller.model.id] = nil
         }
     }
 
-    /// Saves whatever remains once a window is gone, unless an app-wide quit
-    /// already covered it.
-    ///
-    /// Two guards, not one. `isTerminating` is the primary one: skipped
-    /// entirely once a quit is underway, since `applicationShouldTerminate`
-    /// already saved the complete pre-close state before AppKit started
-    /// closing windows one by one as part of terminating, and saving again
-    /// here on each of those would persist a mid-quit partial state instead.
-    ///
-    /// `lastQuitSnapshot` is the belt-and-braces second guard: even if
-    /// `isTerminating` were somehow wrong, this refuses to let an empty
-    /// snapshot -- the correct result only when a window closed by hand
-    /// brings the count to zero outside any quit -- overwrite the complete
-    /// state a real quit already captured. `lastQuitSnapshot` is `nil` for
-    /// the entire organic close-to-zero sequence, since
-    /// `applicationShouldTerminate` never runs until this function's own
-    /// `NSApp.terminate(nil)` call below fires it, which happens after this
-    /// save has already run.
-    private func saveAfterWindowClose() {
-        guard !isTerminating else { return }
-        let snapshot = createSnapshot()
-        guard !(snapshot.windows.isEmpty && lastQuitSnapshot != nil) else { return }
-        sessionStore.save(snapshot: snapshot)
+    /// Writes the session montty would restore from right now. Whether a save
+    /// belongs here at all is the use cases' call; this only performs it.
+    func saveSession() {
+        sessionStore.save(snapshot: createSnapshot())
     }
 
-    /// Opens a window with one tab, cascaded from the window in front so the new
-    /// one does not land exactly on top of it.
+    /// Opens a window with one tab, inheriting the working directory of the
+    /// pane it was opened from.
     func newWindow() {
-        let keyFrame = keyController?.window.frame
-        let controller = makeWindow()
-        if let keyFrame {
-            controller.window.setFrameTopLeftPoint(
-                NSPoint(x: keyFrame.origin.x + 24, y: keyFrame.origin.y + keyFrame.height - 24)
-            )
-        }
-        registry.keyWindowID = controller.model.id
-        createTab(in: controller.model)
-        controller.show()
-        focusActiveSurface()
+        apply(useCases.newWindow(from: focusedSurfaceID()))
     }
 
-    /// Closes the given window through the same `NSWindow.close()` path the red
-    /// button uses, so `windowWillClose` is the one place that decides between
-    /// dropping a window and quitting. A caller that could not resolve a window
-    /// passes nil, and the window in front closes.
-    ///
-    /// Deferred a run loop turn: this runs from a Ghostty action on a surface
-    /// that lives in the window being closed, and `.close()` can synchronously
-    /// tear down that surface's view while it is still on the call stack that
-    /// invoked us. Closing on the next turn lets that call stack unwind first.
-    func closeWindow(_ window: WindowModel?) {
-        let controller = window.flatMap { controllers[$0.id] } ?? keyController
-        let windowToClose = controller?.window
-        DispatchQueue.main.async {
-            windowToClose?.close()
-        }
+    /// Asks for the window owning `surfaceID` to close. A caller with no
+    /// surface to name passes nil, and the window in front closes.
+    func closeWindow(containing surfaceID: UUID?) {
+        apply(useCases.closeWindow(containing: surfaceID))
     }
 
-    /// Closes every open window through the same `NSWindow.close()` path a
-    /// single window close uses, so `windowWillClose` handles each one's
-    /// teardown and save, and the last one quits, exactly as it would closing
-    /// them by hand one at a time.
+    /// Closes every open window, each one running through `windowWillClose`
+    /// exactly as it would closing them by hand one at a time, so the last one
+    /// quits.
     ///
     /// Driven from `registry.windows`, the authoritative list, not
     /// `controllers`: a just-closed window's controller is only released a
     /// run loop turn later (see `windowWillClose`), so `controllers` can
     /// still list one that closing again would be a no-op for, but
     /// shouldn't be asked to close a second time regardless.
-    ///
-    /// Deferred a run loop turn for the same reason `closeWindow(_:)` is: this
-    /// can run from a Ghostty action on a surface in one of the windows being
-    /// closed, and closing synchronously risks tearing down that surface's
-    /// view while it is still on the call stack that invoked us.
     func closeAllWindows(_ sender: Any?) {
-        let windowsToClose = registry.windows.compactMap { controllers[$0.id]?.window }
-        DispatchQueue.main.async {
-            for window in windowsToClose {
-                window.close()
-            }
-        }
+        closeWindows(ids: registry.windows.map(\.id))
     }
 }
