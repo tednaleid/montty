@@ -32,10 +32,11 @@ extension AppDelegate {
     }
 
     /// Builds the NSWindow for a model the use cases have already registered,
-    /// cascading it off the window it was opened from so the new one does not
-    /// land exactly on top of it. Only this layer can read that window's
-    /// on-screen frame, which is why the plan names the source window rather
-    /// than the offset.
+    /// and places it: at the frame the plan carries, or else cascaded off the
+    /// window it was opened from so the new one does not land exactly on top of
+    /// it. Only this layer can read another window's on-screen frame or which
+    /// displays are attached, which is why the plan names the source window
+    /// rather than the offset.
     @discardableResult
     func makeWindow(_ plan: WindowPlan) -> WindowController? {
         guard let model = registry.window(id: plan.windowID) else { return nil }
@@ -43,7 +44,15 @@ extension AppDelegate {
             model: model, ghostty: ghostty, appDelegate: self
         )
         controllers[model.id] = controller
-        if let source = plan.cascadeFrom, let from = controllers[source]?.window.frame {
+        if let frame = plan.frame, !frame.isEmpty {
+            // Clamped to an attached display: the screen a frame was saved on
+            // may be gone, and a window placed there opens out of reach.
+            let visible = NSScreen.screens.map(\.visibleFrame)
+            controller.window.setFrame(
+                frame.clamped(toVisible: visible).rect, display: true
+            )
+        } else if let source = plan.cascadeFrom,
+                  let from = controllers[source]?.window.frame {
             controller.window.setFrameTopLeftPoint(
                 NSPoint(x: from.origin.x + 24, y: from.origin.y + from.height - 24)
             )
