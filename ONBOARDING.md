@@ -71,6 +71,7 @@ just setup && just generate && just run
 ## Dig deeper
 
 - [README.md](./README.md) -- user-facing feature list and install instructions
+- [docs/architecture.md](./docs/architecture.md) -- the use case / shell boundary and what has crossed it
 - [docs/debug-server.md](./docs/debug-server.md) -- full debug HTTP API (`just inspect-*`)
 - [docs/montty-cli.md](./docs/montty-cli.md) -- the `montty` CLI for tab colors, names, and activity status
 - [docs/spec/contract.md](./docs/spec/contract.md) -- project contract and phase plan
