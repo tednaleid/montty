@@ -269,6 +269,20 @@ inspect-quit:
 bump version="":
     #!/usr/bin/env bash
     set -euo pipefail
+    git fetch origin main --tags --quiet
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "Working tree is dirty; commit or stash before bumping." >&2
+        exit 1
+    fi
+    # A release must be reachable from main. Anything else -- an unmerged
+    # branch, a stale checkout -- would tag code that main does not have.
+    if ! git merge-base --is-ancestor origin/main HEAD; then
+        echo "HEAD is not a fast-forward of origin/main; a release must be cut from main." >&2
+        echo "  HEAD:        $(git rev-parse --short HEAD)" >&2
+        echo "  origin/main: $(git rev-parse --short origin/main)" >&2
+        exit 1
+    fi
+
     if [ -n "{{version}}" ]; then
         version="{{version}}"
     else
@@ -322,12 +336,24 @@ bump version="":
     cat "$notes_file"
 
     git tag -a "$version" -F "$notes_file"
-    git push && git push --tags
+    # Named refs rather than the branch's upstream, so this behaves the same
+    # from the main checkout, a worktree, or any branch name.
+    git push origin HEAD:main
+    git push origin "refs/tags/$version"
 
 # Delete a GitHub release and re-tag the current commit to re-trigger release workflow
 retag tag:
     #!/usr/bin/env bash
     set -euo pipefail
+    git fetch origin main --quiet
+    # Re-tags what is already released, so the commit must already be on main.
+    if ! git merge-base --is-ancestor HEAD origin/main; then
+        echo "HEAD is not on origin/main; there is nothing released here to re-tag." >&2
+        echo "  HEAD:        $(git rev-parse --short HEAD)" >&2
+        echo "  origin/main: $(git rev-parse --short origin/main)" >&2
+        exit 1
+    fi
+
     # Save existing tag annotation before deleting
     notes=$(git tag -l --format='%(contents)' "{{tag}}" 2>/dev/null || echo "{{tag}}")
     notes_file=$(mktemp)
@@ -338,7 +364,7 @@ retag tag:
     git push origin ":refs/tags/{{tag}}" || true
     git tag -d "{{tag}}" || true
     git tag -a "{{tag}}" -F "$notes_file"
-    git push && git push --tags
+    git push origin "refs/tags/{{tag}}"
 
 # Nuke the macOS icon cache. Run after changing app icons if the Dock
 # or Finder still shows the old icon. Pass --force to actually delete.
