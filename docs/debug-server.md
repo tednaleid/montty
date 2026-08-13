@@ -120,6 +120,53 @@ Response:
 }
 ```
 
+### GET /session
+
+The session snapshot montty would write right now -- the same value
+`SessionStore` serializes to `session.json`, with no intermediate re-encoding.
+Answers "what would we save" without quitting the app to find out.
+
+```bash
+curl -s localhost:9876/session | jq .
+```
+
+Response:
+```json
+{
+  "version": 4,
+  "surfaceTintEnabled": true,
+  "keyWindowID": "D4C3B2A1-...",
+  "repoColorOverrides": {},
+  "windows": [
+    {
+      "windowID": "D4C3B2A1-...",
+      "frame": {"x": 661, "y": 39, "width": 1400, "height": 900},
+      "sidebarWidth": 200,
+      "activeTabID": "C9D0E1F2-...",
+      "tabs": [
+        {
+          "tabID": "C9D0E1F2-...",
+          "name": "montty",
+          "position": 0,
+          "focusedLeafID": "E5F6A7B8-...",
+          "splitLayout": {
+            "type": "leaf",
+            "leaf": {"id": "E5F6A7B8-...", "surfaceID": "F1E2D3C4-..."}
+          },
+          "leafDirectories": ["E5F6A7B8-...", "/Users/ted/montty"],
+          "leafColorOverrides": []
+        }
+      ]
+    }
+  ]
+}
+```
+
+`leafDirectories` and `leafColorOverrides` are keyed by leaf ID
+(`[UUID: String]` and `[UUID: PaneTint]`), which `JSONEncoder` renders as a
+flat array of alternating keys and values rather than an object, since a
+`UUID` key isn't a valid JSON object key.
+
 ### GET /screenshot
 
 Capture the terminal view as a PNG image. Raises the window that owns the
@@ -242,6 +289,7 @@ curl -s localhost:9876/icon | jq .
 | `just inspect-hook-log` | Show the last 200 hook events |
 | `just inspect-claude-states` | Show per-surface activity state |
 | `just inspect-palette` | Show the tab palette and config errors |
+| `just inspect-session` | Show the session snapshot montty would write right now |
 | `just inspect-icon` | Show app icon state |
 
 `inspect-type`, `inspect-key`, `inspect-screen`, `inspect-screenshot`, `inspect-state`, and `inspect-action` accept an optional `surface=<uuid>` parameter to target a specific surface. The rest are app-wide.

@@ -233,6 +233,10 @@ inspect-action action surface="":
 inspect-palette:
     @curl -sf 'localhost:9876/palette' | jq .
 
+# The session snapshot montty would write right now
+inspect-session:
+    @curl -sf localhost:9876/session | jq .
+
 # Jump to a surface by leaf ID, or enter jump mode (no arg)
 inspect-jump leaf_id="":
     @curl -sf -X POST localhost:9876/jump -d '{{leaf_id}}' | jq .
