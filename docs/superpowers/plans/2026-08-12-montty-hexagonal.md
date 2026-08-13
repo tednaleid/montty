@@ -482,7 +482,7 @@ git commit -m "feat: add the window outcome value types"
 
 **Interfaces:**
 - Consumes: `WindowOutcome` (Task 4); `WindowRegistry`, `WindowModel`, `Tab`, `TabStore` from `Sources/Model`.
-- Produces: `WindowUseCases(registry:)`, `.registry`, `.isTerminating`, `func windowDidClose(id: UUID) -> WindowOutcome`, `func applicationWillTerminate() -> WindowOutcome`.
+- Produces: `WindowUseCases(registry:)`, `.registry`, `.isTerminating`, `func windowDidClose(id: UUID) -> WindowOutcome`, `func applicationShouldTerminate() -> WindowOutcome`.
 
 `windowDidClose` is reached by all four teardown routes: the red button, the last tab closing, the `close_window`/`close_all_windows` actions, and quitting. Each was fixed separately on the previous branch and never reviewed together.
 
@@ -550,7 +550,7 @@ import Testing
     /// closes AppKit runs while terminating must not save a partial one over it.
     @Test func aCloseDuringTerminationDoesNotSave() {
         let (useCases, windows) = makeUseCases(windowSurfaceCounts: [2])
-        _ = useCases.applicationWillTerminate()
+        _ = useCases.applicationShouldTerminate()
 
         let outcome = useCases.windowDidClose(id: windows[0].id)
 
@@ -561,7 +561,7 @@ import Testing
     @Test func terminatingSavesWhileWindowsRemain() {
         let (useCases, _) = makeUseCases(windowSurfaceCounts: [1])
 
-        let outcome = useCases.applicationWillTerminate()
+        let outcome = useCases.applicationShouldTerminate()
 
         #expect(outcome.save == true)
         #expect(useCases.isTerminating)
@@ -571,7 +571,7 @@ import Testing
     @Test func terminatingWithNoWindowsDoesNotSave() {
         let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
 
-        let outcome = useCases.applicationWillTerminate()
+        let outcome = useCases.applicationShouldTerminate()
 
         #expect(outcome.save == false)
     }
@@ -638,7 +638,7 @@ final class WindowUseCases {
 
     /// A quit is starting. Capture the full state before AppKit begins closing
     /// windows one at a time.
-    func applicationWillTerminate() -> WindowOutcome {
+    func applicationShouldTerminate() -> WindowOutcome {
         isTerminating = true
         var outcome = WindowOutcome()
         outcome.save = !registry.windows.isEmpty
@@ -1219,7 +1219,7 @@ The recursion is bounded: `surfacesCreated` returns an outcome with only `save` 
 
 ```swift
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        let outcome = useCases.applicationWillTerminate()
+        let outcome = useCases.applicationShouldTerminate()
         if outcome.save { saveSession() }
         return .terminateNow
     }

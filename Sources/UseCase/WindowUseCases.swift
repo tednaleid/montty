@@ -34,9 +34,12 @@ final class WindowUseCases {
         return outcome
     }
 
-    /// A quit is starting. Capture the full state before AppKit begins closing
-    /// windows one at a time.
-    func applicationWillTerminate() -> WindowOutcome {
+    /// A quit is starting. Must be called from
+    /// `AppDelegate.applicationShouldTerminate(_:)`, before AppKit begins closing
+    /// windows one at a time -- never from `applicationWillTerminate(_:)`, which
+    /// runs after windows are already closing and would latch `isTerminating`
+    /// too late to protect the pre-close save.
+    func applicationShouldTerminate() -> WindowOutcome {
         isTerminating = true
         var outcome = WindowOutcome()
         outcome.save = !registry.windows.isEmpty

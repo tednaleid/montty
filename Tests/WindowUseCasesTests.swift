@@ -56,18 +56,19 @@ import Testing
     /// closes AppKit runs while terminating must not save a partial one over it.
     @Test func aCloseDuringTerminationDoesNotSave() {
         let (useCases, windows) = makeUseCases(windowSurfaceCounts: [2])
-        _ = useCases.applicationWillTerminate()
+        _ = useCases.applicationShouldTerminate()
 
         let outcome = useCases.windowDidClose(id: windows[0].id)
 
         #expect(outcome.save == false)
         #expect(outcome.quit == false)
+        #expect(outcome.destroySurfaces.count == 2)
     }
 
     @Test func terminatingSavesWhileWindowsRemain() {
         let (useCases, _) = makeUseCases(windowSurfaceCounts: [1])
 
-        let outcome = useCases.applicationWillTerminate()
+        let outcome = useCases.applicationShouldTerminate()
 
         #expect(outcome.save == true)
         #expect(useCases.isTerminating)
@@ -77,7 +78,7 @@ import Testing
     @Test func terminatingWithNoWindowsDoesNotSave() {
         let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
 
-        let outcome = useCases.applicationWillTerminate()
+        let outcome = useCases.applicationShouldTerminate()
 
         #expect(outcome.save == false)
     }
