@@ -257,6 +257,10 @@ inspect-claude-states:
 inspect-icon:
     @curl -sf localhost:9876/icon | jq .
 
+# Quit the debug build through the real Cmd-Q path, saving the session
+inspect-quit:
+    @curl -sf -X POST localhost:9876/quit | jq .
+
 # Bump version in Info.plist, commit, tag with release notes, and push.
 # If no version given, increments the patch version from the last tag.
 bump version="":

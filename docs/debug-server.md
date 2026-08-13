@@ -271,6 +271,17 @@ representations each one carries. Useful for diagnosing a stale icon cache.
 curl -s localhost:9876/icon | jq .
 ```
 
+### POST /quit
+
+Quit the app through the same path Cmd-Q takes, including the pre-quit
+session save. `just stop`'s SIGTERM does not: montty installs no handler for
+it, so `applicationShouldTerminate` never runs and the save is skipped. The
+response is sent before the app terminates.
+
+```bash
+curl -s -X POST localhost:9876/quit | jq .
+```
+
 ## justfile recipes
 
 | Recipe | Description |
@@ -291,6 +302,7 @@ curl -s localhost:9876/icon | jq .
 | `just inspect-palette` | Show the tab palette and config errors |
 | `just inspect-session` | Show the session snapshot montty would write right now |
 | `just inspect-icon` | Show app icon state |
+| `just inspect-quit` | Quit through the real Cmd-Q path, saving the session |
 
 `inspect-type`, `inspect-key`, `inspect-screen`, `inspect-screenshot`, `inspect-state`, and `inspect-action` accept an optional `surface=<uuid>` parameter to target a specific surface. The rest are app-wide.
 

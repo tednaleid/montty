@@ -40,6 +40,8 @@ extension DebugServer {
             handleClaudeStates(connection: connection)
         case ("GET", "/icon"):
             handleIcon(connection: connection)
+        case ("POST", "/quit"):
+            handleQuit(connection: connection)
         default:
             sendJSON(["error": "Not found: \(request.method) \(request.path)"], status: 404, connection: connection)
         }
@@ -600,6 +602,18 @@ extension DebugServer {
                 result["prefixes"] = state.prefixes.map { String($0) }
             }
             sendJSON(result, connection: connection)
+        }
+    }
+
+    // MARK: - Quit
+
+    /// Quits through the same path Cmd-Q takes, so a script can exercise the
+    /// pre-quit save. SIGTERM does not: montty installs no handler for it, so
+    /// applicationShouldTerminate never runs.
+    private static func handleQuit(connection: NWConnection) {
+        sendJSON(["ok": true], connection: connection)
+        DispatchQueue.main.async {
+            NSApp.terminate(nil)
         }
     }
 }
