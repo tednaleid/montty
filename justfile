@@ -169,6 +169,12 @@ inspect-surfaces:
 inspect-windows:
     @curl -sf localhost:9876/surfaces | jq 'group_by(.window_id) | map({window_id: .[0].window_id, is_key: .[0].window_is_key, frame: .[0].window_frame, surfaces: length})'
 
+# Live shell PIDs, mapped to the surface each one runs in. A leak check is a
+# set difference: capture this, close a window, confirm those pids are gone.
+inspect-shells:
+    @ps axeww 2>/dev/null | awk 'match($0, /MONTTY_SURFACE_ID=[0-9A-Fa-f-]+/) { \
+        print "{\"pid\": " $1 ", \"surface\": \"" substr($0, RSTART+18, RLENGTH-18) "\"}" }' | jq -s .
+
 # Send text to the running terminal
 inspect-type text surface="":
     @curl -sf -X POST 'localhost:9876/type{{ if surface != "" { "?surface=" + surface } else { "" } }}' -d '{{text}}'
