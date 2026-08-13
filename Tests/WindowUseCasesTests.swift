@@ -49,7 +49,7 @@ import Testing
 
         let outcome = useCases.windowDidClose(id: windows[0].id)
 
-        #expect(Set(outcome.destroySurfaces) == Set(expected))
+        #expect(outcome.destroySurfaces.sorted() == expected.sorted())
     }
 
     /// A quit already saved the complete pre-close state, so the per-window
@@ -128,14 +128,13 @@ import Testing
     /// The shell turns `closeWindows` into NSWindow.close(), which comes back as
     /// windowDidClose. Naming the same window in both would loop.
     @Test func closingDoesNotTearDownDirectly() {
-        let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1, 1])
+        let (useCases, _) = makeUseCases(windowSurfaceCounts: [1, 1])
 
         let outcome = useCases.closeWindow(containing: nil)
 
         #expect(outcome.destroySurfaces.isEmpty)
         #expect(outcome.save == false)
         #expect(useCases.registry.windows.count == 2)
-        _ = windows
     }
 
     @Test func aNewWindowIsRegisteredAndAsksForOneSurface() {
@@ -211,7 +210,8 @@ import Testing
         let outcome = useCases.restore(saved)
 
         #expect(outcome.applySettings?.surfaceTintEnabled == false)
-        #expect(outcome.applySettings?.repoColorOverrides.count == 1)
+        #expect(outcome.applySettings?.repoColorOverrides["/Users/dev/work/alpha"] ==
+                PaneTint(stops: [.named(.blue)]))
     }
 
     /// A quit that closed every window restores nothing, so the shell opens a
@@ -245,6 +245,7 @@ import Testing
 
         #expect(useCases.registry.windows.count == 2)
         #expect(outcome.createWindows.count == 2)
+        #expect(outcome.createWindows[0].frame == WindowFrame(x: 0, y: 0, width: 1200, height: 800))
         #expect(Set(outcome.createSurfaces.map(\.workingDirectory)) ==
                 ["/Users/dev/work/alpha", "/Users/dev/work/beta"])
     }
@@ -252,6 +253,7 @@ import Testing
     /// A window whose tabs all vanished is not worth restoring.
     @Test func restoringSkipsWindowsWithNoTabs() {
         let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
+        let tabbed = windowSnapshot(leafID: UUID(), directory: nil, name: "", colorOverride: nil)
         let saved = SessionSnapshot(
             surfaceTintEnabled: true,
             windows: [
@@ -259,7 +261,7 @@ import Testing
                     windowID: UUID(), frame: WindowFrame(x: 0, y: 0, width: 800, height: 600),
                     sidebarWidth: 200, activeTabID: nil, tabs: []
                 ),
-                windowSnapshot(leafID: UUID(), directory: nil, name: "", colorOverride: nil)
+                tabbed
             ],
             keyWindowID: nil, repoColorOverrides: [:]
         )
@@ -267,7 +269,9 @@ import Testing
         let outcome = useCases.restore(saved)
 
         #expect(useCases.registry.windows.count == 1)
+        #expect(useCases.registry.windows.first?.id == tabbed.windowID)
         #expect(outcome.createWindows.count == 1)
+        #expect(outcome.createWindows.first?.windowID == tabbed.windowID)
     }
 
     /// A fresh install has no session file at all -- distinct from a file that

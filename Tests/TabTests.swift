@@ -40,6 +40,24 @@ struct TabTests {
         #expect(tab.allSurfaceIDs == [surfaceID])
     }
 
+    // MARK: - Surface binding
+
+    @Test func bindSurfacesMovesAMonttyIDFromThePlaceholderToTheNewSurfaceID() {
+        let placeholderID = UUID()
+        let tab = Tab(surfaceID: placeholderID)
+        guard case let .leaf(leaf) = tab.splitRoot else {
+            Issue.record("expected a leaf split root")
+            return
+        }
+        tab.surfaceToMonttyID[placeholderID] = "mid-1"
+        let newSurfaceID = UUID()
+
+        tab.bindSurfaces([leaf.id: newSurfaceID])
+
+        #expect(tab.surfaceToMonttyID[newSurfaceID] == "mid-1")
+        #expect(tab.surfaceToMonttyID[placeholderID] == nil)
+    }
+
     // MARK: - Focused surface ID edge cases
 
     @Test func focusedSurfaceIDFallsBackWhenLeafIDMissing() {

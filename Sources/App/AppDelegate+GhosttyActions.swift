@@ -44,9 +44,10 @@ extension AppDelegate {
             forName: .ghosttyCloseWindow,
             object: nil, queue: .main
         ) { [weak self] notification in
-            // The surface the action came from, or nil for an app target,
-            // which means the window in front. Resolving which window that is
-            // belongs to the use case, not here.
+            // Ghostty never posts this notification for an app target, so
+            // the surface is always present here -- but `closeWindow`
+            // resolves a nil surface to the window in front regardless,
+            // for any future caller that can only name the app.
             self?.closeWindow(
                 containing: (notification.object as? Ghostty.SurfaceView)?.id
             )

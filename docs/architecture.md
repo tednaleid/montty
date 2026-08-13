@@ -81,8 +81,8 @@ the outcome, and `apply(_:)` runs `NSWindow.close()` on each one. It does
 not touch the registry. The actual teardown -- dropping the window from the
 registry, deciding whether to save, deciding whether this was the last
 window and the app should quit -- happens in `windowDidClose(id:)`, called
-from `AppDelegate.windowWillClose(_:)` once AppKit reports the window is
-actually gone.
+from `AppDelegate.windowWillClose(_:)` when AppKit reports the window is
+closing.
 
 Collapsing these into one step would double the decision: closing a window
 eagerly through the registry and then again when AppKit's own close
@@ -94,14 +94,23 @@ close was asked for by `closeWindow`, by the window's own red button, or by
 
 ## What has crossed, and what has not
 
-Window lifecycle and session have crossed the boundary. Tabs, splits, focus
-handling, and jump mode have not -- they still hold their decisions on
-`AppDelegate` directly:
+Window lifecycle and session have crossed the boundary, with one exception:
+`closeAllWindows` (`AppDelegate+WindowLifecycle.swift`) derives its target
+list -- every window currently in the registry -- directly in the shell and
+asks no use case, because there is nothing to decide; it always closes all
+of them. Tabs, splits, focus handling, and jump mode have not crossed at
+all -- they still hold their decisions on `AppDelegate` directly:
 
 - tabs -- `createTab(in:)` and `closeTab(id:)`
 - splits -- `closeSurface(surfaceID:)` and `splitSurface(direction:in:)`
 - focus handling -- `focusedSurfaceID()` and `focusActiveSurface()`
 - jump mode
+
+`apply(_:)` also runs `syncSurfaceFocus()`, `syncTitle()`, and
+`focusActiveSurface()` directly, as effects no outcome names. When focus
+handling crosses the boundary, that slice will need to turn these into
+outcome fields the use case decides on rather than calls the shell makes
+on its own.
 
 These are untested by `montty-unit` today, for the same reason nothing in
 `Sources/App` is: the test target's source list does not include that

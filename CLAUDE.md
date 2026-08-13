@@ -11,9 +11,10 @@ Implementation specs are in `docs/spec/`. Start with `contract.md` for the overv
 - Keep model logic pure and testable. Tab ordering, split tree operations, session persistence, and color assignment should all be unit-testable without AppKit or SwiftUI.
 - Simple purpose-built mocks. No heavy mocking frameworks.
 - Tests should run fast (target: full suite under 5 seconds).
-- Decisions live in `Sources/UseCase` as effect-free functions returning `Outcome` values;
-  `Sources/App` translates events and runs effects, and holds no decisions. Read
-  [docs/architecture.md](./docs/architecture.md) before adding logic to `Sources/App`.
+- Decisions live in `Sources/UseCase` as functions that mutate the model and return
+  `Outcome` values, never touching AppKit; `Sources/App` translates events and runs
+  effects, and holds no decisions. Read [docs/architecture.md](./docs/architecture.md)
+  before adding logic to `Sources/App`.
 - Verify runtime app behavior through the debug HTTP server -- `just inspect-*` recipes and the
   `test-app` skill -- not by reasoning about it. See [docs/debug-server.md](./docs/debug-server.md).
 - `Sources/Ghostty/` is upstream code copied from the Ghostty submodule. Minimize modifications to make upstream syncs easier. Mark every montty-local change there with a `// MONTTY:` comment. SwiftLint excludes this directory.

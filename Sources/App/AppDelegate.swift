@@ -38,11 +38,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     var controllers: [UUID: WindowController] = [:]
 
-    var keyController: WindowController? {
-        guard let id = registry.keyWindow?.id else { return nil }
-        return controllers[id]
-    }
-
     static func shared() -> AppDelegate? {
         NSApp?.delegate as? AppDelegate
     }
@@ -223,16 +218,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         // If no tabs remain in this window, close the window through the same
         // teardown windowWillClose uses. Quitting is windowWillClose's call,
         // made only when this was the last window.
-        //
-        // Deferred a run loop turn: this can run from a Ghostty action on the
-        // surface that just closed, and closing the window synchronously can
-        // tear down that surface's view while it is still on the call stack
-        // that invoked us. Closing on the next turn lets that stack unwind.
         if owner.tabStore.tabs.isEmpty {
-            let windowToClose = controllers[owner.id]?.window
-            DispatchQueue.main.async {
-                windowToClose?.close()
-            }
+            closeWindows(ids: [owner.id])
             return
         }
         syncSurfaceFocus()

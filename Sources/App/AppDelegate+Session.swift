@@ -5,7 +5,7 @@ import AppKit
 import Foundation
 
 extension AppDelegate {
-    /// A thin call into the pure builder, supplying the two values only this
+    /// Calls into the use case's builder, supplying the two values only this
     /// layer can: a window's real on-screen frame, and a surface's live
     /// working directory.
     func createSnapshot() -> SessionSnapshot {
@@ -47,8 +47,10 @@ extension AppDelegate {
         // Per-surface color overrides are saved keyed by leaf id, because
         // Ghostty mints a fresh surface id on every restore. `apply` above
         // binds each leaf to that fresh id, so the override map is re-keyed
-        // here now that the mapping exists, rather than in the use case,
-        // which never sees a surface id at all.
+        // here now that the mapping exists. `restore` returns before any
+        // surface exists and keeps no reference to the snapshot afterward,
+        // so the re-key has to happen here, where the snapshot is still in
+        // scope.
         for windowSnap in snapshot?.windows ?? [] {
             guard let window = registry.window(id: windowSnap.windowID) else { continue }
             for tabSnap in windowSnap.tabs where !tabSnap.leafColorOverrides.isEmpty {

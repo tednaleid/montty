@@ -106,7 +106,7 @@ final class Tab: Identifiable {
     func bindSurfaces(_ bindings: [UUID: UUID]) {
         splitRoot = SplitTree.mapLeaves(node: splitRoot) { leaf in
             guard let surfaceID = bindings[leaf.id] else { return leaf }
-            if let monttyID = surfaceToMonttyID[leaf.surfaceID] {
+            if let monttyID = surfaceToMonttyID.removeValue(forKey: leaf.surfaceID) {
                 surfaceToMonttyID[surfaceID] = monttyID
             }
             return SurfaceLeaf(id: leaf.id, surfaceID: surfaceID)

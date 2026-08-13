@@ -3,9 +3,9 @@
 
 import Foundation
 
-/// Owns the window registry and decides what should happen to it. Effect-free:
-/// it mutates its own state and returns the AppKit work for the shell to run,
-/// but performs no I/O and reaches no collaborator it was not constructed with.
+/// Owns the window registry and decides what should happen to it. It mutates
+/// its own state and returns the AppKit work for the shell to run, but
+/// performs no I/O and touches no AppKit.
 final class WindowUseCases {
     let registry: WindowRegistry
 
@@ -51,17 +51,18 @@ final class WindowUseCases {
     /// outcome describes only the AppKit work.
     func newWindow(from surfaceID: UUID?) -> WindowOutcome {
         let cascadeFrom = registry.keyWindow?.id
-        let window = registry.add(WindowModel())
         let tab = Tab(position: 0)
-        window.tabStore.append(tab: tab)
-        window.tabStore.activeTabID = tab.id
-        registry.keyWindowID = window.id
 
         // `Tab.init` seeds one leaf with a placeholder surface id. Take that
         // leaf's id: `surfacesCreated` remaps it to the id Ghostty mints.
         guard let leaf = SplitTree.allLeaves(node: tab.splitRoot).first else {
             return WindowOutcome()
         }
+
+        let window = registry.add(WindowModel())
+        window.tabStore.append(tab: tab)
+        window.tabStore.activeTabID = tab.id
+        registry.keyWindowID = window.id
 
         var outcome = WindowOutcome()
         outcome.createWindows = [
@@ -168,7 +169,7 @@ final class WindowUseCases {
         }
 
         let savedKey = snapshot?.keyWindowID
-        registry.keyWindowID = savedKey.flatMap { registry.window(id: $0) != nil ? $0 : nil }
+        registry.keyWindowID = savedKey.flatMap { registry.window(id: $0)?.id }
             ?? registry.windows.first?.id
         outcome.raiseWindow = registry.keyWindowID
         return outcome

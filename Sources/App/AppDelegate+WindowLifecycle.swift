@@ -4,8 +4,8 @@
 import Cocoa
 
 extension AppDelegate {
-    /// Run the AppKit work an outcome names. The one place a decision becomes
-    /// an effect.
+    /// Run the AppKit work an outcome names. The one place a `WindowOutcome`
+    /// becomes an effect.
     ///
     /// `save` runs before `quit` because a last-window close names both, and
     /// terminating first would lose the write.
@@ -82,11 +82,19 @@ extension AppDelegate {
     /// leaf ended up with. Ghostty mints those ids, so binding them to leaves
     /// is a second step the domain cannot take on its own.
     private func createSurfaces(_ plans: [SurfacePlan]) -> [UUID: UUID] {
-        guard let app = ghostty.app else { return [:] }
+        guard let app = ghostty.app else {
+            Self.logger.error("createSurfaces: no Ghostty app, dropping \(plans.count) surface plan(s)")
+            return [:]
+        }
         var bindings: [UUID: UUID] = [:]
         for plan in plans {
             guard let tab = registry.window(id: plan.windowID)?
-                .tabStore.tabs.first(where: { $0.id == plan.tabID }) else { continue }
+                .tabStore.tabs.first(where: { $0.id == plan.tabID }) else {
+                Self.logger.error(
+                    "createSurfaces: no tab \(plan.tabID) in window \(plan.windowID), dropping leaf \(plan.leafID)"
+                )
+                continue
+            }
             var config = Ghostty.SurfaceConfiguration()
             config.workingDirectory = plan.workingDirectory
             config.environmentVariables["MONTTY_SURFACE_ID"] = plan.monttyID
@@ -115,7 +123,7 @@ extension AppDelegate {
     /// synchronously tear down that surface's view while it is still on the
     /// call stack that invoked us. Closing on the next turn lets that call
     /// stack unwind first.
-    private func closeWindows(ids: [UUID]) {
+    func closeWindows(ids: [UUID]) {
         guard !ids.isEmpty else { return }
         let windows = ids.compactMap { controllers[$0]?.window }
         DispatchQueue.main.async {

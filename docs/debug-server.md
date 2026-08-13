@@ -303,6 +303,7 @@ curl -s -X POST localhost:9876/quit | jq .
 | `just inspect-session` | Show the session snapshot montty would write right now |
 | `just inspect-icon` | Show app icon state |
 | `just inspect-quit` | Quit through the real Cmd-Q path, saving the session |
+| `just inspect-shells` | List every process descended from a dev-build montty -- no HTTP endpoint; reads the process table, rooted at `just dev-pids` |
 
 `inspect-type`, `inspect-key`, `inspect-screen`, `inspect-screenshot`, `inspect-state`, and `inspect-action` accept an optional `surface=<uuid>` parameter to target a specific surface. The rest are app-wide.
 
