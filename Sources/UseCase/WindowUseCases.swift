@@ -14,6 +14,12 @@ final class WindowUseCases {
     /// saving again on those would persist a mid-quit partial state over it.
     private(set) var isTerminating = false
 
+    /// Latched once the shell reports the restored session fully assembled.
+    /// Nothing may be saved before that: the shell finishes a restore in
+    /// several steps, and a save taken partway through would write a session
+    /// missing whatever the remaining steps put in place.
+    private(set) var isRestored = false
+
     init(registry: WindowRegistry = WindowRegistry()) {
         self.registry = registry
     }
@@ -102,12 +108,27 @@ final class WindowUseCases {
     }
 
     /// Bind the surface ids Ghostty minted to the leaves that asked for them.
+    ///
+    /// Saves, so a surface opened after launch reaches disk without waiting for
+    /// the next scheduled autosave -- but not while a restore is still in
+    /// flight, where this runs before the shell has re-keyed the saved color
+    /// overrides onto the ids Ghostty just minted.
     func surfacesCreated(_ bindings: [UUID: UUID]) -> WindowOutcome {
         for window in registry.windows {
             for tab in window.tabStore.tabs {
                 tab.bindSurfaces(bindings)
             }
         }
+        var outcome = WindowOutcome()
+        outcome.save = isRestored
+        return outcome
+    }
+
+    /// The shell has finished assembling the restored session. Opens saving for
+    /// the rest of the process and takes the launch's first save, which is the
+    /// earliest point where a written session is complete.
+    func restoreCompleted() -> WindowOutcome {
+        isRestored = true
         var outcome = WindowOutcome()
         outcome.save = true
         return outcome

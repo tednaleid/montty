@@ -37,12 +37,13 @@ requires. `AppDelegate.apply(_:)`
 a `WindowOutcome` and runs it.
 
 This holds today for window lifecycle and session. `newWindow`, `closeWindow`,
-`windowDidClose`, `surfacesCreated`, and `restore` return a `WindowOutcome`
-that `apply(_:)` interprets. `applicationShouldTerminate` also returns a
-`WindowOutcome`, but its `save` field is read directly rather than passed to
-`apply(_:)`, to avoid re-entering `NSApp.terminate`. `snapshot` returns a
-`SessionSnapshot` value, not an outcome, and is written to disk directly. It
-does not yet hold for tabs, splits, focus handling, or jump mode -- see below.
+`windowDidClose`, `surfacesCreated`, `restore`, and `restoreCompleted` return
+a `WindowOutcome` that `apply(_:)` interprets. `applicationShouldTerminate`
+also returns a `WindowOutcome`, but its `save` field is read directly rather
+than passed to `apply(_:)`, to avoid re-entering `NSApp.terminate`. `snapshot`
+returns a `SessionSnapshot` value, not an outcome, and is written to disk
+directly. It does not yet hold for tabs, splits, focus handling, or jump mode
+-- see below.
 
 ## Why there are no ports
 
@@ -73,6 +74,20 @@ id Ghostty gave it. The domain owns leaf identity because it has to exist
 before any surface does -- a restored split layout is leaves before it is
 surfaces -- and Ghostty owns surface identity because only Ghostty can mint
 one.
+
+## Saving opens only once the restore is assembled
+
+`WindowUseCases` refuses to ask for a save until `restoreCompleted()` says the
+shell has finished rebuilding the session. A restore is assembled in several
+steps -- the registry, then the surfaces the shell creates for it, then the
+color overrides the shell re-keys onto the ids Ghostty just minted -- and a
+save taken partway through writes a session missing whatever the later steps
+had not put in place yet, over the file it was restored from.
+
+Placing that gate in the use cases rather than in `saveSession()` keeps it a
+decision, so it is unit-testable. `restoreCompleted()` also carries the
+launch's first save, which makes the earliest write of a process the first
+complete one.
 
 ## `closeWindows` versus `windowDidClose`
 

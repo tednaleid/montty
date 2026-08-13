@@ -165,8 +165,11 @@ import Testing
     }
 
     /// Ghostty mints surface ids, so binding them to leaves is a second step.
+    /// Every surface opened after launch -- a new window, a split -- reaches
+    /// disk through the save this asks for.
     @Test func bindingSurfacesFillsInTheLeavesAndSaves() {
         let (useCases, _) = makeUseCases(windowSurfaceCounts: [1])
+        _ = useCases.restoreCompleted()
         let outcome = useCases.newWindow(from: nil)
         let plan = outcome.createSurfaces[0]
         let surfaceID = UUID()
@@ -194,6 +197,31 @@ import Testing
         _ = useCases.surfacesCreated([plan.leafID: surfaceID])
 
         #expect(tab?.surfaceToMonttyID[surfaceID] == "already-registered-montty-id")
+    }
+
+    /// Surfaces bind partway through a restore, before the shell has re-keyed
+    /// the saved color overrides onto the ids Ghostty just minted. Saving there
+    /// would write a session with every one of those colors missing.
+    @Test func bindingSurfacesBeforeRestoreCompletesDoesNotSave() {
+        let useCases = WindowUseCases(registry: WindowRegistry())
+        let outcome = useCases.restore(nil)
+        let plan = outcome.createSurfaces[0]
+        let surfaceID = UUID()
+
+        let bound = useCases.surfacesCreated([plan.leafID: surfaceID])
+
+        #expect(bound.save == false)
+        #expect(useCases.registry.locate(surfaceID: surfaceID)?.window.id == plan.windowID)
+    }
+
+    /// The first write of a launch belongs here, once the shell has finished
+    /// assembling the restored session and its directories and colors are both
+    /// in place.
+    @Test func completingARestoreSaves() {
+        let useCases = WindowUseCases(registry: WindowRegistry())
+        _ = useCases.restore(nil)
+
+        #expect(useCases.restoreCompleted().save == true)
     }
 
     /// The defect this replaces: a file with no windows still carries its

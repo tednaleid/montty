@@ -64,15 +64,11 @@ extension AppDelegate {
             }
         }
 
-        // `apply` above already triggered a save once surfaces were bound,
-        // which ran before the color re-key loop above and before any
-        // surface had a pwd of its own -- that save is missing colors this
-        // layer only just re-keyed. Directories are covered by
-        // `createSnapshot`'s fallback to the tracked directory, but colors
-        // are not tracked anywhere but `surfaceColorOverrides`, so saving
-        // again now is the only way to get them onto disk before the next
-        // scheduled autosave.
-        saveSession()
+        // The restored session is fully assembled only now, with the colors
+        // above re-keyed. Saving is closed until this point, so this is the
+        // launch's first write and nothing has had a chance to overwrite the
+        // file we just restored from with a half-built session.
+        apply(useCases.restoreCompleted())
 
         // Frames and focus settle after SwiftUI lays the hierarchy out. Each
         // surface calls becomeFirstResponder when it joins a window, so focus
