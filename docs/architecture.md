@@ -36,11 +36,13 @@ requires. `AppDelegate.apply(_:)`
 (`Sources/App/AppDelegate+WindowLifecycle.swift`) is the one place that reads
 a `WindowOutcome` and runs it.
 
-This holds today for window lifecycle and session: `newWindow`,
-`closeWindow`, `windowDidClose`, `applicationShouldTerminate`,
-`surfacesCreated`, `restore`, and `snapshot` all go through
-`WindowUseCases` and return an outcome `apply(_:)` interprets. It does not
-yet hold for tabs, splits, focus handling, or jump mode -- see below.
+This holds today for window lifecycle and session. `newWindow`, `closeWindow`,
+`windowDidClose`, `surfacesCreated`, and `restore` return a `WindowOutcome`
+that `apply(_:)` interprets. `applicationShouldTerminate` also returns a
+`WindowOutcome`, but its `save` field is read directly rather than passed to
+`apply(_:)`, to avoid re-entering `NSApp.terminate`. `snapshot` returns a
+`SessionSnapshot` value, not an outcome, and is written to disk directly. It
+does not yet hold for tabs, splits, focus handling, or jump mode -- see below.
 
 ## Why there are no ports
 
@@ -102,5 +104,6 @@ handling, and jump mode have not -- they still hold their decisions on
 - jump mode
 
 These are untested by `montty-unit` today, for the same reason nothing in
-`Sources/App` is: the test target cannot compile that directory. Moving them
-across the boundary is later work, not implied by anything here.
+`Sources/App` is: the test target's source list does not include that
+directory. Moving them across the boundary is later work, not implied by
+anything here.
