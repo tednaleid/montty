@@ -124,6 +124,7 @@ targets:
       - path: Sources/Control
       - path: Sources/Model
       - path: Sources/Persistence
+      - path: Sources/UseCase
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.montty.app.tests
