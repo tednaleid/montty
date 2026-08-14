@@ -24,53 +24,30 @@ struct EditorLaunchTests {
         }
     }
 
-    /// Run the production script under a controlled environment and return what
-    /// the resolved editor printed.
-    ///
-    /// `-f` skips startup files so the result depends on `env` alone rather than
-    /// on the dotfiles of whoever runs the suite. The real launch needs `-l`
-    /// for exactly the opposite reason; the script text under test is the same.
-    private func runScript(env: [String: String], directory: String) throws -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-f", "-c", EditorLaunch.script, "montty", directory]
-        process.environment = env
-        let output = Pipe()
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-        try process.run()
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return (String(bytes: data, encoding: .utf8) ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+    /// plan() with both environments injected, so no test depends on the
+    /// dotfiles of whoever runs the suite and none spawns a shell.
+    private func plan(
+        directory: String?,
+        own: [String: String] = [:],
+        login: [String: String] = [:]
+    ) -> EditorLaunch? {
+        EditorLaunch.plan(
+            directory: directory, ownEnvironment: own, loginEnvironment: { login }
+        )
     }
 
-    /// A directory holding an executable named `code` that echoes its arguments,
-    /// so the fallback can be observed without a real editor installed.
-    private func makeFakeEditorPath() throws -> String {
-        let dir = try makeDirectory(named: "bin")
-        let code = (dir as NSString).appendingPathComponent(EditorLaunch.fallbackEditor)
-        try "#!/bin/sh\necho fallback \"$@\"\n".write(
-            toFile: code, atomically: true, encoding: .utf8
-        )
-        try FileManager.default.setAttributes(
-            [.posixPermissions: 0o755], ofItemAtPath: code
-        )
-        return dir
-    }
-
-    // MARK: - Planning
+    // MARK: - Nothing to open
 
     @Test func planIsNilWithoutADirectory() {
-        #expect(EditorLaunch.plan(directory: nil) == nil)
-        #expect(EditorLaunch.plan(directory: "") == nil)
-        #expect(EditorLaunch.plan(directory: "   ") == nil)
+        #expect(plan(directory: nil) == nil)
+        #expect(plan(directory: "") == nil)
+        #expect(plan(directory: "   ") == nil)
     }
 
     @Test func planIsNilWhenTheDirectoryIsGone() throws {
         let path = try makeDirectory()
         cleanup(path)
-        #expect(EditorLaunch.plan(directory: path) == nil)
+        #expect(plan(directory: path) == nil)
     }
 
     @Test func planIsNilForAFile() throws {
@@ -79,103 +56,149 @@ struct EditorLaunchTests {
         let file = (dir as NSString).appendingPathComponent("notes.txt")
         try "x".write(toFile: file, atomically: true, encoding: .utf8)
 
-        #expect(EditorLaunch.plan(directory: file) == nil)
+        #expect(plan(directory: file) == nil)
     }
 
-    @Test func planRunsTheScriptInTheDirectory() throws {
+    // MARK: - Resolution from montty's own environment
+
+    @Test func planUsesOwnVisualWithoutProbing() throws {
         let dir = try makeDirectory()
         defer { cleanup(dir) }
+        let own = ["VISUAL": "code", "EDITOR": "vim", "PATH": "/own/bin"]
 
-        let launch = try #require(EditorLaunch.plan(directory: dir))
-        #expect(launch.executablePath == "/bin/zsh")
+        var probed = false
+        let launch = try #require(EditorLaunch.plan(
+            directory: dir, ownEnvironment: own,
+            loginEnvironment: {
+                probed = true
+                return [:]
+            }
+        ))
+        // The probe spawns a shell; it must not run when montty already
+        // knows the answer.
+        #expect(!probed)
+        #expect(launch.executablePath == "/usr/bin/env")
+        #expect(launch.arguments == ["code", dir])
+        #expect(launch.environment == own)
         #expect(launch.workingDirectory == dir)
-        #expect(launch.arguments.last == dir)
-        #expect(launch.arguments.contains(EditorLaunch.script))
     }
 
-    @Test func planUsesALoginButNotInteractiveShell() throws {
+    @Test func planFallsBackToOwnEditor() throws {
         let dir = try makeDirectory()
         defer { cleanup(dir) }
 
-        let launch = try #require(EditorLaunch.plan(directory: dir))
-        // -l reads the login files that export $EDITOR and build PATH. -i is
-        // deliberately absent: a real .zshrc that sets up zle aborts startup
-        // when the shell has no terminal, and the editor never launches.
-        #expect(launch.arguments.contains("-l"))
-        #expect(!launch.arguments.contains("-i"))
+        let launch = try #require(
+            plan(directory: dir, own: ["EDITOR": "cursor"])
+        )
+        #expect(launch.arguments == ["cursor", dir])
     }
 
-    @Test func planPassesTheDirectoryAsAnArgument() throws {
+    // MARK: - Resolution from the login shell
+
+    @Test func planProbesTheLoginShellWhenOwnEnvironmentHasNeither() throws {
+        let dir = try makeDirectory()
+        defer { cleanup(dir) }
+        let login = ["VISUAL": "zed", "EDITOR": "vim", "PATH": "/login/bin"]
+
+        let launch = try #require(
+            plan(directory: dir, own: ["PATH": "/own/bin"], login: login)
+        )
+        // $VISUAL beats $EDITOR here too, and the environment that supplied
+        // the editor is the one the child runs under, so the PATH that made
+        // "zed" meaningful is the PATH used to find it.
+        #expect(launch.arguments == ["zed", dir])
+        #expect(launch.environment == login)
+    }
+
+    @Test func planTreatsEmptyValuesAsUnset() throws {
+        let dir = try makeDirectory()
+        defer { cleanup(dir) }
+
+        let launch = try #require(plan(
+            directory: dir,
+            own: ["VISUAL": "", "EDITOR": "   "],
+            login: ["EDITOR": "cursor"]
+        ))
+        #expect(launch.arguments == ["cursor", dir])
+    }
+
+    @Test func planFallsBackToCodeWithTheLoginEnvironment() throws {
+        let dir = try makeDirectory()
+        defer { cleanup(dir) }
+        let login = ["PATH": "/login/bin"]
+
+        let launch = try #require(plan(directory: dir, login: login))
+        #expect(launch.arguments == [EditorLaunch.fallbackEditor, dir])
+        #expect(launch.environment == login)
+    }
+
+    @Test func planKeepsOwnEnvironmentWhenTheProbeFails() throws {
+        let dir = try makeDirectory()
+        defer { cleanup(dir) }
+        let own = ["PATH": "/own/bin"]
+
+        // An empty probe result means the shell failed; stripping the child
+        // down to an empty environment would lose even a usable PATH.
+        let launch = try #require(plan(directory: dir, own: own, login: [:]))
+        #expect(launch.arguments == [EditorLaunch.fallbackEditor, dir])
+        #expect(launch.environment == own)
+    }
+
+    // MARK: - Argv shape
+
+    @Test func planSplitsFlagsCarriedByTheEditor() throws {
+        let dir = try makeDirectory()
+        defer { cleanup(dir) }
+
+        // Unsplit, /usr/bin/env would look up a file literally named
+        // "code -n --wait" and exit 127.
+        let launch = try #require(
+            plan(directory: dir, own: ["VISUAL": "code  -n --wait"])
+        )
+        #expect(launch.arguments == ["code", "-n", "--wait", dir])
+    }
+
+    @Test func planPassesTheDirectoryAsItsOwnArgument() throws {
         let dir = try makeDirectory(named: "my project (v2)")
         defer { cleanup(dir) }
 
-        let launch = try #require(EditorLaunch.plan(directory: dir))
-        // Spliced into the script text, a directory like this would be parsed
-        // as several words; as its own argv entry it survives intact.
-        #expect(!EditorLaunch.script.contains(dir))
+        // The directory is appended as one argv entry, never word-split, so
+        // spaces and parens in it survive.
+        let launch = try #require(plan(directory: dir, own: ["VISUAL": "code -n"]))
         #expect(launch.arguments.last == dir)
     }
 
-    // MARK: - Script behavior
+    // MARK: - env output parsing
 
-    @Test func scriptOpensTheDirectoryInVisual() throws {
-        let dir = try makeDirectory()
-        defer { cleanup(dir) }
-
-        let output = try runScript(env: ["VISUAL": "/bin/echo visual"], directory: dir)
-        #expect(output == "visual \(dir)")
-    }
-
-    @Test func scriptFallsBackToEditor() throws {
-        let dir = try makeDirectory()
-        defer { cleanup(dir) }
-
-        let output = try runScript(env: ["EDITOR": "/bin/echo editor"], directory: dir)
-        #expect(output == "editor \(dir)")
-    }
-
-    @Test func scriptPrefersVisualOverEditor() throws {
-        let dir = try makeDirectory()
-        defer { cleanup(dir) }
-
-        let output = try runScript(
-            env: ["VISUAL": "/bin/echo visual", "EDITOR": "/bin/echo editor"],
-            directory: dir
+    @Test func parseEnvOutputReadsKeyValueLines() {
+        let parsed = EditorLaunch.parseEnvOutput(
+            "PATH=/usr/bin:/bin\nEDITOR=code\nLESS=-R --use-color\nEMPTY=\n_UND=x\n"
         )
-        #expect(output == "visual \(dir)")
+        #expect(parsed["PATH"] == "/usr/bin:/bin")
+        #expect(parsed["EDITOR"] == "code")
+        #expect(parsed["LESS"] == "-R --use-color")
+        #expect(parsed["EMPTY"] == "")
+        #expect(parsed["_UND"] == "x")
     }
 
-    @Test func scriptTreatsAnEmptyEditorAsUnset() throws {
-        let dir = try makeDirectory()
-        defer { cleanup(dir) }
-        let bin = try makeFakeEditorPath()
-        defer { cleanup(bin) }
+    @Test func parseEnvOutputKeepsEqualsSignsInValues() {
+        let parsed = EditorLaunch.parseEnvOutput("LS_COLORS=di=34:ln=35\n")
+        #expect(parsed["LS_COLORS"] == "di=34:ln=35")
+    }
 
-        let output = try runScript(
-            env: ["VISUAL": "", "EDITOR": "", "PATH": bin], directory: dir
+    @Test func parseEnvOutputSkipsLinesThatAreNotAssignments() {
+        // Login files are allowed to print: a banner, a line with no "=", a
+        // name env(1) could never have produced. None of it may leak into the
+        // environment handed to the editor.
+        let parsed = EditorLaunch.parseEnvOutput(
+            """
+            Welcome to this machine!
+            2DAY=never
+            SPACED NAME=nope
+            =bare
+            EDITOR=code
+            """
         )
-        #expect(output == "fallback \(dir)")
-    }
-
-    @Test func scriptUsesTheFallbackEditorWhenNeitherIsSet() throws {
-        let dir = try makeDirectory()
-        defer { cleanup(dir) }
-        let bin = try makeFakeEditorPath()
-        defer { cleanup(bin) }
-
-        let output = try runScript(env: ["PATH": bin], directory: dir)
-        #expect(output == "fallback \(dir)")
-    }
-
-    @Test func scriptSplitsFlagsCarriedByTheEditor() throws {
-        let dir = try makeDirectory()
-        defer { cleanup(dir) }
-
-        // Without zsh's ${=cmd} split this execs a file literally named
-        // "/bin/echo --new-window" and prints nothing.
-        let output = try runScript(
-            env: ["VISUAL": "/bin/echo --new-window"], directory: dir
-        )
-        #expect(output == "--new-window \(dir)")
+        #expect(parsed == ["EDITOR": "code"])
     }
 }

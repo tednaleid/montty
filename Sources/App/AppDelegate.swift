@@ -526,32 +526,56 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     func openFocusedDirectoryInEditor() {
         guard let tab = registry.keyWindow?.tabStore.activeTab,
               let surfaceID = tab.focusedSurfaceID,
-              let launch = EditorLaunch.plan(
-                  directory: tab.effectiveSurfaceDirectories[surfaceID]
-              )
+              let directory = tab.effectiveSurfaceDirectories[surfaceID]
         else {
-            // No directory yet, or it has been deleted. A keystroke that does
-            // nothing at all reads as a dropped key.
+            // No directory reported yet. A keystroke that does nothing at all
+            // reads as a dropped key.
             NSSound.beep()
             return
         }
 
+        // plan() may probe the user's login shell for $VISUAL/$EDITOR -- a
+        // subprocess wait that does not belong on the main thread.
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let launch = EditorLaunch.plan(directory: directory) else {
+                // The directory has been deleted out from under the pane.
+                DispatchQueue.main.async { NSSound.beep() }
+                return
+            }
+            Self.launchEditor(launch)
+        }
+    }
+
+    private static func launchEditor(_ launch: EditorLaunch) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: launch.executablePath)
         process.arguments = launch.arguments
+        process.environment = launch.environment
         process.currentDirectoryURL = URL(fileURLWithPath: launch.workingDirectory)
-        // The shell would otherwise inherit montty's own streams and could
+        // The editor would otherwise inherit montty's own streams and could
         // sit waiting on stdin.
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
+        // /usr/bin/env exits 127 when the editor is not on the resolved PATH.
+        // With every stream nulled that failure is otherwise invisible.
+        process.terminationHandler = { process in
+            guard process.terminationStatus != 0 else { return }
+            Self.logger.error(
+                """
+                openFocusedDirectoryInEditor: \
+                \(launch.arguments.joined(separator: " ")) \
+                exited \(process.terminationStatus)
+                """)
+            DispatchQueue.main.async { NSSound.beep() }
+        }
 
         do {
             try process.run()
         } catch {
             Self.logger.error(
                 "openFocusedDirectoryInEditor: \(error.localizedDescription)")
-            NSSound.beep()
+            DispatchQueue.main.async { NSSound.beep() }
         }
     }
 
