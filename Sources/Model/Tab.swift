@@ -93,6 +93,13 @@ final class Tab: Identifiable {
         return SplitTree.allLeaves(node: splitRoot).first?.surfaceID
     }
 
+    /// The shell's working directory for the focused pane -- the directory the
+    /// tab is in. The shell pwd rather than the effective one, matching what a
+    /// restored pane actually opens in.
+    var focusedDirectory: String? {
+        focusedSurfaceID.flatMap { surfaceDirectories[$0] }
+    }
+
     /// All surface IDs in this tab's split tree.
     var allSurfaceIDs: [UUID] {
         SplitTree.allLeaves(node: splitRoot).map(\.surfaceID)

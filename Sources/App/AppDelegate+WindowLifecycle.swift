@@ -144,6 +144,9 @@ extension AppDelegate {
     /// AppKit is still using the window and its delegate for the remainder of
     /// this close sequence.
     func windowWillClose(_ controller: WindowController) {
+        // Read before the teardown below: the use cases keep this when it was
+        // the last window standing, so the next launch opens where it stood.
+        let frame = WindowFrame(controller.window.frame)
         // With isReleasedWhenClosed = false, AppKit does not tear the content
         // view hierarchy down on close the way it does when it owns the
         // window's release -- the SwiftUI tree, and the surfaces inside it,
@@ -151,7 +154,7 @@ extension AppDelegate {
         // which AppKit's own window tracking can delay indefinitely. Clearing
         // it here drops that reference immediately and deterministically.
         controller.window.contentView = nil
-        apply(useCases.windowDidClose(id: controller.model.id))
+        apply(useCases.windowDidClose(id: controller.model.id, frame: frame))
         DispatchQueue.main.async { [weak self] in
             self?.controllers[controller.model.id] = nil
         }

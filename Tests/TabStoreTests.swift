@@ -205,4 +205,35 @@ struct TabStoreTests {
             #expect(tab.position == idx)
         }
     }
+
+    /// A window whose tabs are all gone still has to say where it was, so the
+    /// next launch opens there. Only the store outlives the tab.
+    @Test func closeRemembersTheDirectoryTheTabWasShowing() {
+        let store = TabStore()
+        let surfaceID = UUID()
+        let tab = Tab(name: "a", surfaceID: surfaceID)
+        tab.surfaceDirectories[surfaceID] = "/Users/dev/work/alpha"
+        store.append(tab: tab)
+
+        store.close(id: tab.id)
+
+        #expect(store.lastClosedDirectory == "/Users/dev/work/alpha")
+    }
+
+    /// A pane that never reported a directory must not erase the one the store
+    /// already had -- the point is to answer with the last place montty knew.
+    @Test func closingATabWithNoDirectoryKeepsTheLastOneKnown() {
+        let store = TabStore()
+        let surfaceID = UUID()
+        let known = Tab(name: "a", surfaceID: surfaceID)
+        known.surfaceDirectories[surfaceID] = "/Users/dev/work/alpha"
+        let silent = Tab(name: "b")
+        store.append(tab: known)
+        store.append(tab: silent)
+
+        store.close(id: known.id)
+        store.close(id: silent.id)
+
+        #expect(store.lastClosedDirectory == "/Users/dev/work/alpha")
+    }
 }

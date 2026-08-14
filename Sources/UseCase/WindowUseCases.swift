@@ -20,14 +20,23 @@ final class WindowUseCases {
     /// missing whatever the remaining steps put in place.
     private(set) var isRestored = false
 
+    /// Where the last window to close stood, held for the save that follows it.
+    /// Only ever set with nothing left open, which is the only session it is
+    /// ever written into.
+    private var lastClosedWindow: ClosedWindow?
+
     init(registry: WindowRegistry = WindowRegistry()) {
         self.registry = registry
     }
 
     /// AppKit is telling us a window closed. Closing a window is deliberate, so
     /// whatever remains afterward is what belongs on the next launch -- not what
-    /// just closed.
-    func windowDidClose(id: UUID) -> WindowOutcome {
+    /// just closed. Nothing remaining is the one case that needs more than that:
+    /// the tabs are gone by the user's choice, but where the window stood is
+    /// not something they chose to throw away, so it outlives the close.
+    ///
+    /// `frame` is the window's on-screen frame, which only the shell can read.
+    func windowDidClose(id: UUID, frame: WindowFrame) -> WindowOutcome {
         guard let window = registry.window(id: id) else { return WindowOutcome() }
 
         var outcome = WindowOutcome()
@@ -35,6 +44,13 @@ final class WindowUseCases {
         registry.remove(id: id)
 
         guard !isTerminating else { return outcome }
+        if registry.windows.isEmpty {
+            lastClosedWindow = ClosedWindow(
+                frame: frame,
+                sidebarWidth: window.sidebarWidth,
+                directory: window.directory
+            )
+        }
         outcome.save = true
         outcome.quit = registry.windows.isEmpty
         return outcome
@@ -56,7 +72,35 @@ final class WindowUseCases {
     /// surface it was opened from. The model joins the registry now; the
     /// outcome describes only the AppKit work.
     func newWindow(from surfaceID: UUID?) -> WindowOutcome {
-        let cascadeFrom = registry.keyWindow?.id
+        openWindow(
+            model: WindowModel(),
+            frame: nil,
+            cascadeFrom: registry.keyWindow?.id,
+            directory: surfaceID.flatMap(directory(ofSurface:))
+        )
+    }
+
+    /// The window a launch with nothing to restore opens: where the last window
+    /// to close stood, in the directory it was showing. A launch that has never
+    /// had one opens wherever the shell puts it.
+    private func newWindow(standingInFor closed: ClosedWindow?) -> WindowOutcome {
+        guard let closed else { return newWindow(from: nil) }
+        return openWindow(
+            model: WindowModel(sidebarWidth: closed.sidebarWidth, frame: closed.frame),
+            frame: closed.frame.isEmpty ? nil : closed.frame,
+            cascadeFrom: nil,
+            directory: closed.directory
+        )
+    }
+
+    /// Registers a window holding one tab and names the AppKit work to build
+    /// it. The one place a window is born outside a restore.
+    private func openWindow(
+        model: WindowModel,
+        frame: WindowFrame?,
+        cascadeFrom: UUID?,
+        directory: String?
+    ) -> WindowOutcome {
         let tab = Tab(position: 0)
 
         // `Tab.init` seeds one leaf with a placeholder surface id. Take that
@@ -65,14 +109,14 @@ final class WindowUseCases {
             return WindowOutcome()
         }
 
-        let window = registry.add(WindowModel())
+        let window = registry.add(model)
         window.tabStore.append(tab: tab)
         window.tabStore.activeTabID = tab.id
         registry.keyWindowID = window.id
 
         var outcome = WindowOutcome()
         outcome.createWindows = [
-            WindowPlan(windowID: window.id, frame: nil, cascadeFrom: cascadeFrom)
+            WindowPlan(windowID: window.id, frame: frame, cascadeFrom: cascadeFrom)
         ]
         outcome.createSurfaces = [
             SurfacePlan(
@@ -80,7 +124,7 @@ final class WindowUseCases {
                 windowID: window.id,
                 tabID: tab.id,
                 monttyID: UUID().uuidString,
-                workingDirectory: surfaceID.flatMap(directory(ofSurface:))
+                workingDirectory: directory
             )
         ]
         outcome.raiseWindow = window.id
@@ -153,7 +197,7 @@ final class WindowUseCases {
 
         let restorable = (snapshot?.windows ?? []).filter { !$0.tabs.isEmpty }
         guard !restorable.isEmpty else {
-            var fresh = newWindow(from: nil)
+            var fresh = newWindow(standingInFor: snapshot?.lastClosedWindow)
             fresh.applySettings = outcome.applySettings
             return fresh
         }
@@ -205,7 +249,7 @@ final class WindowUseCases {
         frames: [UUID: WindowFrame],
         directories: [UUID: String]
     ) -> SessionSnapshot {
-        SessionSnapshotBuilder.snapshot(
+        var snapshot = SessionSnapshotBuilder.snapshot(
             windows: registry.windows,
             keyWindowID: registry.keyWindowID,
             surfaceTintEnabled: surfaceTintEnabled,
@@ -215,5 +259,7 @@ final class WindowUseCases {
                 directory: { directories[$0] }
             )
         )
+        snapshot.lastClosedWindow = lastClosedWindow
+        return snapshot
     }
 }

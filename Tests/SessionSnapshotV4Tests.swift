@@ -166,4 +166,35 @@ import Testing
         #expect(root?["tabs"] == nil)
         #expect(root?["windows"] != nil)
     }
+
+    /// Where the last window closed is the only thing a session with no windows
+    /// carries, so it has to survive the round trip on its own.
+    @Test func roundTripsWhereTheLastWindowClosed() throws {
+        let snapshot = SessionSnapshot(
+            surfaceTintEnabled: true,
+            windows: [],
+            repoColorOverrides: [:],
+            lastClosedWindow: ClosedWindow(
+                frame: WindowFrame(x: 120, y: 240, width: 900, height: 600),
+                sidebarWidth: 260,
+                directory: "/Users/dev/work/alpha"
+            )
+        )
+
+        let data = try JSONEncoder().encode(snapshot)
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: data)
+
+        #expect(decoded.lastClosedWindow?.frame.width == 900)
+        #expect(decoded.lastClosedWindow?.sidebarWidth == 260)
+        #expect(decoded.lastClosedWindow?.directory == "/Users/dev/work/alpha")
+    }
+
+    /// A session written before montty recorded this decodes with none.
+    @Test func aFileWithoutALastClosedWindowDecodesToNone() throws {
+        let decoded = try decode("""
+        {"version": 4, "windows": [], "surfaceTintEnabled": true, "repoColorOverrides": {}}
+        """)
+
+        #expect(decoded.lastClosedWindow == nil)
+    }
 }

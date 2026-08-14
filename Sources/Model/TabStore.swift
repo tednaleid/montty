@@ -4,6 +4,10 @@ import Foundation
 final class TabStore {
     private(set) var tabs: [Tab] = []
     var activeTabID: UUID?
+    /// The directory the last tab to close was showing. A window that has lost
+    /// every tab still has to say where it was, and by then the tab that knew
+    /// is gone.
+    private(set) var lastClosedDirectory: String?
 
     var activeTab: Tab? {
         tabs.first { $0.id == activeTabID }
@@ -32,6 +36,7 @@ final class TabStore {
 
     func close(id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        lastClosedDirectory = tabs[index].focusedDirectory ?? lastClosedDirectory
 
         // If closing the active tab, switch to adjacent
         if activeTabID == id {

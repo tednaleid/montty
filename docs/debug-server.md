@@ -162,6 +162,11 @@ Response:
 }
 ```
 
+A session written with every window closed carries no `windows` at all, and a
+`lastClosedWindow` -- the frame, sidebar width, and directory of the last one
+to close -- instead. It is what the next launch opens from, and montty ignores
+it whenever there are windows to restore.
+
 `leafDirectories` and `leafColorOverrides` are keyed by leaf ID
 (`[UUID: String]` and `[UUID: PaneTint]`), which `JSONEncoder` renders as a
 flat array of alternating keys and values rather than an object, since a

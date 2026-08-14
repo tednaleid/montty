@@ -95,9 +95,13 @@ complete one.
 the outcome, and `apply(_:)` runs `NSWindow.close()` on each one. It does
 not touch the registry. The actual teardown -- dropping the window from the
 registry, deciding whether to save, deciding whether this was the last
-window and the app should quit -- happens in `windowDidClose(id:)`, called
-from `AppDelegate.windowWillClose(_:)` when AppKit reports the window is
-closing.
+window and the app should quit -- happens in `windowDidClose(id:frame:)`,
+called from `AppDelegate.windowWillClose(_:)` when AppKit reports the window
+is closing. `frame` is the window's on-screen frame, which only the shell can
+read: when the window closing is the last one, the use case keeps that frame,
+the sidebar width, and the directory the window was showing in the session it
+writes, so a launch with nothing to restore opens there rather than at the
+defaults.
 
 Collapsing these into one step would double the decision: closing a window
 eagerly through the registry and then again when AppKit's own close

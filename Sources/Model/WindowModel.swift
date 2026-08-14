@@ -21,4 +21,11 @@ final class WindowModel: Identifiable {
         self.sidebarWidth = sidebarWidth
         self.frame = frame
     }
+
+    /// The directory this window is showing: the one its active tab is in, or
+    /// -- once its tabs are gone -- the one the last tab to close was in.
+    var directory: String? {
+        (tabStore.activeTab ?? tabStore.tabs.first)?.focusedDirectory
+            ?? tabStore.lastClosedDirectory
+    }
 }

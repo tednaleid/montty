@@ -21,10 +21,14 @@ import Testing
         return (useCases, windows)
     }
 
+    /// A stand-in for the on-screen frame the shell reports when a window
+    /// closes, for the tests that do not care what it is.
+    private let someFrame = WindowFrame(x: 0, y: 0, width: 1200, height: 800)
+
     @Test func closingTheLastWindowQuits() {
         let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1])
 
-        let outcome = useCases.windowDidClose(id: windows[0].id)
+        let outcome = useCases.windowDidClose(id: windows[0].id, frame: someFrame)
 
         #expect(outcome.quit == true)
         #expect(useCases.registry.windows.isEmpty)
@@ -33,7 +37,7 @@ import Testing
     @Test func closingOneOfTwoWindowsSavesWithoutQuitting() {
         let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1, 1])
 
-        let outcome = useCases.windowDidClose(id: windows[0].id)
+        let outcome = useCases.windowDidClose(id: windows[0].id, frame: someFrame)
 
         #expect(outcome.quit == false)
         #expect(outcome.save == true)
@@ -47,7 +51,7 @@ import Testing
         let expected = windows[0].tabStore.tabs.flatMap(\.allSurfaceIDs)
         #expect(expected.count == 3)
 
-        let outcome = useCases.windowDidClose(id: windows[0].id)
+        let outcome = useCases.windowDidClose(id: windows[0].id, frame: someFrame)
 
         #expect(outcome.destroySurfaces.sorted() == expected.sorted())
     }
@@ -58,7 +62,7 @@ import Testing
         let (useCases, windows) = makeUseCases(windowSurfaceCounts: [2])
         _ = useCases.applicationShouldTerminate()
 
-        let outcome = useCases.windowDidClose(id: windows[0].id)
+        let outcome = useCases.windowDidClose(id: windows[0].id, frame: someFrame)
 
         #expect(outcome.save == false)
         #expect(outcome.quit == false)
@@ -86,7 +90,7 @@ import Testing
     @Test func closingAnUnknownWindowDoesNothing() {
         let (useCases, _) = makeUseCases(windowSurfaceCounts: [1])
 
-        let outcome = useCases.windowDidClose(id: UUID())
+        let outcome = useCases.windowDidClose(id: UUID(), frame: someFrame)
 
         #expect(outcome == WindowOutcome())
         #expect(useCases.registry.windows.count == 1)
@@ -453,6 +457,99 @@ import Testing
             windowID: UUID(),
             frame: WindowFrame(x: 0, y: 0, width: 1200, height: 800),
             sidebarWidth: 200, activeTabID: tab.tabID, tabs: [tab]
+        )
+    }
+
+    /// Closing the last window is a decision about the tabs in it, not about
+    /// where it stood. The next launch has no session to restore, so it opens
+    /// a fresh window at that size and position, in the directory the closed
+    /// one was showing.
+    @Test func closingTheLastWindowRecordsWhereItStood() {
+        let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1])
+        windows[0].sidebarWidth = 260
+        let tab = windows[0].tabStore.tabs[0]
+        tab.surfaceDirectories[tab.allSurfaceIDs[0]] = "/Users/dev/work/alpha"
+        let frame = WindowFrame(x: 120, y: 240, width: 900, height: 600)
+
+        _ = useCases.windowDidClose(id: windows[0].id, frame: frame)
+        let saved = savedSession(useCases)
+
+        #expect(saved.windows.isEmpty)
+        #expect(saved.lastClosedWindow?.frame == frame)
+        #expect(saved.lastClosedWindow?.sidebarWidth == 260)
+        #expect(saved.lastClosedWindow?.directory == "/Users/dev/work/alpha")
+    }
+
+    /// Exiting the last shell tears the tab down before AppKit reports the
+    /// window closed, so by then the window has no tab left to ask. The
+    /// directory it was showing still has to survive that ordering.
+    @Test func closingTheLastWindowRecordsTheDirectoryOfATabAlreadyTornDown() {
+        let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1])
+        let tab = windows[0].tabStore.tabs[0]
+        tab.surfaceDirectories[tab.allSurfaceIDs[0]] = "/Users/dev/work/alpha"
+        windows[0].tabStore.close(id: tab.id)
+
+        _ = useCases.windowDidClose(id: windows[0].id, frame: someFrame)
+
+        #expect(savedSession(useCases).lastClosedWindow?.directory == "/Users/dev/work/alpha")
+    }
+
+    /// A window closed while others remain is restored from those, so there is
+    /// nothing to record and no stale placement to carry into the next launch.
+    @Test func closingOneOfTwoWindowsRecordsNothing() {
+        let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1, 1])
+
+        _ = useCases.windowDidClose(id: windows[0].id, frame: someFrame)
+
+        #expect(savedSession(useCases).lastClosedWindow == nil)
+    }
+
+    /// The other half of `closingTheLastWindowRecordsWhereItStood`: a launch
+    /// with nothing to restore opens where the last window closed.
+    @Test func restoringAFileWithNoWindowsOpensWhereTheLastOneClosed() {
+        let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
+        let frame = WindowFrame(x: 120, y: 240, width: 900, height: 600)
+        let saved = SessionSnapshot(
+            surfaceTintEnabled: true, windows: [], keyWindowID: nil,
+            repoColorOverrides: [:],
+            lastClosedWindow: ClosedWindow(
+                frame: frame, sidebarWidth: 260, directory: "/Users/dev/work/alpha"
+            )
+        )
+
+        let outcome = useCases.restore(saved)
+
+        #expect(outcome.createWindows.count == 1)
+        #expect(outcome.createWindows[0].frame == frame)
+        #expect(outcome.createSurfaces[0].workingDirectory == "/Users/dev/work/alpha")
+        #expect(useCases.registry.windows.first?.sidebarWidth == 260)
+    }
+
+    /// A window opened by hand is not standing in for the one that closed last,
+    /// so it cascades off the window in front as it always has.
+    @Test func aNewWindowIgnoresWhereTheLastOneClosed() {
+        let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
+        _ = useCases.restore(SessionSnapshot(
+            surfaceTintEnabled: true, windows: [], keyWindowID: nil,
+            repoColorOverrides: [:],
+            lastClosedWindow: ClosedWindow(
+                frame: WindowFrame(x: 120, y: 240, width: 900, height: 600),
+                sidebarWidth: 260, directory: "/Users/dev/work/alpha"
+            )
+        ))
+
+        let outcome = useCases.newWindow(from: nil)
+
+        #expect(outcome.createWindows[0].frame == nil)
+        #expect(outcome.createSurfaces[0].workingDirectory == nil)
+    }
+
+    /// The session montty would write with the registry in whatever state the
+    /// test left it.
+    private func savedSession(_ useCases: WindowUseCases) -> SessionSnapshot {
+        useCases.snapshot(
+            surfaceTintEnabled: true, repoColorOverrides: [:],
+            frames: [:], directories: [:]
         )
     }
 }

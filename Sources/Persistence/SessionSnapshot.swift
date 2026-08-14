@@ -11,17 +11,22 @@ struct SessionSnapshot: Codable {
     var windows: [WindowSnapshot] = []
     var keyWindowID: UUID?
     var repoColorOverrides: [String: PaneTint] = [:]
+    /// Read only when `windows` is empty, which is what a session that ended by
+    /// closing every window looks like.
+    var lastClosedWindow: ClosedWindow?
 
     init(
         surfaceTintEnabled: Bool = true,
         windows: [WindowSnapshot] = [],
         keyWindowID: UUID? = nil,
-        repoColorOverrides: [String: PaneTint] = [:]
+        repoColorOverrides: [String: PaneTint] = [:],
+        lastClosedWindow: ClosedWindow? = nil
     ) {
         self.surfaceTintEnabled = surfaceTintEnabled
         self.windows = windows
         self.keyWindowID = keyWindowID
         self.repoColorOverrides = repoColorOverrides
+        self.lastClosedWindow = lastClosedWindow
     }
 
     /// Reads both shapes. A file with a `windows` array is version 4. A file
@@ -40,6 +45,8 @@ struct SessionSnapshot: Codable {
             Bool.self, forKey: .surfaceTintEnabled) ?? true
         repoColorOverrides = try container.decodeIfPresent(
             [String: PaneTint].self, forKey: .repoColorOverrides) ?? [:]
+        lastClosedWindow = try container.decodeIfPresent(
+            ClosedWindow.self, forKey: .lastClosedWindow)
 
         if let windows = try container.decodeIfPresent(
             [WindowSnapshot].self, forKey: .windows
@@ -53,6 +60,16 @@ struct SessionSnapshot: Codable {
         windows = legacy.tabs.isEmpty ? [] : [legacy.asWindowSnapshot()]
         keyWindowID = windows.first?.windowID
     }
+}
+
+/// Where the last window to close stood, and what it was showing. Closing a
+/// window is a decision about the tabs in it, not about its size, its position,
+/// or the directory it was open in -- so a launch with no session to restore
+/// opens a fresh window from this rather than from nothing.
+struct ClosedWindow: Codable, Equatable {
+    var frame: WindowFrame
+    var sidebarWidth: Double
+    var directory: String?
 }
 
 struct WindowSnapshot: Codable {
