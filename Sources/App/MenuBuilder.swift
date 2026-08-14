@@ -140,6 +140,10 @@ enum MenuBuilder {
         addAction(to: menu, title: "Close Split", action: "close_surface", ctx: ctx)
         addAction(to: menu, title: "Close Tab", action: "close_tab", ctx: ctx)
         menu.addItem(.separator())
+        addItem(to: menu, title: "Open in Editor", key: "e", mods: [.command, .shift]) {
+            ctx.appDelegate.openFocusedDirectoryInEditor()
+        }
+        menu.addItem(.separator())
         addItem(to: menu, title: "Open Config", key: ",", mods: [.command]) {
             ctx.appDelegate.openConfig()
         }
