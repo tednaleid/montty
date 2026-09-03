@@ -174,5 +174,102 @@ def build_session() -> dict:
     }
 
 
+BRANCHES = {
+    "acme-api": "main",
+    "web-ui": "feature/checkout",
+    "infra": "main",
+}
+
+GHOSTTY_CONFIG = """\
+palette = 0=#45475a
+palette = 1=#f38ba8
+palette = 2=#a6e3a1
+palette = 3=#f9e2af
+palette = 4=#89b4fa
+palette = 5=#cba6f7
+palette = 6=#94e2d5
+palette = 7=#bac2de
+palette = 8=#585b70
+palette = 9=#eba0ac
+palette = 10=#a6e3a1
+palette = 11=#f9e2af
+palette = 12=#89dceb
+palette = 13=#f5c2e7
+palette = 14=#94e2d5
+palette = 15=#a6adc8
+background = #1e1e2e
+foreground = #cdd6f4
+font-size = 13
+window-padding-x = 8
+window-padding-y = 6
+command = /bin/zsh
+"""
+
+# A login shell would print "Last login: ..." and date every screenshot, which
+# is why the config above runs a plain interactive zsh instead.
+ZSHRC = """\
+HISTFILE=""
+setopt PROMPT_SUBST
+PROMPT='%F{blue}%1~%f %F{green}> %f'
+export PAGER=cat
+"""
+
+PANE_FIXTURES = {
+    "tree": """\
+Cargo.toml    README.md     src/          tests/
+""",
+    "build": """\
+   Compiling acme-api v0.4.3
+    Finished release [optimized] in 12.4s
+     Running target/release/acme-api
+listening on 0.0.0.0:8080
+""",
+    "tests": """\
+running 24 tests
+........................
+test result: ok. 24 passed; 0 failed
+""",
+    "cli": "",
+}
+
+
+def materialize_world(root: Path = DEMO_ROOT) -> None:
+    """Create the demo tree. Safe to rerun over an existing tree."""
+    for name, branch in BRANCHES.items():
+        git_dir = root / "repos" / name / ".git"
+        git_dir.mkdir(parents=True, exist_ok=True)
+        (git_dir / "HEAD").write_text(f"ref: refs/heads/{branch}\n")
+
+    # A linked worktree is a .git file, which is what makes montty render the
+    # parent repo's leading stop with the worktree's own trailing stop.
+    hotfix = root / "repos" / "acme-api-hotfix"
+    hotfix.mkdir(parents=True, exist_ok=True)
+    (hotfix / ".git").write_text(
+        f"gitdir: {root / 'repos' / 'acme-api' / '.git'}/worktrees/acme-api-hotfix\n"
+    )
+    worktree_meta = root / "repos" / "acme-api" / ".git" / "worktrees" / "acme-api-hotfix"
+    worktree_meta.mkdir(parents=True, exist_ok=True)
+    (worktree_meta / "HEAD").write_text("ref: refs/heads/hotfix/token-expiry\n")
+
+    (root / "scratch").mkdir(parents=True, exist_ok=True)
+
+    config = root / "config" / "ghostty"
+    config.mkdir(parents=True, exist_ok=True)
+    (config / "config").write_text(GHOSTTY_CONFIG)
+
+    zdotdir = root / "zdotdir"
+    zdotdir.mkdir(parents=True, exist_ok=True)
+    (zdotdir / ".zshrc").write_text(ZSHRC)
+
+    fixtures = root / "fixtures"
+    fixtures.mkdir(parents=True, exist_ok=True)
+    for name, body in PANE_FIXTURES.items():
+        (fixtures / f"{name}.txt").write_text(body)
+
+    session = root / "session"
+    session.mkdir(parents=True, exist_ok=True)
+    (session / "session.json").write_text(json.dumps(build_session(), indent=2))
+
+
 if __name__ == "__main__":
     print(json.dumps(build_session(), indent=2))

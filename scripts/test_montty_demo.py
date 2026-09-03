@@ -72,5 +72,57 @@ class BuildSessionTest(unittest.TestCase):
         self.assertRegex(result, r"^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$")
 
 
+import tempfile
+
+
+class MaterializeWorldTest(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp())
+        demo.materialize_world(self.root)
+
+    def test_writes_a_branch_ref_a_git_directory_walk_can_read(self):
+        head = self.root / "repos" / "acme-api" / ".git" / "HEAD"
+        self.assertEqual(head.read_text().strip(), "ref: refs/heads/main")
+
+    def test_web_ui_carries_a_different_branch(self):
+        head = self.root / "repos" / "web-ui" / ".git" / "HEAD"
+        self.assertEqual(head.read_text().strip(), "ref: refs/heads/feature/checkout")
+
+    def test_hotfix_is_a_worktree_pointing_at_its_parent(self):
+        git_file = self.root / "repos" / "acme-api-hotfix" / ".git"
+        self.assertTrue(git_file.is_file())
+        self.assertIn("gitdir:", git_file.read_text())
+        self.assertIn("acme-api", git_file.read_text())
+
+    def test_scratch_has_no_git_so_it_renders_gray(self):
+        self.assertTrue((self.root / "scratch").is_dir())
+        self.assertFalse((self.root / "scratch" / ".git").exists())
+
+    def test_pins_the_palette_so_colors_do_not_follow_the_users_theme(self):
+        config = (self.root / "config" / "ghostty" / "config").read_text()
+        self.assertIn("palette = 2=#a6e3a1", config)
+        self.assertIn("command = /bin/zsh", config)
+
+    def test_zshrc_sets_a_prompt_that_names_no_user(self):
+        zshrc = (self.root / "zdotdir" / ".zshrc").read_text()
+        self.assertIn("PROMPT=", zshrc)
+        self.assertNotIn(str(Path.home()), zshrc)
+
+    def test_writes_every_pane_fixture_the_roster_references(self):
+        referenced = {
+            name
+            for window in demo.WINDOWS
+            for tab in window.tabs
+            for name in tab.content.values()
+        }
+        for name in referenced:
+            self.assertTrue((self.root / "fixtures" / f"{name}.txt").is_file(), name)
+
+    def test_is_idempotent(self):
+        demo.materialize_world(self.root)
+        head = self.root / "repos" / "acme-api" / ".git" / "HEAD"
+        self.assertEqual(head.read_text().strip(), "ref: refs/heads/main")
+
+
 if __name__ == "__main__":
     unittest.main()
