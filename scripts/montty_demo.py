@@ -627,10 +627,32 @@ def cmd_shoot() -> None:
     stop()
 
 
+def cmd_preview() -> None:
+    """The palette loop: relaunch on the current roster and shoot only the hero,
+    skipping the Claude exchange, so trying a color costs seconds and no tokens."""
+    cmd_build()
+    surfaces = get("/surfaces")
+    capture(surface_for("w1t2", 0, surfaces)["id"], RAW / "hero.png")
+    from PIL import Image
+
+    _downscale(Image.open(RAW / "hero.png")).save(DOCS / "screenshot.png", optimize=True)
+    print(f"wrote {DOCS / 'screenshot.png'}")
+
+
+def cmd_clean() -> None:
+    import shutil
+
+    stop()
+    shutil.rmtree(DEMO_ROOT, ignore_errors=True)
+    print(f"removed {DEMO_ROOT}")
+
+
 def main() -> None:
     commands = {
         "build": cmd_build,
         "shoot": cmd_shoot,
+        "preview": cmd_preview,
+        "clean": cmd_clean,
         "session": lambda: print(json.dumps(build_session(), indent=2)),
     }
     name = sys.argv[1] if len(sys.argv) > 1 else "build"
