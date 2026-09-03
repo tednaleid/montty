@@ -529,6 +529,48 @@ def start_claude(settle: float = 45.0) -> None:
                 time.sleep(settle / len(CLAUDE_PROMPTS))
 
 
+DOCS = Path(__file__).resolve().parent.parent / "docs"
+RAW = DEMO_ROOT / "raw"
+
+
+def capture(surface_id: str, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with urllib.request.urlopen(f"{SERVER}/screenshot?surface={surface_id}", timeout=20) as r:
+        path.write_bytes(r.read())
+    time.sleep(0.5)
+
+
+def capture_all() -> None:
+    surfaces = get("/surfaces")
+    hero = surface_for("w1t2", 0, surfaces)
+    second_window = surface_for("w2t1", 0, surfaces)
+    cli = surface_for("w1t6", 0, surfaces)
+
+    # Hero first: it needs the focused tab untouched and jump mode inactive.
+    capture(hero["id"], RAW / "hero.png")
+
+    post("/jump", "")
+    time.sleep(0.5)
+    capture(hero["id"], RAW / "jump.png")
+    # Escape only cancels jump mode when it comes from a real key event: the
+    # monitor that listens for it is an AppKit local event monitor, which a
+    # synthetic /key request never passes through. Jumping back to hero's own
+    # leaf exits jump mode the same way any other jump target would.
+    post("/jump", hero["leaf_id"])
+    time.sleep(0.5)
+
+    # Each window is captured on its own; they are composited in Task 9.
+    capture(hero["id"], RAW / "window-one.png")
+    capture(second_window["id"], RAW / "window-two.png")
+
+    # Last, because switching tabs moves the focus. goto_tab is window-scoped,
+    # resolved from the surface named in the query string, so cli's id (fixed
+    # at the top of this function) still names the right window afterward.
+    post("/action?surface=" + cli["id"], "goto_tab:6")
+    time.sleep(1)
+    capture(cli["id"], RAW / "cli.png")
+
+
 def cmd_build() -> None:
     subprocess.run(["just", "build"], check=True)
     stop()
