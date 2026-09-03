@@ -76,12 +76,19 @@ already in use. Nothing consults tab order, creation time, or the other open
 tabs, so the same directory always yields the same tint.
 
 Because the identity is an absolute path, the demo tree lives at a fixed
-`/tmp/montty-demo`, mirroring the existing `/tmp/montty-build` convention. A
-tree under `$HOME` would hash the username into every color and produce
-different results on a different machine.
+`/private/tmp/montty-demo`, alongside the existing `/tmp/montty-build`
+convention. A tree under `$HOME` would hash the username into every color and
+produce different results on a different machine.
+
+The path is spelled `/private/tmp` rather than `/tmp` because macOS resolves one
+to the other. montty seeds a pane's directory from the session file, but only
+until that pane's own shell reports a pwd, and a shell started there reports the
+resolved `/private/tmp` form. Spelling it `/tmp` would leave the seeded session,
+the reported directory, and the `repoColorOverrides` key disagreeing, which
+silently drops every hand-picked repo color the moment the shell starts.
 
 `TabInfo` renders a directory that is not a direct child of home as its
-basename with a trailing slash, so `/tmp/montty-demo/acme-api` displays as
+basename with a trailing slash, so `/private/tmp/montty-demo/acme-api` displays as
 `acme-api/`. No username and no path depth ever reaches the sidebar, and no
 `$HOME` substitution is needed anywhere in the fixtures.
 
@@ -92,10 +99,10 @@ reply.
 
 ## The demo world
 
-The harness materializes `/tmp/montty-demo` on every run:
+The harness materializes `/private/tmp/montty-demo` on every run:
 
 ```
-/tmp/montty-demo/
+/private/tmp/montty-demo/
   config/ghostty/config     pinned theme, font, font-size
   zdotdir/.zshrc            fixed prompt, no history
   session/session.json      generated from the demo spec

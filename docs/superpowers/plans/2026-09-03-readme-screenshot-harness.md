@@ -4,7 +4,7 @@
 
 **Goal:** One command that rebuilds every README image from a demo world montty owns, with a review gate after the layout is on screen and before any capture code is written.
 
-**Architecture:** A single `uv` script materializes a demo tree under `/tmp/montty-demo`, expands a declarative tab roster into a v4 `session.json`, and launches the debug build against it with four environment variables that pin the theme, prompt, session, and socket. Later phases drive pane content over the debug HTTP server, set activity dots through the real `montty` CLI, capture windows one at a time, and composite them with Pillow.
+**Architecture:** A single `uv` script materializes a demo tree under `/private/tmp/montty-demo`, expands a declarative tab roster into a v4 `session.json`, and launches the debug build against it with four environment variables that pin the theme, prompt, session, and socket. Later phases drive pane content over the debug HTTP server, set activity dots through the real `montty` CLI, capture windows one at a time, and composite them with Pillow.
 
 **Tech Stack:** Python 3.12 via `uv run --script`, stdlib `unittest`, Pillow for compositing only, the montty debug HTTP server on localhost:9876, and `just` recipes.
 
@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Demo root is exactly `/tmp/montty-demo`. Tab colors hash the absolute repo path, so this path is load-bearing for deterministic colors and must not become `$HOME`-relative.
+- Demo root is exactly `/private/tmp/montty-demo`. Tab colors hash the absolute repo path, so this path is load-bearing for deterministic colors and must not become `$HOME`-relative.
 - `HOME` is never overridden. Claude Code's login lives there, and a fresh `HOME` makes it report `Not logged in`.
 - Only the debug build at `/tmp/montty-build` is ever launched, always with its own `MONTTY_SOCKET` and `MONTTY_SESSION_DIR`.
 - Session JSON is version 4. Encodings, verbatim from the app: a leaf node is `{"type": "leaf", "leaf": {"id": UUID, "surfaceID": UUID}}`; a split is `{"type": "split", "branch": {"id": UUID, "orientation": "horizontal"|"vertical", "ratio": Double, "first": Node, "second": Node}}`; `horizontal` means left and right, `vertical` means top and bottom; `leafDirectories` and `leafColorOverrides` are flat arrays alternating UUID string and value; a one-stop `PaneTint` encodes as a bare string, two or three stops as an array of strings.
@@ -82,7 +82,7 @@ class BuildSessionTest(unittest.TestCase):
         first = self.session["windows"][0]["tabs"][0]
         flat = first["leafDirectories"]
         self.assertEqual(len(flat), 2)
-        self.assertEqual(flat[1], "/tmp/montty-demo/repos/acme-api")
+        self.assertEqual(flat[1], "/private/tmp/montty-demo/repos/acme-api")
 
     def test_three_pane_tab_nests_a_vertical_split_inside_a_horizontal_one(self):
         layout = self.session["windows"][0]["tabs"][1]["splitLayout"]
@@ -103,7 +103,7 @@ class BuildSessionTest(unittest.TestCase):
 
     def test_repo_override_is_keyed_by_absolute_repo_path(self):
         overrides = self.session["repoColorOverrides"]
-        self.assertIn("/tmp/montty-demo/repos/infra", overrides)
+        self.assertIn("/private/tmp/montty-demo/repos/infra", overrides)
 
     def test_uuids_are_stable_across_calls(self):
         again = demo.build_session()
@@ -143,7 +143,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DEMO_ROOT = Path("/tmp/montty-demo")
+DEMO_ROOT = Path("/private/tmp/montty-demo")
 REPOS = DEMO_ROOT / "repos"
 NAMESPACE = uuid.UUID("6f0d5a5e-3b1a-4f27-9c1c-0b6f4b6f9a10")
 
@@ -969,7 +969,7 @@ def capture_all() -> None:
 - [ ] **Step 2: Run it**
 
 Run: `uv run scripts/montty_demo.py shoot`
-Expected: five PNGs under `/tmp/montty-demo/raw/`. Open them and confirm the jump image carries labels and the hero image does not.
+Expected: five PNGs under `/private/tmp/montty-demo/raw/`. Open them and confirm the jump image carries labels and the hero image does not.
 
 - [ ] **Step 3: Commit**
 
@@ -1103,7 +1103,7 @@ screenshots-clean:
 - [ ] **Step 3: Run each**
 
 Run: `just screenshots-preview`, then `just screenshots-clean`, then `just screenshots`
-Expected: preview rewrites only the hero, clean removes `/tmp/montty-demo`, and the full run rebuilds the tree and all four images from scratch.
+Expected: preview rewrites only the hero, clean removes `/private/tmp/montty-demo`, and the full run rebuilds the tree and all four images from scratch.
 
 - [ ] **Step 4: Commit**
 
