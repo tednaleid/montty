@@ -210,8 +210,9 @@ window-padding-y = 6
 command = /bin/zsh
 """
 
-# A login shell would print "Last login: ..." and date every screenshot, which
-# is why the config above runs a plain interactive zsh instead.
+# Ghostty always execs macOS panes through /usr/bin/login, so Last login:
+# is unavoidable here; only a .hushlogin in the real home (not written by
+# this harness) suppresses it. command = /bin/zsh just pins the shell choice.
 ZSHRC = """\
 HISTFILE=""
 setopt PROMPT_SUBST
