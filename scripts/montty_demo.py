@@ -532,6 +532,42 @@ def start_claude(settle: float = 45.0) -> None:
 DOCS = Path(__file__).resolve().parent.parent / "docs"
 RAW = DEMO_ROOT / "raw"
 
+TARGET_WIDTH = 1400
+BACKDROP = (30, 30, 46)
+
+
+def _downscale(image, width: int = TARGET_WIDTH):
+    from PIL import Image
+
+    if image.width <= width:
+        return image
+    height = round(image.height * width / image.width)
+    return image.resize((width, height), Image.LANCZOS)
+
+
+def postprocess() -> None:
+    from PIL import Image
+
+    for source, target in [
+        ("hero.png", "screenshot.png"),
+        ("jump.png", "screenshot-easymotion.png"),
+        ("cli.png", "screenshot-cli.png"),
+    ]:
+        image = Image.open(RAW / source)
+        _downscale(image).save(DOCS / target, optimize=True)
+
+    # Two genuine window captures placed side by side, which avoids the Screen
+    # Recording permission a real two-window screen grab would need.
+    one = Image.open(RAW / "window-one.png")
+    two = Image.open(RAW / "window-two.png")
+    gap = 40
+    canvas = Image.new(
+        "RGB", (one.width + two.width + gap * 3, max(one.height, two.height) + gap * 2), BACKDROP
+    )
+    canvas.paste(one, (gap, gap))
+    canvas.paste(two, (gap * 2 + one.width, gap))
+    _downscale(canvas, 1600).save(DOCS / "screenshot-windows.png", optimize=True)
+
 
 def capture(surface_id: str, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -587,6 +623,8 @@ def cmd_shoot() -> None:
     cmd_build()
     start_claude()
     capture_all()
+    postprocess()
+    stop()
 
 
 def main() -> None:
