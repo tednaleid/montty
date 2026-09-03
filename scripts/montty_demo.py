@@ -325,6 +325,41 @@ def wait_for_server(timeout: float = 20.0) -> list[dict]:
     raise SystemExit("montty debug server never answered on :9876")
 
 
+def verify_layout() -> None:
+    """Fail loudly when the restored layout is not the one the roster asked for.
+    A session schema change should surface here, not as a wrong screenshot."""
+    surfaces = get("/surfaces")
+    problems: list[str] = []
+
+    expected_panes = sum(tab.panes for window in WINDOWS for tab in window.tabs)
+    if len(surfaces) != expected_panes:
+        problems.append(f"expected {expected_panes} panes, montty restored {len(surfaces)}")
+
+    expected_windows = len({s["window_id"] for s in surfaces})
+    if expected_windows != len(WINDOWS):
+        problems.append(f"expected {len(WINDOWS)} windows, montty restored {expected_windows}")
+
+    by_tab = {s["tab_id"]: s for s in surfaces}
+    for window in WINDOWS:
+        for tab in window.tabs:
+            tab_id = demo_uuid(f"{tab.key}.tab")
+            surface = by_tab.get(tab_id)
+            if surface is None:
+                problems.append(f"tab {tab.key} did not restore")
+                continue
+            if tab.name and surface.get("tab_name") != tab.name:
+                problems.append(
+                    f"tab {tab.key} is named {surface.get('tab_name')!r}, expected {tab.name!r}"
+                )
+            if surface.get("split_count") != tab.panes:
+                problems.append(
+                    f"tab {tab.key} has {surface.get('split_count')} panes, expected {tab.panes}"
+                )
+
+    if problems:
+        raise SystemExit("demo layout did not restore as specified:\n  " + "\n  ".join(problems))
+
+
 def report() -> None:
     """Print what montty actually resolved, so the roster and palette can be
     judged against the running window rather than against the spec."""
@@ -352,6 +387,7 @@ def cmd_build() -> None:
     materialize_world()
     launch()
     wait_for_server()
+    verify_layout()
     report()
 
 
