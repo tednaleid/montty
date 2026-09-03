@@ -55,10 +55,10 @@ WINDOWS = [
         frame={"x": 120, "y": 120, "width": 1400, "height": 900},
         active_tab=1,
         tabs=[
-            Tab(key="w1t1", directory=str(REPOS / "acme-api"), content={0: "tree"}),
+            Tab(key="w1t1", directory=str(REPOS / "payments"), content={0: "tree"}),
             Tab(
                 key="w1t2",
-                directory=str(REPOS / "acme-api"),
+                directory=str(REPOS / "payments"),
                 name="MR !123 fix auth",
                 color=["neutralBright", "green"],
                 panes=3,
@@ -67,9 +67,9 @@ WINDOWS = [
                 claude_pane=0,
                 content={1: "build", 2: "tests"},
             ),
-            Tab(key="w1t3", directory=str(REPOS / "web-ui"), panes=2, content={0: "tree", 1: "build"}),
-            Tab(key="w1t4", directory=str(REPOS / "acme-api-hotfix"), content={0: "tree"}),
-            Tab(key="w1t5", directory=str(REPOS / "infra"), content={0: "tree"}),
+            Tab(key="w1t3", directory=str(REPOS / "orders"), panes=2, content={0: "tree", 1: "build"}),
+            Tab(key="w1t4", directory=str(REPOS / "payments-release"), content={0: "tree"}),
+            Tab(key="w1t5", directory=str(REPOS / "dashboard"), content={0: "tree"}),
             Tab(key="w1t6", directory=str(DEMO_ROOT / "scratch"), content={0: "cli"}),
         ],
     ),
@@ -78,15 +78,15 @@ WINDOWS = [
         frame={"x": 1560, "y": 200, "width": 1100, "height": 760},
         active_tab=0,
         tabs=[
-            Tab(key="w2t1", directory=str(REPOS / "web-ui"), content={0: "tree"}),
-            Tab(key="w2t2", directory=str(REPOS / "infra"), content={0: "build"}),
+            Tab(key="w2t1", directory=str(REPOS / "orders"), content={0: "tree"}),
+            Tab(key="w2t2", directory=str(REPOS / "dashboard"), content={0: "build"}),
         ],
     ),
 ]
 
 # Hand-picked colors that beat the identity hash, keyed by repo identity,
 # which is the absolute repo path plus the worktree name when there is one.
-REPO_OVERRIDES = {str(REPOS / "infra"): ["brightMagenta"]}
+REPO_OVERRIDES = {str(REPOS / "dashboard"): ["magenta"]}
 
 
 def _leaf(tab_key: str, index: int) -> dict:
@@ -162,7 +162,7 @@ def build_session() -> dict:
             {
                 "windowID": demo_uuid(f"{window.key}.window"),
                 "frame": window.frame,
-                "sidebarWidth": 200,
+                "sidebarWidth": 260,
                 "activeTabID": tabs[window.active_tab]["tabID"],
                 "tabs": tabs,
             }
@@ -180,33 +180,35 @@ def build_session() -> dict:
 
 
 BRANCHES = {
-    "acme-api": "main",
-    "web-ui": "feature/checkout",
-    "infra": "main",
+    "payments": "main",
+    "orders": "feature/split-tender",
+    "dashboard": "main",
 }
 
 GHOSTTY_CONFIG = """\
-palette = 0=#45475a
-palette = 1=#f38ba8
-palette = 2=#a6e3a1
-palette = 3=#f9e2af
-palette = 4=#89b4fa
-palette = 5=#cba6f7
-palette = 6=#94e2d5
-palette = 7=#bac2de
-palette = 8=#585b70
-palette = 9=#eba0ac
-palette = 10=#a6e3a1
-palette = 11=#f9e2af
-palette = 12=#89dceb
-palette = 13=#f5c2e7
-palette = 14=#94e2d5
-palette = 15=#a6adc8
-background = #1e1e2e
-foreground = #cdd6f4
-font-size = 13
-window-padding-x = 8
-window-padding-y = 6
+palette = 0=#000000
+palette = 1=#f2777a
+palette = 2=#99cc99
+palette = 3=#ffcc66
+palette = 4=#6699cc
+palette = 5=#cc99cc
+palette = 6=#66cccc
+palette = 7=#ffffff
+palette = 8=#595959
+palette = 9=#f2777a
+palette = 10=#99cc99
+palette = 11=#ffcc66
+palette = 12=#6699cc
+palette = 13=#cc99cc
+palette = 14=#66cccc
+palette = 15=#ffffff
+background = #2d2d2d
+foreground = #cccccc
+cursor-color = #cccccc
+font-family = "Fira Code"
+font-size = 15
+window-padding-x = 10
+window-padding-y = 10
 command = /bin/zsh
 """
 
@@ -225,9 +227,9 @@ PANE_FIXTURES = {
 Cargo.toml    README.md     src/          tests/
 """,
     "build": """\
-   Compiling acme-api v0.4.3
+   Compiling payments v0.4.3
     Finished release [optimized] in 12.4s
-     Running target/release/acme-api
+     Running target/release/payments
 listening on 0.0.0.0:8080
 """,
     "tests": """\
@@ -248,14 +250,14 @@ def materialize_world(root: Path = DEMO_ROOT) -> None:
 
     # A linked worktree is a .git file, which is what makes montty render the
     # parent repo's leading stop with the worktree's own trailing stop.
-    hotfix = root / "repos" / "acme-api-hotfix"
+    hotfix = root / "repos" / "payments-release"
     hotfix.mkdir(parents=True, exist_ok=True)
     (hotfix / ".git").write_text(
-        f"gitdir: {root / 'repos' / 'acme-api' / '.git'}/worktrees/acme-api-hotfix\n"
+        f"gitdir: {root / 'repos' / 'payments' / '.git'}/worktrees/payments-release\n"
     )
-    worktree_meta = root / "repos" / "acme-api" / ".git" / "worktrees" / "acme-api-hotfix"
+    worktree_meta = root / "repos" / "payments" / ".git" / "worktrees" / "payments-release"
     worktree_meta.mkdir(parents=True, exist_ok=True)
-    (worktree_meta / "HEAD").write_text("ref: refs/heads/hotfix/token-expiry\n")
+    (worktree_meta / "HEAD").write_text("ref: refs/heads/release/2.4\n")
 
     (root / "scratch").mkdir(parents=True, exist_ok=True)
 
@@ -304,7 +306,13 @@ def stop() -> None:
 
 
 def launch() -> None:
-    subprocess.Popen([str(APP)], env=demo_env(), start_new_session=True)
+    # Detached stdio: an inherited pipe keeps `just demo | tail` open until
+    # montty exits, which is never, since the app is meant to stay up.
+    log = open(DEMO_ROOT / "montty.log", "ab")
+    subprocess.Popen(
+        [str(APP)], env=demo_env(), start_new_session=True,
+        stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+    )
 
 
 def wait_for_server(timeout: float = 20.0) -> list[dict]:

@@ -29,7 +29,7 @@ class BuildSessionTest(unittest.TestCase):
         first = self.session["windows"][0]["tabs"][0]
         flat = first["leafDirectories"]
         self.assertEqual(len(flat), 2)
-        self.assertEqual(flat[1], "/private/tmp/montty-demo/repos/acme-api")
+        self.assertEqual(flat[1], "/private/tmp/montty-demo/repos/payments")
 
     def test_three_pane_tab_nests_a_vertical_split_inside_a_horizontal_one(self):
         layout = self.session["windows"][0]["tabs"][1]["splitLayout"]
@@ -50,8 +50,8 @@ class BuildSessionTest(unittest.TestCase):
 
     def test_repo_override_is_keyed_by_absolute_repo_path(self):
         overrides = self.session["repoColorOverrides"]
-        self.assertIn("/private/tmp/montty-demo/repos/infra", overrides)
-        self.assertEqual(overrides["/private/tmp/montty-demo/repos/infra"], "brightMagenta")
+        self.assertIn("/private/tmp/montty-demo/repos/dashboard", overrides)
+        self.assertEqual(overrides["/private/tmp/montty-demo/repos/dashboard"], "magenta")
 
     def test_uuids_are_stable_across_calls(self):
         again = demo.build_session()
@@ -81,18 +81,18 @@ class MaterializeWorldTest(unittest.TestCase):
         demo.materialize_world(self.root)
 
     def test_writes_a_branch_ref_a_git_directory_walk_can_read(self):
-        head = self.root / "repos" / "acme-api" / ".git" / "HEAD"
+        head = self.root / "repos" / "payments" / ".git" / "HEAD"
         self.assertEqual(head.read_text().strip(), "ref: refs/heads/main")
 
-    def test_web_ui_carries_a_different_branch(self):
-        head = self.root / "repos" / "web-ui" / ".git" / "HEAD"
-        self.assertEqual(head.read_text().strip(), "ref: refs/heads/feature/checkout")
+    def test_orders_carries_a_different_branch(self):
+        head = self.root / "repos" / "orders" / ".git" / "HEAD"
+        self.assertEqual(head.read_text().strip(), "ref: refs/heads/feature/split-tender")
 
-    def test_hotfix_is_a_worktree_pointing_at_its_parent(self):
-        git_file = self.root / "repos" / "acme-api-hotfix" / ".git"
+    def test_release_worktree_points_at_its_parent(self):
+        git_file = self.root / "repos" / "payments-release" / ".git"
         self.assertTrue(git_file.is_file())
         self.assertIn("gitdir:", git_file.read_text())
-        self.assertIn("acme-api", git_file.read_text())
+        self.assertIn("payments", git_file.read_text())
 
     def test_scratch_has_no_git_so_it_renders_gray(self):
         self.assertTrue((self.root / "scratch").is_dir())
@@ -100,7 +100,7 @@ class MaterializeWorldTest(unittest.TestCase):
 
     def test_pins_the_palette_so_colors_do_not_follow_the_users_theme(self):
         config = (self.root / "config" / "ghostty" / "config").read_text()
-        self.assertIn("palette = 2=#a6e3a1", config)
+        self.assertIn("palette = 2=#99cc99", config)
         self.assertIn("command = /bin/zsh", config)
 
     def test_zshrc_sets_a_prompt_that_names_no_user(self):
@@ -120,7 +120,7 @@ class MaterializeWorldTest(unittest.TestCase):
 
     def test_is_idempotent(self):
         demo.materialize_world(self.root)
-        head = self.root / "repos" / "acme-api" / ".git" / "HEAD"
+        head = self.root / "repos" / "payments" / ".git" / "HEAD"
         self.assertEqual(head.read_text().strip(), "ref: refs/heads/main")
 
 
