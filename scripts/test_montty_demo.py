@@ -29,7 +29,7 @@ class BuildSessionTest(unittest.TestCase):
         first = self.session["windows"][0]["tabs"][0]
         flat = first["leafDirectories"]
         self.assertEqual(len(flat), 2)
-        self.assertEqual(flat[1], "/tmp/montty-demo/repos/acme-api")
+        self.assertEqual(flat[1], "/private/tmp/montty-demo/repos/acme-api")
 
     def test_three_pane_tab_nests_a_vertical_split_inside_a_horizontal_one(self):
         layout = self.session["windows"][0]["tabs"][1]["splitLayout"]
@@ -50,7 +50,8 @@ class BuildSessionTest(unittest.TestCase):
 
     def test_repo_override_is_keyed_by_absolute_repo_path(self):
         overrides = self.session["repoColorOverrides"]
-        self.assertIn("/tmp/montty-demo/repos/infra", overrides)
+        self.assertIn("/private/tmp/montty-demo/repos/infra", overrides)
+        self.assertEqual(overrides["/private/tmp/montty-demo/repos/infra"], "brightMagenta")
 
     def test_uuids_are_stable_across_calls(self):
         again = demo.build_session()
@@ -64,6 +65,11 @@ class BuildSessionTest(unittest.TestCase):
             for tab in window["tabs"]:
                 leaf_ids = set(tab["leafDirectories"][0::2])
                 self.assertIn(tab["focusedLeafID"], leaf_ids)
+
+    def test_demo_uuid_returns_uppercase(self):
+        result = demo.demo_uuid("test.key")
+        self.assertTrue(result.isupper(), f"UUID should be uppercase, got: {result}")
+        self.assertRegex(result, r"^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$")
 
 
 if __name__ == "__main__":

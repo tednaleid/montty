@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DEMO_ROOT = Path("/tmp/montty-demo")
+DEMO_ROOT = Path("/private/tmp/montty-demo")
 REPOS = DEMO_ROOT / "repos"
 NAMESPACE = uuid.UUID("6f0d5a5e-3b1a-4f27-9c1c-0b6f4b6f9a10")
 
