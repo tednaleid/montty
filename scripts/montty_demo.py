@@ -389,6 +389,45 @@ def report() -> None:
         )
 
 
+def post(path: str, body: str = "") -> None:
+    request = urllib.request.Request(
+        f"{SERVER}{path}", data=body.encode(), method="POST"
+    )
+    with urllib.request.urlopen(request, timeout=10):
+        pass
+
+
+def surface_for(tab_key: str, pane: int, surfaces: list[dict]) -> dict:
+    """Resolve a roster pane to a live surface through its stable leaf id."""
+    leaf_id = demo_uuid(f"{tab_key}.leaf{pane}")
+    for surface in surfaces:
+        if surface.get("leaf_id") == leaf_id:
+            return surface
+    raise SystemExit(f"no live surface for {tab_key} pane {pane}")
+
+
+def run_in(surface: dict, command: str) -> None:
+    target = surface["id"]
+    post(f"/type?surface={target}", command)
+    post(f"/key?surface={target}", "return")
+
+
+def fill_panes() -> None:
+    """Clear each pane, then cat its fixture, so output is identical every run
+    and no login banner survives above it."""
+    surfaces = get("/surfaces")
+    for window in WINDOWS:
+        for tab in window.tabs:
+            for pane, fixture in tab.content.items():
+                surface = surface_for(tab.key, pane, surfaces)
+                run_in(surface, "clear")
+                if fixture == "cli":
+                    run_in(surface, "montty --help")
+                else:
+                    run_in(surface, f"cat {DEMO_ROOT}/fixtures/{fixture}.txt")
+    time.sleep(1.5)
+
+
 def cmd_build() -> None:
     subprocess.run(["just", "build"], check=True)
     stop()
@@ -396,6 +435,7 @@ def cmd_build() -> None:
     launch()
     wait_for_server()
     verify_layout()
+    fill_panes()
     report()
 
 
