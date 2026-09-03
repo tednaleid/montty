@@ -322,8 +322,8 @@ Claude Code exchange in one pane and captures all four images. `just
 screenshots-preview` skips that exchange and recaptures only the hero, so
 trying a color costs seconds, not tokens. `just screenshots-clean` removes
 the demo world. What each screenshot shows -- the windows, tabs, repos, and
-colors -- comes from the `WINDOWS` and `REPOS` roster near the top of the
-script; edit that to change what the images depict.
+colors -- comes from `WINDOWS`, `BRANCHES`, and `REPO_OVERRIDES` near the top
+of the script; edit those to change what the images depict.
 
 ## Example workflow
 
