@@ -32,7 +32,8 @@ enum ControlArgs {
         case unexpectedArgument(String)
     }
 
-    static let usage = """
+    static var usage: String {
+        """
         usage: montty <scope> <property> <value>
 
           montty surface color <spec>      montty surface color --reset
@@ -48,7 +49,32 @@ enum ControlArgs {
         <spec> is 1 to 3 comma-separated stops. A stop is a palette name
         (green, brightMagenta, neutralBright) or a six-digit hex value with
         or without a leading #.
+
+        palette names:
+        \(colorNameList)
         """
+    }
+
+    /// Every palette name paired with its bright counterpart, matching the
+    /// grouping `TabColor.hueFamily` already draws. `gray` has no bright
+    /// pair, so it stands alone.
+    private static let pairedColorNames: [(TabColor, TabColor)] = [
+        (.red, .brightRed), (.green, .brightGreen), (.yellow, .brightYellow),
+        (.blue, .brightBlue), (.magenta, .brightMagenta), (.cyan, .brightCyan),
+        (.neutral, .neutralBright)
+    ]
+
+    private static func swatch(_ color: TabColor) -> String {
+        "\u{1B}[\(color.ansiCode)m\u{25A0}\u{1B}[0m"
+    }
+
+    private static var colorNameList: String {
+        let rows = pairedColorNames.map { base, bright -> String in
+            let name = base.rawValue.padding(toLength: 9, withPad: " ", startingAt: 0)
+            return "  \(swatch(base)) \(name)\(swatch(bright)) \(bright.rawValue)"
+        }
+        return (rows + ["  \(swatch(.gray)) gray"]).joined(separator: "\n")
+    }
 
     /// Flags montty answers itself. Every other flag belongs to macOS.
     private static let ownFlags: Set<String> = ["--version", "-v", "--help", "-h"]

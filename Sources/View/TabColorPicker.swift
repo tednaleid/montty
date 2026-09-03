@@ -35,10 +35,14 @@ struct TabColorPicker: View {
             Button {
                 onSelect(PaneTint(stops: [.named(color)]))
             } label: {
-                Image(nsImage: colorSwatch(
-                    color.swiftUIColor,
-                    checked: currentColor == .named(color)
-                ))
+                Label {
+                    Text(color.rawValue)
+                } icon: {
+                    Image(nsImage: colorSwatch(
+                        color.swiftUIColor,
+                        checked: currentColor == .named(color)
+                    ))
+                }
             }
         }
 

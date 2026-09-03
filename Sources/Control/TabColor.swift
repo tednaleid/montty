@@ -34,4 +34,26 @@ extension TabColor {
         case .neutral, .neutralBright, .gray: .neutral
         }
     }
+
+    /// The ANSI-16 SGR foreground code this name maps to, for showing a
+    /// swatch beside the name in terminal output.
+    var ansiCode: Int {
+        switch self {
+        case .red: 31
+        case .green: 32
+        case .yellow: 33
+        case .blue: 34
+        case .magenta: 35
+        case .cyan: 36
+        case .neutral: 37
+        case .gray: 90
+        case .brightRed: 91
+        case .brightGreen: 92
+        case .brightYellow: 93
+        case .brightBlue: 94
+        case .brightMagenta: 95
+        case .brightCyan: 96
+        case .neutralBright: 97
+        }
+    }
 }

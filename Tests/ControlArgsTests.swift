@@ -113,6 +113,13 @@ import Testing
         }
     }
 
+    @Test func usageListsEveryPaletteNameWithItsAnsiSwatch() {
+        for color in TabColor.allCases {
+            #expect(ControlArgs.usage.contains(color.rawValue))
+            #expect(ControlArgs.usage.contains("\u{1B}[\(color.ansiCode)m"))
+        }
+    }
+
     @Test func rejectsArgumentsBeyondAnInvocationsArity() {
         #expect(failure(["tab", "name", "MR", "123", "fix", "auth"]) == .unexpectedArgument("123"))
         #expect(failure(["tab", "name", "--reset", "extra"]) == .unexpectedArgument("extra"))
