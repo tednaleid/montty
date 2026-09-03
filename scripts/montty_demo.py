@@ -428,6 +428,26 @@ def fill_panes() -> None:
     time.sleep(1.5)
 
 
+def set_statuses() -> None:
+    surfaces = get("/surfaces")
+    for window in WINDOWS:
+        for tab in window.tabs:
+            for pane, status in tab.statuses.items():
+                surface = surface_for(tab.key, pane, surfaces)
+                env = demo_env()
+                env["MONTTY_SURFACE_ID"] = surface["montty_surface_id"]
+                result = subprocess.run(
+                    [str(APP), "surface", "status", status],
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode != 0:
+                    raise SystemExit(
+                        f"montty surface status {status} failed: {result.stderr.strip()}"
+                    )
+
+
 def cmd_build() -> None:
     subprocess.run(["just", "build"], check=True)
     stop()
@@ -436,6 +456,7 @@ def cmd_build() -> None:
     wait_for_server()
     verify_layout()
     fill_panes()
+    set_statuses()
     report()
 
 
