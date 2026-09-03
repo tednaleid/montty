@@ -202,6 +202,19 @@ hero image, skipping the Claude exchange. Trying a palette costs seconds and no
 API calls, which is what makes hand-picking colors practical after seeing the
 first result.
 
+## Delivery order
+
+The demo world is built and reviewed before anything is automated around it.
+The first milestone materializes the tree, expands the spec into a session, and
+launches montty on it, and stops there. That puts the real window on screen with
+the real directories, names, splits, and colors, which is the only honest way to
+judge whether the palette is pleasing and the roster reads well.
+
+Tweaks to directories, names, and colors happen at that gate, against a live
+window, before any capture, compositing, or Claude orchestration is written. The
+later milestones then automate a layout that is already settled, rather than
+producing four images that need reshooting once the colors change.
+
 ## README prose
 
 The images land alongside prose corrections in the same effort:
