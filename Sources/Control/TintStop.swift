@@ -54,6 +54,15 @@ extension RGB {
         default: return .magenta
         }
     }
+
+    /// Whether a label drawn on this color reads better in black than white,
+    /// so a badge stays legible against every palette color.
+    var isReadableWithDarkText: Bool {
+        let luminance = 0.299 * Double(r) / 255
+            + 0.587 * Double(g) / 255
+            + 0.114 * Double(b) / 255
+        return luminance > 0.6
+    }
 }
 
 /// One stop in a pane's gradient.

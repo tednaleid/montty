@@ -63,4 +63,14 @@ import Testing
         #expect(TintStop.parse("#808080")?.hueFamily == .neutral)
         #expect(TintStop.parse("#ffffff")?.hueFamily == .neutral)
     }
+
+    @Test func lightColorsWantDarkText() {
+        #expect(RGB(hex: "ffff00")!.isReadableWithDarkText)
+        #expect(RGB(hex: "ffffff")!.isReadableWithDarkText)
+    }
+
+    @Test func darkColorsWantLightText() {
+        #expect(!RGB(hex: "0000ff")!.isReadableWithDarkText)
+        #expect(!RGB(hex: "000000")!.isReadableWithDarkText)
+    }
 }
