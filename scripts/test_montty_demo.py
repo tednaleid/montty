@@ -46,7 +46,7 @@ class BuildSessionTest(unittest.TestCase):
 
     def test_gradient_override_encodes_as_an_array_of_stops(self):
         tab = self.session["windows"][0]["tabs"][1]
-        self.assertEqual(tab["colorOverride"], ["neutralBright", "green"])
+        self.assertEqual(tab["colorOverride"], ["green", "neutralBright"])
 
     def test_repo_override_is_keyed_by_absolute_repo_path(self):
         overrides = self.session["repoColorOverrides"]
@@ -100,7 +100,7 @@ class MaterializeWorldTest(unittest.TestCase):
 
     def test_pins_the_palette_so_colors_do_not_follow_the_users_theme(self):
         config = (self.root / "config" / "ghostty" / "config").read_text()
-        self.assertIn("palette = 2=#99cc99", config)
+        self.assertIn("palette = 2=#00bb00", config)
         self.assertIn("command = /bin/zsh", config)
 
     def test_zshrc_sets_a_prompt_that_names_no_user(self):

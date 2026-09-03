@@ -60,7 +60,7 @@ WINDOWS = [
                 key="w1t2",
                 directory=str(REPOS / "payments"),
                 name="MR !123 fix auth",
-                color=["neutralBright", "green"],
+                color=["green", "neutralBright"],
                 panes=3,
                 focused_pane=0,
                 statuses={1: "working", 2: "waiting"},
@@ -187,24 +187,24 @@ BRANCHES = {
 
 GHOSTTY_CONFIG = """\
 palette = 0=#000000
-palette = 1=#f2777a
-palette = 2=#99cc99
-palette = 3=#ffcc66
-palette = 4=#6699cc
-palette = 5=#cc99cc
-palette = 6=#66cccc
-palette = 7=#ffffff
-palette = 8=#595959
-palette = 9=#f2777a
-palette = 10=#99cc99
-palette = 11=#ffcc66
-palette = 12=#6699cc
-palette = 13=#cc99cc
-palette = 14=#66cccc
+palette = 1=#b30d0e
+palette = 2=#00bb00
+palette = 3=#fecd22
+palette = 4=#3a9bdb
+palette = 5=#bb00bb
+palette = 6=#00bbbb
+palette = 7=#bbbbbb
+palette = 8=#555555
+palette = 9=#ff0003
+palette = 10=#93c863
+palette = 11=#fef874
+palette = 12=#a1d7ff
+palette = 13=#ff55ff
+palette = 14=#55ffff
 palette = 15=#ffffff
-background = #2d2d2d
-foreground = #cccccc
-cursor-color = #cccccc
+background = #283033
+foreground = #cdcdcd
+cursor-color = #c0cad0
 font-family = "Fira Code"
 font-size = 15
 window-padding-x = 10
