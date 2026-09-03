@@ -302,7 +302,15 @@ def get(path: str):
 
 def stop() -> None:
     subprocess.run(["just", "stop"], check=False, capture_output=True)
-    time.sleep(1)
+    deadline = time.time() + 10.0
+    while time.time() < deadline:
+        try:
+            get("/surfaces")
+            time.sleep(0.2)
+        except Exception:
+            return
+    # The debug server never went quiet. Proceed anyway: launch() or
+    # wait_for_server() will surface whatever is actually wrong next.
 
 
 def launch() -> None:
