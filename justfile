@@ -268,6 +268,15 @@ inspect-quit:
 demo:
     @uv run scripts/montty_demo.py build
 
+# Build the demo world, run a live Claude exchange in the hero pane, and
+# capture every screenshot the README uses
+demo-shoot:
+    @uv run scripts/montty_demo.py shoot
+
+# Run the demo harness's own unit tests
+demo-test:
+    @python3 scripts/test_montty_demo.py
+
 # Bump version in Info.plist, commit, tag with release notes, and push.
 # If no version given, increments the patch version from the last tag.
 bump version="":

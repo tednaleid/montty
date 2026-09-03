@@ -8,6 +8,7 @@
 from __future__ import annotations
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -220,7 +221,39 @@ HISTFILE=""
 setopt PROMPT_SUBST
 PROMPT='%F{blue}%1~%f %F{green}> %f'
 export PAGER=cat
+export PATH="/opt/homebrew/bin:$PATH"
 """
+
+# The only fixture repo the live Claude pane actually explores, so it needs a
+# real source tree; the other repos' fixtures only ever appear via a static
+# `cat` and stay as bare .git directories.
+PAYMENTS_SOURCE = {
+    "Cargo.toml": """\
+[package]
+name = "payments"
+version = "0.4.3"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+""",
+    "README.md": """\
+# payments
+
+Handles payment authorization and capture for the checkout flow.
+""",
+    "src/main.rs": """\
+use axum::Router;
+
+#[tokio::main]
+async fn main() {
+    let app = Router::new();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+}
+""",
+}
 
 PANE_FIXTURES = {
     "tree": """\
@@ -259,11 +292,23 @@ def materialize_world(root: Path = DEMO_ROOT) -> None:
     worktree_meta.mkdir(parents=True, exist_ok=True)
     (worktree_meta / "HEAD").write_text("ref: refs/heads/release/2.4\n")
 
+    for relative_path, body in PAYMENTS_SOURCE.items():
+        source_file = root / "repos" / "payments" / relative_path
+        source_file.parent.mkdir(parents=True, exist_ok=True)
+        source_file.write_text(body)
+
     (root / "scratch").mkdir(parents=True, exist_ok=True)
 
     config = root / "config" / "ghostty"
     config.mkdir(parents=True, exist_ok=True)
     (config / "config").write_text(GHOSTTY_CONFIG)
+
+    # veer also reads XDG_CONFIG_HOME for its own global config, so without
+    # this it searches the demo's config tree, finds no rules, and fails
+    # every tool call closed as a safety default.
+    veer_config = root / "config" / "veer"
+    veer_config.mkdir(parents=True, exist_ok=True)
+    (veer_config / "config.toml").write_text("")
 
     zdotdir = root / "zdotdir"
     zdotdir.mkdir(parents=True, exist_ok=True)
@@ -448,6 +493,42 @@ def set_statuses() -> None:
                     )
 
 
+CLAUDE_PROMPTS = [
+    "in one sentence, what does this service do?",
+    "which file would I edit to change the listen port?",
+    "what would you check first before adding a new endpoint?",
+]
+
+
+def start_claude(settle: float = 45.0) -> None:
+    """Three exchanges, because fewer don't produce enough output to push the
+    startup banner, with its model and plan tier, out of the viewport. The demo
+    shell's ZDOTDIR skips the owner's real dotfiles, so claude is resolved to an
+    absolute path here rather than typed as a bare command that PATH might miss."""
+    claude_bin = shutil.which("claude")
+    if claude_bin is None:
+        raise SystemExit("claude not found on PATH; cannot start the demo Claude pane")
+    surfaces = get("/surfaces")
+    for window in WINDOWS:
+        for tab in window.tabs:
+            if tab.claude_pane is None:
+                continue
+            surface = surface_for(tab.key, tab.claude_pane, surfaces)
+            run_in(surface, "clear")
+            run_in(surface, claude_bin)
+            time.sleep(8)
+            # A directory Claude has not seen asks to be trusted first, and
+            # defaults to "No, exit" -- move down to "Yes, I trust this folder"
+            # before confirming.
+            post(f"/key?surface={surface['id']}", "down")
+            post(f"/key?surface={surface['id']}", "return")
+            time.sleep(2)
+            for prompt in CLAUDE_PROMPTS:
+                post(f"/type?surface={surface['id']}", prompt)
+                post(f"/key?surface={surface['id']}", "return")
+                time.sleep(settle / len(CLAUDE_PROMPTS))
+
+
 def cmd_build() -> None:
     subprocess.run(["just", "build"], check=True)
     stop()
@@ -460,8 +541,18 @@ def cmd_build() -> None:
     report()
 
 
+def cmd_shoot() -> None:
+    cmd_build()
+    start_claude()
+    capture_all()
+
+
 def main() -> None:
-    commands = {"build": cmd_build, "session": lambda: print(json.dumps(build_session(), indent=2))}
+    commands = {
+        "build": cmd_build,
+        "shoot": cmd_shoot,
+        "session": lambda: print(json.dumps(build_session(), indent=2)),
+    }
     name = sys.argv[1] if len(sys.argv) > 1 else "build"
     if name not in commands:
         raise SystemExit(f"unknown command {name!r}; try {', '.join(commands)}")

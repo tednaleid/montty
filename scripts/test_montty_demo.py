@@ -118,6 +118,12 @@ class MaterializeWorldTest(unittest.TestCase):
         for name in referenced:
             self.assertTrue((self.root / "fixtures" / f"{name}.txt").is_file(), name)
 
+    def test_payments_gets_a_real_source_tree_for_the_live_claude_pane(self):
+        payments = self.root / "repos" / "payments"
+        self.assertIn("payments", (payments / "Cargo.toml").read_text())
+        self.assertIn("payment", (payments / "README.md").read_text().lower())
+        self.assertIn("8080", (payments / "src" / "main.rs").read_text())
+
     def test_is_idempotent(self):
         demo.materialize_world(self.root)
         head = self.root / "repos" / "payments" / ".git" / "HEAD"
