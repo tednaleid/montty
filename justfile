@@ -264,6 +264,10 @@ inspect-icon:
 inspect-quit:
     @curl -sf -X POST localhost:9876/quit | jq .
 
+# Build the demo world and open montty on it, for judging the screenshot layout
+demo:
+    @uv run scripts/montty_demo.py build
+
 # Bump version in Info.plist, commit, tag with release notes, and push.
 # If no version given, increments the patch version from the last tag.
 bump version="":

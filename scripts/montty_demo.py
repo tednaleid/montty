@@ -7,6 +7,11 @@
 # ABOUTME: regenerate every screenshot the README uses.
 from __future__ import annotations
 import json
+import os
+import subprocess
+import sys
+import time
+import urllib.request
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -271,5 +276,83 @@ def materialize_world(root: Path = DEMO_ROOT) -> None:
     (session / "session.json").write_text(json.dumps(build_session(), indent=2))
 
 
+BUILD_DIR = Path("/tmp/montty-build")
+APP = BUILD_DIR / "Debug" / "Montty.app" / "Contents" / "MacOS" / "Montty"
+SERVER = "http://localhost:9876"
+
+
+def demo_env() -> dict[str, str]:
+    """The four variables that make a run hermetic. HOME is deliberately absent:
+    Claude Code's login lives there, and a fresh HOME logs the demo pane out."""
+    env = dict(os.environ)
+    env["XDG_CONFIG_HOME"] = str(DEMO_ROOT / "config")
+    env["ZDOTDIR"] = str(DEMO_ROOT / "zdotdir")
+    env["MONTTY_SESSION_DIR"] = str(DEMO_ROOT / "session")
+    env["MONTTY_SOCKET"] = str(DEMO_ROOT / "hook.sock")
+    return env
+
+
+def get(path: str):
+    with urllib.request.urlopen(f"{SERVER}{path}", timeout=5) as response:
+        return json.loads(response.read())
+
+
+def stop() -> None:
+    subprocess.run(["just", "stop"], check=False, capture_output=True)
+    time.sleep(1)
+
+
+def launch() -> None:
+    subprocess.Popen([str(APP)], env=demo_env(), start_new_session=True)
+
+
+def wait_for_server(timeout: float = 20.0) -> list[dict]:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            return get("/surfaces")
+        except Exception:
+            time.sleep(0.5)
+    raise SystemExit("montty debug server never answered on :9876")
+
+
+def report() -> None:
+    """Print what montty actually resolved, so the roster and palette can be
+    judged against the running window rather than against the spec."""
+    surfaces = get("/surfaces")
+    seen: set[str] = set()
+    print(f"{'tab':<22}{'branch':<24}{'source':<9}color")
+    for surface in surfaces:
+        tab = surface.get("tab_id", "")
+        if tab in seen:
+            continue
+        seen.add(tab)
+        color = surface.get("color", {})
+        git = surface.get("git") or {}
+        print(
+            f"{surface.get('tab_name', ''):<22}"
+            f"{git.get('branch', '-'):<24}"
+            f"{color.get('source', '-'):<9}"
+            f"{','.join(color.get('effective', []))}"
+        )
+
+
+def cmd_build() -> None:
+    subprocess.run(["just", "build"], check=True)
+    stop()
+    materialize_world()
+    launch()
+    wait_for_server()
+    report()
+
+
+def main() -> None:
+    commands = {"build": cmd_build, "session": lambda: print(json.dumps(build_session(), indent=2))}
+    name = sys.argv[1] if len(sys.argv) > 1 else "build"
+    if name not in commands:
+        raise SystemExit(f"unknown command {name!r}; try {', '.join(commands)}")
+    commands[name]()
+
+
 if __name__ == "__main__":
-    print(json.dumps(build_session(), indent=2))
+    main()
