@@ -35,6 +35,8 @@ enum ControlCLI {
         switch invocation {
         case .version, .help:
             fatalError("version and help already exited above; neither needs a surface")
+        case .showColor(let scope):
+            runShowColor(scope: scope, surface: surface, socketPath: socketPath)
         case .hook(let event):
             runHook(event: event, surface: surface, socketPath: socketPath)
         case .control(let command):
@@ -84,6 +86,49 @@ enum ControlCLI {
             _ = ControlTransport.roundTrip(payload, socketPath: socketPath, expectReply: false)
         }
         exit(ExitCode.ok.rawValue)
+    }
+
+    /// Reads the colors back through the existing info command, so no new
+    /// wire verb is needed. A scope with no override of its own reports what
+    /// it inherits instead, since that is what the pane actually renders.
+    private static func runShowColor(
+        scope: ControlScope, surface: String, socketPath: String
+    ) -> Never {
+        let info = requestInfo(surface: surface, socketPath: socketPath)
+        let scopes = info["scopes"] as? [String: Any]
+        let own = (scopes?[scope.rawValue] as? [String: Any])?["stops"] as? [String]
+        if let own {
+            print(own.joined(separator: ","))
+        } else {
+            let effective = (info["effective"] as? [String: Any])?["stops"] as? [String]
+            print("not set (effective \(effective?.joined(separator: ",") ?? "none"))")
+        }
+        exit(ExitCode.ok.rawValue)
+    }
+
+    /// The info reply as a raw dictionary. `ControlInfo` is not decoded here:
+    /// it is encoded with a snake-case strategy that renders `surfaceID` as
+    /// `surface_id`, and the matching decode strategy restores that as
+    /// `surfaceId`, which no longer matches the property.
+    private static func requestInfo(surface: String, socketPath: String) -> [String: Any] {
+        let request = ControlRequest(surface: surface, command: .info)
+        guard let payload = try? request.encoded() else {
+            fail("could not encode the request", .usage)
+        }
+        let reply: Data
+        switch ControlTransport.roundTrip(payload, socketPath: socketPath, expectReply: true) {
+        case .success(let data) where !data.isEmpty:
+            reply = data
+        case .success:
+            fail(ControlTransportError.disconnected.message, .notRunning)
+        case .failure(let error):
+            fail(error.message, .notRunning)
+        }
+        let parsed = (try? JSONSerialization.jsonObject(with: reply)) as? [String: Any]
+        guard let parsed, parsed["ok"] as? Bool == true else {
+            fail(parsed?["error"] as? String ?? "request rejected", .rejected)
+        }
+        return parsed
     }
 
     private static func runControl(command: ControlCommand, surface: String, socketPath: String) -> Never {

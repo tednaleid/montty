@@ -478,7 +478,7 @@ extension DebugServer {
                 .null,
                 .optionIncludingWindow,
                 windowID,
-                [.boundsIgnoreFraming]
+                [.boundsIgnoreFraming, .bestResolution]
             ) else {
                 sendJSON(["error": "Window capture failed"], status: 500, connection: connection)
                 return

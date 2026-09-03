@@ -5,6 +5,8 @@ import Foundation
 
 enum ParsedInvocation: Equatable {
     case control(ControlCommand)
+    /// `montty <scope> color` with no value: print what that scope resolves to.
+    case showColor(ControlScope)
     /// A Claude Code hook event name, forwarded on the legacy wire format.
     case hook(String)
     case version
@@ -39,6 +41,7 @@ enum ControlArgs {
           montty surface color <spec>      montty surface color --reset
           montty tab     color <spec>      montty tab     color --reset
           montty repo    color <spec>      montty repo    color --reset
+          montty <scope> color             prints what that scope resolves to
           montty tab     name  <text>      montty tab     name  --reset
           montty surface status <working|waiting|idle|clear>
           montty hook <event>
@@ -154,7 +157,7 @@ enum ControlArgs {
     private static func parseColor(
         scope: ControlScope, value: String?
     ) -> Result<ParsedInvocation, UsageError> {
-        guard let value else { return .failure(.missingValue("color")) }
+        guard let value else { return .success(.showColor(scope)) }
         if value == "--reset" { return .success(.control(.clearColor(scope: scope))) }
         return parseTint(value).map { .control(.setColor(scope: scope, tint: $0)) }
     }

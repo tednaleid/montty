@@ -89,8 +89,13 @@ import Testing
     }
 
     @Test func rejectsAMissingValue() {
-        #expect(failure(["tab", "color"]) == .missingValue("color"))
         #expect(failure(["tab", "name"]) == .missingValue("name"))
+    }
+
+    @Test func aColorWithNoValueReadsTheCurrentColorBack() {
+        #expect(ControlArgs.parse(["surface", "color"]) == .success(.showColor(.surface)))
+        #expect(ControlArgs.parse(["tab", "color"]) == .success(.showColor(.tab)))
+        #expect(ControlArgs.parse(["repo", "color"]) == .success(.showColor(.repo)))
     }
 
     @Test func rejectsScopeWithNoProperty() {
