@@ -14,11 +14,24 @@ A macOS terminal app built on [GhosttyKit](https://github.com/ghostty-org/ghostt
 - Git branch and directory info in tab sidebar
 - Claude Code status indicators (working, waiting, idle) on minimap panes
 - Standard Ghostty theming from `~/.config/ghostty/config`
+- Multiple windows from one process, opened with Cmd-N, each owning its own tabs, which never move between windows
+- The `montty` CLI for setting colors, names, and activity status from a shell or a script (see [docs/montty-cli.md](docs/montty-cli.md))
+- Colors resolving surface, then tab, then repo, then the automatic git signature, with repo colors shared across every tab in a repo
+- Gradient tints of up to three stops, with a worktree's gradient carrying its parent repo's colors on the leading edge and its own color on the trailing edge
+- Opening the focused pane's directory in an editor (Cmd-Shift-E)
 - Surface jump (Cmd+;) for ace-jump/easy-motion style navigation across all panes
 
 Easy Motion allows movement directly to any terminal surface across tabs:
 
 ![Montty easy motion screenshot](docs/screenshot-easymotion.png)
+
+Cmd-N opens another window from the same process. Each window keeps its own tabs and splits; tabs never move between windows:
+
+![Montty two windows screenshot](docs/screenshot-windows.png)
+
+The `montty` command line tool sets colors, names, and activity status on the pane it runs in, from a shell or a script. Run `montty --help` for the full command list, or see [docs/montty-cli.md](docs/montty-cli.md):
+
+![Montty CLI help screenshot](docs/screenshot-cli.png)
 
 ## Install
 
