@@ -330,13 +330,18 @@ SERVER = "http://localhost:9876"
 
 
 def demo_env() -> dict[str, str]:
-    """The four variables that make a run hermetic. HOME is deliberately absent:
-    Claude Code's login lives there, and a fresh HOME logs the demo pane out."""
-    env = dict(os.environ)
+    """Inherits the caller's environment, overrides what needs to be hermetic,
+    and strips markers a parent Claude Code session would otherwise leak into
+    the demo's own Claude pane. HOME is deliberately left alone: Claude Code's
+    login lives there, and a fresh HOME logs the demo pane out."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("CLAUDE_CODE_")}
     env["XDG_CONFIG_HOME"] = str(DEMO_ROOT / "config")
     env["ZDOTDIR"] = str(DEMO_ROOT / "zdotdir")
     env["MONTTY_SESSION_DIR"] = str(DEMO_ROOT / "session")
     env["MONTTY_SOCKET"] = str(DEMO_ROOT / "hook.sock")
+    # Claude Code otherwise announces a finished background update across the
+    # transcript, which lands in the hero shot.
+    env["DISABLE_AUTOUPDATER"] = "1"
     return env
 
 
@@ -467,7 +472,10 @@ def fill_panes() -> None:
                 surface = surface_for(tab.key, pane, surfaces)
                 run_in(surface, "clear")
                 if fixture == "cli":
-                    run_in(surface, "montty --help")
+                    # MONTTY_BIN is injected into every surface by the running
+                    # app, so the usage text always comes from the binary that
+                    # is driving this demo rather than whatever PATH resolves.
+                    run_in(surface, "$MONTTY_BIN --help")
                 else:
                     run_in(surface, f"cat {DEMO_ROOT}/fixtures/{fixture}.txt")
     time.sleep(1.5)
@@ -499,12 +507,34 @@ CLAUDE_PROMPTS = [
     "what would you check first before adding a new endpoint?",
 ]
 
+# Asked one at a time, and only while the startup banner is still in view.
+BANNER_PROMPTS = [
+    "and what should the first test for that endpoint cover?",
+    "how would you keep the handler modules from sprawling?",
+    "what belongs in the README before the first release?",
+]
+
+
+def ask(surface: dict, prompt: str, settle: float) -> None:
+    post(f"/type?surface={surface['id']}", prompt)
+    post(f"/key?surface={surface['id']}", "return")
+    time.sleep(settle)
+
+
+def banner_in_view(surface: dict) -> bool:
+    """The startup banner names the model and the plan tier, and sits directly
+    above the first prompt, so the first prompt still being on screen is the
+    conservative test for whether any banner line is. Matched on a leading
+    fragment short enough that no pane width can wrap it away."""
+    marker = CLAUDE_PROMPTS[0][:15]
+    return marker in get(f"/screen?surface={surface['id']}")["text"]
+
 
 def start_claude(settle: float = 45.0) -> None:
-    """Three exchanges, because fewer don't produce enough output to push the
-    startup banner, with its model and plan tier, out of the viewport. The demo
-    shell's ZDOTDIR skips the owner's real dotfiles, so claude is resolved to an
-    absolute path here rather than typed as a bare command that PATH might miss."""
+    """Three exchanges, plus however many follow-ups it takes to scroll the
+    startup banner out of the viewport. The demo shell's ZDOTDIR skips the
+    owner's real dotfiles, so claude is resolved to an absolute path here rather
+    than typed as a bare command that PATH might miss."""
     claude_bin = shutil.which("claude")
     if claude_bin is None:
         raise SystemExit("claude not found on PATH; cannot start the demo Claude pane")
@@ -523,17 +553,41 @@ def start_claude(settle: float = 45.0) -> None:
             post(f"/key?surface={surface['id']}", "down")
             post(f"/key?surface={surface['id']}", "return")
             time.sleep(2)
+            pace = settle / len(CLAUDE_PROMPTS)
             for prompt in CLAUDE_PROMPTS:
-                post(f"/type?surface={surface['id']}", prompt)
-                post(f"/key?surface={surface['id']}", "return")
-                time.sleep(settle / len(CLAUDE_PROMPTS))
+                ask(surface, prompt, pace)
+            for prompt in BANNER_PROMPTS:
+                if not banner_in_view(surface):
+                    break
+                ask(surface, prompt, pace)
+            if banner_in_view(surface):
+                print("warning: the Claude Code banner is still in the hero pane's viewport")
+            # Claude Code draws a suggested next prompt inside an empty
+            # composer, which reads as stray text in the screenshot. A single
+            # space replaces the suggestion and still renders as an empty
+            # composer, and /type refuses a body that is only whitespace.
+            post(f"/key?surface={surface['id']}", "space")
+            time.sleep(1.0)
 
 
 DOCS = Path(__file__).resolve().parent.parent / "docs"
 RAW = DEMO_ROOT / "raw"
 
 TARGET_WIDTH = 1400
-BACKDROP = (30, 30, 46)
+
+
+def _config_background(config: str = GHOSTTY_CONFIG) -> tuple[int, int, int]:
+    """The mat behind the composited windows, read from the pinned theme so it
+    cannot drift away from what the terminals themselves render."""
+    for line in config.splitlines():
+        name, _, value = line.partition("=")
+        if name.strip() == "background":
+            hexed = value.strip().lstrip("#")
+            return (int(hexed[0:2], 16), int(hexed[2:4], 16), int(hexed[4:6], 16))
+    raise SystemExit("ghostty config has no background line to derive the backdrop from")
+
+
+BACKDROP = _config_background()
 
 
 def _downscale(image, width: int = TARGET_WIDTH):

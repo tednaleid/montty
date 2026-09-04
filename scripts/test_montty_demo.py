@@ -1,6 +1,7 @@
 # ABOUTME: Stdlib unittest coverage for the montty demo world generator, run
 # ABOUTME: without dependencies so it stays cheap to execute.
 import json
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -124,10 +125,29 @@ class MaterializeWorldTest(unittest.TestCase):
         self.assertIn("payment", (payments / "README.md").read_text().lower())
         self.assertIn("8080", (payments / "src" / "main.rs").read_text())
 
+    def test_writes_a_veer_config_so_tool_calls_do_not_fail_closed(self):
+        config = self.root / "config" / "veer" / "config.toml"
+        self.assertTrue(config.is_file())
+
     def test_is_idempotent(self):
         demo.materialize_world(self.root)
         head = self.root / "repos" / "payments" / ".git" / "HEAD"
         self.assertEqual(head.read_text().strip(), "ref: refs/heads/main")
+
+
+class DemoEnvTest(unittest.TestCase):
+    def test_leaves_home_alone_so_the_claude_pane_stays_logged_in(self):
+        env = demo.demo_env()
+        self.assertEqual(env.get("HOME"), os.environ.get("HOME"))
+
+    def test_silences_the_claude_code_updater_notice(self):
+        self.assertEqual(demo.demo_env()["DISABLE_AUTOUPDATER"], "1")
+
+    def test_strips_the_parent_claude_session_markers(self):
+        os.environ["CLAUDE_CODE_CHILD_SESSION"] = "1"
+        self.addCleanup(os.environ.pop, "CLAUDE_CODE_CHILD_SESSION", None)
+        env = demo.demo_env()
+        self.assertEqual([k for k in env if k.startswith("CLAUDE_CODE_")], [])
 
 
 if __name__ == "__main__":
