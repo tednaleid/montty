@@ -393,9 +393,9 @@ def verify_layout() -> None:
     if len(surfaces) != expected_panes:
         problems.append(f"expected {expected_panes} panes, montty restored {len(surfaces)}")
 
-    expected_windows = len({s["window_id"] for s in surfaces})
-    if expected_windows != len(WINDOWS):
-        problems.append(f"expected {len(WINDOWS)} windows, montty restored {expected_windows}")
+    observed_windows = len({s["window_id"] for s in surfaces})
+    if observed_windows != len(WINDOWS):
+        problems.append(f"expected {len(WINDOWS)} windows, montty restored {observed_windows}")
 
     by_tab = {s["tab_id"]: s for s in surfaces}
     for window in WINDOWS:
@@ -413,6 +413,35 @@ def verify_layout() -> None:
                 problems.append(
                     f"tab {tab.key} has {surface.get('split_count')} panes, expected {tab.panes}"
                 )
+            if tab.color:
+                color = surface.get("color", {})
+                if color.get("source") != "tab" or color.get("effective") != tab.color:
+                    problems.append(
+                        f"tab {tab.key} resolved {color.get('source')}/"
+                        f"{color.get('effective')}, expected tab/{tab.color}"
+                    )
+
+    # A repo override resolves through an identity hash of the repo path, which
+    # falls back silently when the key stops matching, so assert it landed.
+    for repo_path, stops in REPO_OVERRIDES.items():
+        covered = False
+        for window in WINDOWS:
+            for tab in window.tabs:
+                in_repo = tab.directory == repo_path or tab.directory.startswith(repo_path + "/")
+                if tab.color or not in_repo:
+                    continue
+                surface = by_tab.get(demo_uuid(f"{tab.key}.tab"))
+                if surface is None:
+                    continue
+                covered = True
+                color = surface.get("color", {})
+                if color.get("source") != "repo" or color.get("effective") != stops:
+                    problems.append(
+                        f"tab {tab.key} resolved {color.get('source')}/"
+                        f"{color.get('effective')}, expected repo/{stops}"
+                    )
+        if not covered:
+            problems.append(f"no restored tab picks up the repo override for {repo_path}")
 
     if problems:
         raise SystemExit("demo layout did not restore as specified:\n  " + "\n  ".join(problems))
