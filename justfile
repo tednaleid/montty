@@ -109,7 +109,7 @@ lint:
     swiftlint lint --strict
 
 # Run tests, lint, and build (CI check)
-check: test lint build
+check: test demo-test lint build
 
 # Build and launch the app (foreground)
 # MONTTY_SESSION_DIR keeps this build's tabs out of the installed app's session,
