@@ -283,9 +283,9 @@ def materialize_world(root: Path = DEMO_ROOT) -> None:
 
     # A linked worktree is a .git file, which is what makes montty render the
     # parent repo's leading stop with the worktree's own trailing stop.
-    hotfix = root / "repos" / "payments-release"
-    hotfix.mkdir(parents=True, exist_ok=True)
-    (hotfix / ".git").write_text(
+    payments_release = root / "repos" / "payments-release"
+    payments_release.mkdir(parents=True, exist_ok=True)
+    (payments_release / ".git").write_text(
         f"gitdir: {root / 'repos' / 'payments' / '.git'}/worktrees/payments-release\n"
     )
     worktree_meta = root / "repos" / "payments" / ".git" / "worktrees" / "payments-release"
@@ -678,14 +678,15 @@ def capture_all() -> None:
     post("/jump", hero["leaf_id"])
     time.sleep(0.5)
 
-    # Each window is captured on its own; they are composited in Task 9.
+    # Each window is captured on its own; they are composited in postprocess().
     capture(hero["id"], RAW / "window-one.png")
     capture(second_window["id"], RAW / "window-two.png")
 
     # Last, because switching tabs moves the focus. goto_tab is window-scoped,
     # resolved from the surface named in the query string, so cli's id (fixed
     # at the top of this function) still names the right window afterward.
-    post("/action?surface=" + cli["id"], "goto_tab:6")
+    cli_tab_index = 1 + next(i for i, t in enumerate(WINDOWS[0].tabs) if t.key == "w1t6")
+    post("/action?surface=" + cli["id"], f"goto_tab:{cli_tab_index}")
     time.sleep(1)
     capture(cli["id"], RAW / "cli.png")
 
@@ -723,8 +724,6 @@ def cmd_preview() -> None:
 
 
 def cmd_clean() -> None:
-    import shutil
-
     stop()
     shutil.rmtree(DEMO_ROOT, ignore_errors=True)
     print(f"removed {DEMO_ROOT}")
