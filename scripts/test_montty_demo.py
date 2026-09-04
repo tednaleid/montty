@@ -18,9 +18,9 @@ class BuildSessionTest(unittest.TestCase):
         self.assertEqual(self.session["version"], 4)
         self.assertEqual(len(self.session["windows"]), 2)
 
-    def test_first_window_carries_the_six_tab_roster(self):
+    def test_first_window_carries_the_five_tab_roster(self):
         names = [t["name"] for t in self.session["windows"][0]["tabs"]]
-        self.assertEqual(names, ["", "MR !123 fix auth", "", "", "", ""])
+        self.assertEqual(names, ["", "MR !123 fix auth", "", "", ""])
 
     def test_auto_named_tabs_store_an_empty_name(self):
         first = self.session["windows"][0]["tabs"][0]
