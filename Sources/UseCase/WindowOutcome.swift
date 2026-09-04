@@ -46,5 +46,6 @@ struct SurfacePlan: Equatable {
 /// the boundary as data rather than being written directly.
 struct SettingsUpdate: Equatable {
     let surfaceTintEnabled: Bool
+    let surfaceTintStrength: Double
     let repoColorOverrides: [String: PaneTint]
 }

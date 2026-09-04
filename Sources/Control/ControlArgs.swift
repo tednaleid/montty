@@ -31,6 +31,7 @@ enum ControlArgs {
         case missingValue(String)
         case badColor(String)
         case tooManyStops
+        case badTintStrength(String)
         case unexpectedArgument(String)
     }
 
@@ -45,6 +46,7 @@ enum ControlArgs {
           montty tab     name  <text>      montty tab     name  --reset
           montty surface status <working|waiting|idle|clear>
           montty hook <event>
+          montty tint-strength <value>     montty tint-strength --reset
           montty info
           montty --version                 montty -v
           montty --help                    montty -h
@@ -52,6 +54,9 @@ enum ControlArgs {
         <spec> is 1 to 3 comma-separated stops. A stop is a palette name
         (green, brightMagenta, neutralBright) or a six-digit hex value with
         or without a leading #.
+
+        <value> for tint-strength is between \(SurfaceTintStrength.range.lowerBound) and \
+        \(SurfaceTintStrength.range.upperBound); the default is \(SurfaceTintStrength.default).
 
         palette names:
         \(colorNameList)
@@ -138,9 +143,23 @@ enum ControlArgs {
         case "hook":
             guard arguments.count >= 2 else { return .failure(.missingValue("hook")) }
             return exactly(2, of: arguments, is: .hook(arguments[1]))
+        case "tint-strength":
+            guard arguments.count >= 2 else { return .failure(.missingValue("tint-strength")) }
+            guard arguments.count <= 2 else { return .failure(.unexpectedArgument(arguments[2])) }
+            return parseTintStrength(arguments[1])
         default:
             return nil
         }
+    }
+
+    private static func parseTintStrength(_ value: String) -> Result<ParsedInvocation, UsageError> {
+        if value == "--reset" {
+            return .success(.control(.setTintStrength(SurfaceTintStrength.default)))
+        }
+        guard let strength = Double(value), SurfaceTintStrength.range.contains(strength) else {
+            return .failure(.badTintStrength(value))
+        }
+        return .success(.control(.setTintStrength(strength)))
     }
 
     /// Every invocation has a fixed arity. An argument past it means the caller

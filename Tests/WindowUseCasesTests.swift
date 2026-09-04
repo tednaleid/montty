@@ -234,6 +234,7 @@ import Testing
         let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
         let saved = SessionSnapshot(
             surfaceTintEnabled: false,
+            surfaceTintStrength: 0.2,
             windows: [],
             keyWindowID: nil,
             repoColorOverrides: ["/Users/dev/work/alpha": PaneTint(stops: [.named(.blue)])]
@@ -242,6 +243,7 @@ import Testing
         let outcome = useCases.restore(saved)
 
         #expect(outcome.applySettings?.surfaceTintEnabled == false)
+        #expect(outcome.applySettings?.surfaceTintStrength == 0.2)
         #expect(outcome.applySettings?.repoColorOverrides["/Users/dev/work/alpha"] ==
                 PaneTint(stops: [.named(.blue)]))
     }
@@ -364,6 +366,7 @@ import Testing
 
         let snapshot = useCases.snapshot(
             surfaceTintEnabled: false,
+            surfaceTintStrength: 0.2,
             repoColorOverrides: [:],
             frames: [:],
             directories: [:]
@@ -371,6 +374,7 @@ import Testing
 
         #expect(snapshot.windows.count == 2)
         #expect(snapshot.surfaceTintEnabled == false)
+        #expect(snapshot.surfaceTintStrength == 0.2)
         #expect(Set(snapshot.windows.map(\.windowID)) == Set(windows.map(\.id)))
     }
 
@@ -386,6 +390,7 @@ import Testing
 
         let snapshot = useCases.snapshot(
             surfaceTintEnabled: true,
+            surfaceTintStrength: SurfaceTintStrength.default,
             repoColorOverrides: [:],
             frames: [windows[0].id: liveFrame],
             directories: [trackedSurface: "/Users/dev/work/alpha"]
@@ -548,7 +553,8 @@ import Testing
     /// test left it.
     private func savedSession(_ useCases: WindowUseCases) -> SessionSnapshot {
         useCases.snapshot(
-            surfaceTintEnabled: true, repoColorOverrides: [:],
+            surfaceTintEnabled: true, surfaceTintStrength: SurfaceTintStrength.default,
+            repoColorOverrides: [:],
             frames: [:], directories: [:]
         )
     }

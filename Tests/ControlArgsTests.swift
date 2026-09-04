@@ -72,6 +72,21 @@ import Testing
         #expect(event == "pre-tool-use")
     }
 
+    @Test func parsesTintStrengthAndReset() {
+        #expect(command(["tint-strength", "0.2"]) == .setTintStrength(0.2))
+        #expect(command(["tint-strength", "0"]) == .setTintStrength(0))
+        #expect(command(["tint-strength", "0.5"]) == .setTintStrength(0.5))
+        #expect(command(["tint-strength", "--reset"]) == .setTintStrength(SurfaceTintStrength.default))
+    }
+
+    @Test func rejectsTintStrengthOutsideItsRange() {
+        #expect(failure(["tint-strength", "0.51"]) == .badTintStrength("0.51"))
+        #expect(failure(["tint-strength", "1"]) == .badTintStrength("1"))
+        #expect(failure(["tint-strength", "-0.1"]) == .badTintStrength("-0.1"))
+        #expect(failure(["tint-strength", "nope"]) == .badTintStrength("nope"))
+        #expect(failure(["tint-strength", "nan"]) == .badTintStrength("nan"))
+    }
+
     @Test func rejectsBadColorSpecs() {
         #expect(failure(["tab", "color", "chartreuse"]) == .badColor("chartreuse"))
         #expect(failure(["tab", "color", "#fff"]) == .badColor("#fff"))
@@ -133,6 +148,11 @@ import Testing
         #expect(failure(["--version", "extra"]) == .unexpectedArgument("extra"))
         #expect(failure(["--help", "extra"]) == .unexpectedArgument("extra"))
         #expect(failure(["hook", "stop", "extra"]) == .unexpectedArgument("extra"))
+        #expect(failure(["tint-strength", "0.2", "extra"]) == .unexpectedArgument("extra"))
+    }
+
+    @Test func rejectsTintStrengthWithNoValue() {
+        #expect(failure(["tint-strength"]) == .missingValue("tint-strength"))
     }
 
     @Test func classifiesLaunchArgumentsVersusCLIInvocations() {

@@ -191,6 +191,7 @@ final class WindowUseCases {
         if let snapshot {
             outcome.applySettings = SettingsUpdate(
                 surfaceTintEnabled: snapshot.surfaceTintEnabled,
+                surfaceTintStrength: snapshot.surfaceTintStrength,
                 repoColorOverrides: snapshot.repoColorOverrides
             )
         }
@@ -245,6 +246,7 @@ final class WindowUseCases {
     /// working directory -- and the settings that live there.
     func snapshot(
         surfaceTintEnabled: Bool,
+        surfaceTintStrength: Double,
         repoColorOverrides: [String: PaneTint],
         frames: [UUID: WindowFrame],
         directories: [UUID: String]
@@ -252,7 +254,9 @@ final class WindowUseCases {
         var snapshot = SessionSnapshotBuilder.snapshot(
             windows: registry.windows,
             keyWindowID: registry.keyWindowID,
-            surfaceTintEnabled: surfaceTintEnabled,
+            surfaceTint: SurfaceTintSettings(
+                enabled: surfaceTintEnabled, strength: surfaceTintStrength
+            ),
             repoColorOverrides: repoColorOverrides,
             environment: SessionEnvironment(
                 frame: { frames[$0.id] ?? $0.frame },

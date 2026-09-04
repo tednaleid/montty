@@ -57,6 +57,12 @@ enum ControlService {
             setStatus(status, target: target, to: &state, now: now)
             return .applied
 
+        case .setTintStrength:
+            // App-wide, not part of any tab's ControlState. AppDelegate.applyControl
+            // handles it before a command ever reaches here; this case exists only
+            // so this switch stays exhaustive over ControlCommand.
+            return .applied
+
         case .info:
             return .read(info(target: target, state: state,
                               gitInfoProvider: gitInfoProvider))

@@ -12,18 +12,26 @@ struct SessionEnvironment {
     let directory: (UUID) -> String?
 }
 
+/// The surface tint's two settings, bundled so `SessionSnapshotBuilder.snapshot`
+/// stays under SwiftLint's parameter limit.
+struct SurfaceTintSettings: Equatable {
+    let enabled: Bool
+    let strength: Double
+}
+
 enum SessionSnapshotBuilder {
     /// One snapshot per open window, in the shape `SessionStore` writes to
     /// disk.
     static func snapshot(
         windows: [WindowModel],
         keyWindowID: UUID?,
-        surfaceTintEnabled: Bool,
+        surfaceTint: SurfaceTintSettings,
         repoColorOverrides: [String: PaneTint],
         environment: SessionEnvironment
     ) -> SessionSnapshot {
         SessionSnapshot(
-            surfaceTintEnabled: surfaceTintEnabled,
+            surfaceTintEnabled: surfaceTint.enabled,
+            surfaceTintStrength: surfaceTint.strength,
             windows: windows.map { window in
                 WindowSnapshot(
                     windowID: window.id,

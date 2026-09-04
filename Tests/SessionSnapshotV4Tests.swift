@@ -134,6 +134,17 @@ import Testing
         )
     }
 
+    @Test func aFileWithNoSurfaceTintStrengthDefaultsToIt() throws {
+        let snapshot = try decode(#"{"version": 4, "windows": []}"#)
+        #expect(snapshot.surfaceTintStrength == SurfaceTintStrength.default)
+    }
+
+    @Test func anExplicitSurfaceTintStrengthRoundTrips() throws {
+        let snapshot = SessionSnapshot(surfaceTintStrength: 0.2, windows: [])
+        let decoded = try decode(String(data: try JSONEncoder().encode(snapshot), encoding: .utf8)!)
+        #expect(decoded.surfaceTintStrength == 0.2)
+    }
+
     @Test func decodesAnExplicitEmptyWindowsArrayAsNoWindows() throws {
         let snapshot = try decode(#"{"version": 4, "windows": []}"#)
 

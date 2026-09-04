@@ -8,6 +8,7 @@ struct SessionSnapshot: Codable {
 
     var version: Int = Self.currentVersion
     var surfaceTintEnabled: Bool = true
+    var surfaceTintStrength: Double = SurfaceTintStrength.default
     var windows: [WindowSnapshot] = []
     var keyWindowID: UUID?
     var repoColorOverrides: [String: PaneTint] = [:]
@@ -17,12 +18,14 @@ struct SessionSnapshot: Codable {
 
     init(
         surfaceTintEnabled: Bool = true,
+        surfaceTintStrength: Double = SurfaceTintStrength.default,
         windows: [WindowSnapshot] = [],
         keyWindowID: UUID? = nil,
         repoColorOverrides: [String: PaneTint] = [:],
         lastClosedWindow: ClosedWindow? = nil
     ) {
         self.surfaceTintEnabled = surfaceTintEnabled
+        self.surfaceTintStrength = surfaceTintStrength
         self.windows = windows
         self.keyWindowID = keyWindowID
         self.repoColorOverrides = repoColorOverrides
@@ -43,6 +46,8 @@ struct SessionSnapshot: Codable {
             ?? Self.currentVersion
         surfaceTintEnabled = try container.decodeIfPresent(
             Bool.self, forKey: .surfaceTintEnabled) ?? true
+        surfaceTintStrength = try container.decodeIfPresent(
+            Double.self, forKey: .surfaceTintStrength) ?? SurfaceTintStrength.default
         repoColorOverrides = try container.decodeIfPresent(
             [String: PaneTint].self, forKey: .repoColorOverrides) ?? [:]
         lastClosedWindow = try container.decodeIfPresent(

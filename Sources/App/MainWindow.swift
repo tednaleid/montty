@@ -86,6 +86,7 @@ struct MainWindow: View {
                 tabColorOverride: activeTab.colorOverride,
                 surfaceColorOverrides: activeTab.surfaceColorOverrides,
                 surfaceTintEnabled: appDelegate.surfaceTintEnabled,
+                surfaceTintStrength: appDelegate.surfaceTintStrength,
                 onRatioChange: { branchID, newRatio in
                     activeTab.splitRoot = SplitTree.updateRatio(
                         node: activeTab.splitRoot, branchID: branchID, ratio: newRatio

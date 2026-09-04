@@ -103,6 +103,8 @@ struct ControlRequest: Equatable {
             return try nameCommand(value: value, isNull: isNull)
         case "status":
             return try statusCommand(value: value, isNull: isNull)
+        case "tintStrength":
+            return try tintStrengthCommand(value: value)
         default:
             throw DecodeFailure.malformed
         }
@@ -143,6 +145,11 @@ struct ControlRequest: Equatable {
         }
     }
 
+    private static func tintStrengthCommand(value: Any?) throws -> ControlCommand {
+        guard let strength = value as? Double else { throw DecodeFailure.malformed }
+        return .setTintStrength(strength)
+    }
+
     func encoded() throws -> Data {
         var root: [String: Any] = ["v": ControlWire.version, "surface": surface]
         switch command {
@@ -170,6 +177,10 @@ struct ControlRequest: Equatable {
             root["cmd"] = "set"
             root["prop"] = "status"
             root["value"] = status.map(\.wireName) ?? NSNull()
+        case .setTintStrength(let strength):
+            root["cmd"] = "set"
+            root["prop"] = "tintStrength"
+            root["value"] = strength
         }
         return try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
     }

@@ -23,6 +23,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     /// Whether surface background tinting is enabled.
     @Published var surfaceTintEnabled = true
+    /// Opacity of the surface tint overlay.
+    @Published var surfaceTintStrength = SurfaceTintStrength.default
     /// Per-repo/worktree color overrides, keyed by repo identity string.
     @Published var repoColorOverrides: [String: PaneTint] = [:]
     /// ANSI palette colors from the Ghostty config (14 colors, reordered).
@@ -495,7 +497,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// CLI, the context menu, and the Claude hooks -- comes through here.
     @discardableResult
     func applyControl(_ command: ControlCommand, to tab: Tab, surfaceID: UUID) -> ControlResult {
-        tab.applyControl(
+        // Tint strength is app-wide, not part of any tab's state, so it never
+        // reaches Tab.applyControl -- the caller only needed a valid surface
+        // to prove the command came from inside a running montty.
+        if case .setTintStrength(let strength) = command {
+            surfaceTintStrength = strength
+            return .applied
+        }
+        return tab.applyControl(
             command, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides
         )
     }

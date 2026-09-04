@@ -32,7 +32,7 @@ import Testing
         SessionSnapshotBuilder.snapshot(
             windows: registry.windows,
             keyWindowID: registry.keyWindowID,
-            surfaceTintEnabled: true,
+            surfaceTint: SurfaceTintSettings(enabled: true, strength: SurfaceTintStrength.default),
             repoColorOverrides: [:],
             environment: SessionEnvironment(
                 frame: { _ in WindowFrame(x: 0, y: 0, width: 0, height: 0) },
@@ -78,7 +78,7 @@ import Testing
         let recorded = SessionSnapshotBuilder.snapshot(
             windows: registry.windows,
             keyWindowID: registry.keyWindowID,
-            surfaceTintEnabled: false,
+            surfaceTint: SurfaceTintSettings(enabled: false, strength: SurfaceTintStrength.default),
             repoColorOverrides: [:],
             environment: SessionEnvironment(
                 frame: { _ in WindowFrame(x: 10, y: 20, width: 300, height: 400) },

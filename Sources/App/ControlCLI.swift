@@ -58,19 +58,24 @@ enum ControlCLI {
         case .success(let parsed):
             return parsed
         case .failure(let error):
-            let detail: String
-            switch error {
-            case .noArguments: detail = "no arguments"
-            case .unknownScope(let value): detail = "unknown scope \"\(value)\""
-            case .unknownProperty(let value): detail = "unknown property \"\(value)\""
-            case .unknownStatus(let value): detail = "unknown status \"\(value)\""
-            case .missingValue(let value): detail = "\(value) needs a value"
-            case .badColor(let value): detail = "not a color: \"\(value)\" (use a palette name or #rrggbb)"
-            case .tooManyStops: detail = "at most \(PaneTint.maxStops) comma-separated stops"
-            case .unexpectedArgument(let value):
-                detail = "unexpected argument \"\(value)\"; quote a value that contains spaces"
-            }
-            fail("\(detail)\n\n\(ControlArgs.usage)", .usage)
+            fail("\(usageErrorDetail(error))\n\n\(ControlArgs.usage)", .usage)
+        }
+    }
+
+    private static func usageErrorDetail(_ error: ControlArgs.UsageError) -> String {
+        switch error {
+        case .noArguments: return "no arguments"
+        case .unknownScope(let value): return "unknown scope \"\(value)\""
+        case .unknownProperty(let value): return "unknown property \"\(value)\""
+        case .unknownStatus(let value): return "unknown status \"\(value)\""
+        case .missingValue(let value): return "\(value) needs a value"
+        case .badColor(let value): return "not a color: \"\(value)\" (use a palette name or #rrggbb)"
+        case .tooManyStops: return "at most \(PaneTint.maxStops) comma-separated stops"
+        case .badTintStrength(let value):
+            return "not a number between \(SurfaceTintStrength.range.lowerBound) and "
+                + "\(SurfaceTintStrength.range.upperBound): \"\(value)\""
+        case .unexpectedArgument(let value):
+            return "unexpected argument \"\(value)\"; quote a value that contains spaces"
         }
     }
 

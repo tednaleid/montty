@@ -8,6 +8,16 @@ enum ControlScope: String, Codable, CaseIterable {
     case surface, tab, repo
 }
 
+/// Opacity of the surface tint overlay, app-wide rather than scoped to any
+/// surface, tab, or repo.
+enum SurfaceTintStrength {
+    static let `default`: Double = 0.06
+    /// 0 hides the tint entirely. Capped at 0.5, not 1: the overlay is a flat
+    /// fill, so opacity 1 replaces every pixel and hides the pane's content
+    /// completely rather than just tinting it.
+    static let range: ClosedRange<Double> = 0...0.5
+}
+
 /// The complete set of mutations available to the CLI, the context menu, and
 /// the Claude Code hooks.
 enum ControlCommand: Equatable {
@@ -17,6 +27,8 @@ enum ControlCommand: Equatable {
     case clearName
     /// nil clears the entry, matching a hook session-end.
     case setStatus(ActivityStatus.State?)
+    /// App-wide, not scoped to the calling surface's tab or repo.
+    case setTintStrength(Double)
     case info
 }
 

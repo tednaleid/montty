@@ -30,6 +30,7 @@ extension AppDelegate {
         }
         return useCases.snapshot(
             surfaceTintEnabled: surfaceTintEnabled,
+            surfaceTintStrength: surfaceTintStrength,
             repoColorOverrides: repoColorOverrides,
             frames: frames,
             directories: directories

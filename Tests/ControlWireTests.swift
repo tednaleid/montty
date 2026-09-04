@@ -150,13 +150,21 @@ import Testing
             .setName("MR !123"),
             .clearName,
             .setStatus(.waiting),
-            .clearColor(scope: .surface)
+            .clearColor(scope: .surface),
+            .setTintStrength(0.2)
         ]
         for command in commands {
             let request = ControlRequest(surface: "M1", command: command)
             let decoded = try ControlRequest.decode(try request.encoded())
             #expect(decoded.command == command)
             #expect(decoded.surface == "M1")
+        }
+    }
+
+    @Test func rejectsATintStrengthValueThatIsNotANumber() {
+        let payload = Data(#"{"cmd":"set","v":1,"surface":"M1","prop":"tintStrength","value":"nope"}"#.utf8)
+        #expect(throws: ControlRequest.DecodeFailure.malformed) {
+            try ControlRequest.decode(payload)
         }
     }
 

@@ -12,6 +12,7 @@ extension AppDelegate {
     func apply(_ outcome: WindowOutcome) {
         if let settings = outcome.applySettings {
             surfaceTintEnabled = settings.surfaceTintEnabled
+            surfaceTintStrength = settings.surfaceTintStrength
             repoColorOverrides = settings.repoColorOverrides
         }
         for plan in outcome.createWindows {
