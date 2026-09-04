@@ -227,6 +227,12 @@ setopt PROMPT_SUBST
 PROMPT='%F{blue}%1~%f %F{green}> %f'
 export PAGER=cat
 export PATH="/opt/homebrew/bin:$PATH"
+
+# MONTTY_BIN is injected into every surface by the running app. Aliasing the
+# bare name to it means a pane that types "montty" always runs the binary
+# driving this demo, not whatever an installed montty elsewhere on PATH
+# would resolve to.
+alias montty="$MONTTY_BIN"
 """
 
 # The only fixture repo the live Claude pane actually explores, so it needs a
@@ -506,10 +512,10 @@ def fill_panes() -> None:
                 surface = surface_for(tab.key, pane, surfaces)
                 run_in(surface, "clear")
                 if fixture == "cli":
-                    # MONTTY_BIN is injected into every surface by the running
-                    # app, so the usage text always comes from the binary that
-                    # is driving this demo rather than whatever PATH resolves.
-                    run_in(surface, "$MONTTY_BIN --help")
+                    # ZSHRC aliases montty to $MONTTY_BIN, so this types as a
+                    # normal invocation while still running the binary that is
+                    # driving this demo, not whatever PATH resolves elsewhere.
+                    run_in(surface, "montty --help")
                 else:
                     run_in(surface, f"cat {DEMO_ROOT}/fixtures/{fixture}.txt")
     time.sleep(1.5)
