@@ -31,3 +31,6 @@ GhosttyKit.xcframework
 
 # Superpowers SDD scratch (briefs, reports, review packages)
 .superpowers/
+
+# Python bytecode cache from running scripts/test_montty_demo.py
+scripts/__pycache__/
