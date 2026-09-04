@@ -11,7 +11,7 @@ enum ControlScope: String, Codable, CaseIterable {
 /// Opacity of the surface tint overlay, app-wide rather than scoped to any
 /// surface, tab, or repo.
 enum SurfaceTintStrength {
-    static let `default`: Double = 0.06
+    static let `default`: Double = 0.12
     /// 0 hides the tint entirely. Capped at 0.5, not 1: the overlay is a flat
     /// fill, so opacity 1 replaces every pixel and hides the pane's content
     /// completely rather than just tinting it.
