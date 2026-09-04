@@ -26,10 +26,9 @@ struct JumpBadge: View {
 }
 
 private extension Color {
-    /// Black on a light badge, white on a dark one, computed by the same
-    /// luminance rule montty already uses for repo gradient hue matching.
+    /// Black on a light badge, white on a dark one, by relative luminance.
     var readableLabelColor: Color {
-        let nsColor = NSColor(self).usingColorSpace(.deviceRGB) ?? NSColor(self)
+        guard let nsColor = NSColor(self).usingColorSpace(.deviceRGB) else { return .white }
         let rgb = RGB(
             r: UInt8((nsColor.redComponent * 255).rounded()),
             g: UInt8((nsColor.greenComponent * 255).rounded()),
