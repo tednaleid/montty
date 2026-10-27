@@ -54,6 +54,10 @@ final class WindowController: NSObject, NSWindowDelegate {
         appDelegate?.windowDidResignKey()
     }
 
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        appDelegate?.syncSurfaceVisibility()
+    }
+
     func windowWillClose(_ notification: Notification) {
         appDelegate?.windowWillClose(self)
     }

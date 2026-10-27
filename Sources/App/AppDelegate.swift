@@ -296,37 +296,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         }
     }
 
-    /// Push the focus policy out to every surface in every window. The only
-    /// place montty calls `focusDidChange`, which updates both the Swift-side
-    /// flag and the C-side `ghostty_surface_set_focus`.
-    ///
-    /// Each window's plan reads that window's own live `isKeyWindow`, not the
-    /// registry's `keyWindowID` -- a window in the middle of resigning key is
-    /// already reporting `isKeyWindow == false` even if `keyWindowID` was
-    /// reassigned to another window earlier in the same call stack, so the
-    /// resigning window's surfaces still blur correctly.
-    ///
-    /// Blurs run before focuses, across every window in one pass. libghostty
-    /// writes the DEC mode 1004 reports in call order, and an outgoing surface
-    /// must see its blur before any incoming surface sees its focus.
-    func syncSurfaceFocus() {
-        var plan: [UUID: Bool] = [:]
-        for windowModel in registry.windows {
-            let isKey = controllers[windowModel.id]?.window.isKeyWindow ?? false
-            plan.merge(SurfaceFocus.plan(
-                tabs: windowModel.tabStore.tabs,
-                activeTabID: windowModel.tabStore.activeTabID,
-                windowIsKey: isKey
-            )) { _, new in new }
-        }
-        for (surfaceID, focused) in plan where !focused {
-            surfaces[surfaceID]?.focusDidChange(false)
-        }
-        for (surfaceID, focused) in plan where focused {
-            surfaces[surfaceID]?.focusDidChange(true)
-        }
-    }
-
     func surfaceView(for surfaceID: UUID) -> Ghostty.SurfaceView? {
         surfaces[surfaceID]
     }
