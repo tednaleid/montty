@@ -8,7 +8,7 @@ on:
 
 jobs:
   check:
-    runs-on: macos-26
+    runs-on: xcode-27
     # A hung test would otherwise sit until the six hour ceiling.
     timeout-minutes: 30
     steps:
@@ -20,12 +20,12 @@ jobs:
         with:
           tool: just
 
-      # Zig 0.15.2 cannot parse the macOS SDK shipped with the runner's default
-      # Xcode (26.5), so it links without libSystem and the GhosttyKit build fails
-      # with undefined libc symbols. Pin Xcode 26.2 to match upstream Ghostty's
-      # toolchain for this Zig version.
-      - name: Select Xcode 26.2
-        run: sudo xcode-select -s /Applications/Xcode_26.2.app
+      # Zig cannot always parse the macOS SDK from a newer Xcode than the one
+      # upstream Ghostty builds with, and then links without libSystem and fails
+      # with undefined libc symbols. Pin the Xcode that ghostty/.github/workflows
+      # selects for the submodule's release.
+      - name: Select Xcode 27.1
+        run: sudo xcode-select -s /Applications/Xcode_27.1.app
 
       - name: Cache GhosttyKit
         id: cache-ghosttykit
@@ -37,11 +37,12 @@ jobs:
             ghostty/zig-out/share/ghostty/themes
           key: ghosttykit-v4-${{ hashFiles('.git/modules/ghostty/HEAD') }}
 
-      - name: Install zig 0.15.2
+      - name: Install zig
         if: steps.cache-ghosttykit.outputs.cache-hit != 'true'
         run: |
-          curl -sL https://ziglang.org/download/0.15.2/zig-aarch64-macos-0.15.2.tar.xz | tar xJ -C /tmp
-          echo "/tmp/zig-aarch64-macos-0.15.2" >> "$GITHUB_PATH"
+          ZIG=$(just --evaluate zig_version)
+          curl -sL https://ziglang.org/download/$ZIG/zig-aarch64-macos-$ZIG.tar.xz | tar xJ -C /tmp
+          echo "/tmp/zig-aarch64-macos-$ZIG" >> "$GITHUB_PATH"
 
       - name: Build GhosttyKit
         if: steps.cache-ghosttykit.outputs.cache-hit != 'true'

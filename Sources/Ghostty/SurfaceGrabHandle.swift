@@ -8,6 +8,7 @@ import SwiftUI
 extension Ghostty {
     struct SurfaceGrabHandle: View {
         @ObservedObject var surfaceView: SurfaceView
+        let dragHandle: Ghostty.Config.DragHandle
 
         var body: some View {
             EmptyView()

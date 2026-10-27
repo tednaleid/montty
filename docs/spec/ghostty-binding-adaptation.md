@@ -1,6 +1,35 @@
 # Ghostty Binding Adaptation Guide
 
-Reference document for Phase 1. Covers what to copy from Ghostty's Swift bindings and what needs modification.
+Covers upgrading the Ghostty submodule, and what montty copies from Ghostty's
+Swift bindings and how those copies are modified.
+
+## Upgrading to a new Ghostty release
+
+`Sources/Ghostty/` holds upstream files at the submodule's tag plus `// MONTTY:`
+edits, so an upgrade is a three-way merge rather than a fresh copy. The weekly
+`bump-ghostty.yml` workflow runs steps 1-3 and opens a PR when `just check`
+passes; when it fails, do the upgrade by hand:
+
+1. Check out the new tag in `ghostty/` and `git add ghostty`. `just setup` runs
+   `git submodule update`, which resets an unstaged submodule bump.
+2. Set `zig_version` in the `justfile` to `minimum_zig_version` from
+   `ghostty/build.zig.zon`. CI reads it from there. Also check which Xcode
+   upstream selects in `ghostty/.github/workflows/test.yml` and match the
+   `Select Xcode` steps in `.github/workflows/`.
+3. `just merge-bindings <old-tag> <new-tag>` merges upstream changes into each
+   copied file and refreshes `ghostty.h`. Resolve any conflict markers it
+   leaves; where montty removed or stubbed a block, keep montty's side.
+4. `just setup && just generate && just build`. Upstream often splits code into
+   new files: copy each one the build asks for and add it to `just
+   sync-bindings`. Where new upstream code reaches for app-layer types montty
+   lacks (`BaseTerminalController`, `TerminalController`, command palette),
+   stub it and mark the change `// MONTTY:`.
+5. Delete local copies of files upstream removed, and drop them from `just
+   sync-bindings`.
+6. `just check`, then exercise the app with the `test-app` skill: typing,
+   splits, tabs, and copy/paste.
+7. Read the release notes for config default changes that montty users will
+   see, and for new C API calls or actions worth wiring into montty.
 
 ## Source location
 

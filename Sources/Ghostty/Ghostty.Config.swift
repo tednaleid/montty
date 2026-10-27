@@ -45,6 +45,10 @@ extension Ghostty {
             self.init(config: ghostty_config_clone(config))
         }
 
+        func clone(config: ghostty_config_t) {
+            self.config = config
+        }
+
         deinit {
             self.config = nil
         }
@@ -61,9 +65,6 @@ extension Ghostty {
             }
 
             // Load our configuration from files, CLI args, and then any referenced files.
-            // We only do this on macOS because other Apple platforms do not have the
-            // same filesystem concept.
-#if os(macOS)
             if let path {
                 ghostty_config_load_file(cfg, path)
             } else {
@@ -77,7 +78,6 @@ extension Ghostty {
             }
 
             ghostty_config_load_recursive_files(cfg)
-#endif
 
             // TODO: we'd probably do some config loading here... for now we'd
             // have to do this synchronously. When we support config updating we can do
@@ -91,20 +91,19 @@ extension Ghostty {
             // pop-up window too.
             let diagsCount = ghostty_config_diagnostics_count(cfg)
             if diagsCount > 0 {
-                logger.warning("config error: \(diagsCount) configuration errors on reload")
+                logger.warning("config error: \(diagsCount, privacy: .public) configuration errors on reload")
                 var diags: [String] = []
                 for i in 0..<diagsCount {
                     let diag = ghostty_config_get_diagnostic(cfg, UInt32(i))
                     let message = String(cString: diag.message)
                     diags.append(message)
-                    logger.warning("config error: \(message)")
+                    logger.warning("config error: \(message, privacy: .public)")
                 }
             }
 
             return cfg
         }
 
-#if os(macOS)
         // MARK: - Keybindings
 
         /// Return the key equivalent for the given action. The action is the name of the action
@@ -112,13 +111,15 @@ extension Ghostty {
         /// configuration would be "quit" action.
         ///
         /// Returns nil if there is no key equivalent for the given action.
-        func keyboardShortcut(for action: String) -> KeyboardShortcut? {
-            guard let cfg = self.config else { return nil }
-
-            let trigger = ghostty_config_trigger(cfg, action, UInt(action.lengthOfBytes(using: .utf8)))
+        @MainActor func keyboardShortcut(for action: String) -> KeyboardShortcut? {
+            guard let trigger = keybindTrigger(for: action) else { return nil }
             return Ghostty.keyboardShortcut(for: trigger)
         }
-#endif
+
+        func keybindTrigger(for action: String) -> ghostty_input_trigger_s? {
+            guard let config else { return nil }
+            return ghostty_config_trigger(config, action, UInt(action.lengthOfBytes(using: .utf8)))
+        }
 
         // MARK: - Configuration Values
 
@@ -127,10 +128,10 @@ extension Ghostty {
         /// due to the embedded library and Swift.
 
         var bellFeatures: BellFeatures {
-            guard let config = self.config else { return .init() }
+            guard let config = self.config else { return .defaultValue }
             var v: CUnsignedInt = 0
             let key = "bell-features"
-            guard ghostty_config_get(config, &v, key, UInt(key.lengthOfBytes(using: .utf8))) else { return .init() }
+            guard ghostty_config_get(config, &v, key, UInt(key.lengthOfBytes(using: .utf8))) else { return .defaultValue }
             return .init(rawValue: v)
         }
 
@@ -270,6 +271,16 @@ extension Ghostty {
             return v
         }
 
+        var dragHandle: DragHandle {
+            let defaultValue = DragHandle.auto
+            guard let config = self.config else { return defaultValue }
+            var v: UnsafePointer<Int8>?
+            let key = "drag-handle"
+            guard ghostty_config_get(config, &v, key, UInt(key.lengthOfBytes(using: .utf8))) else { return defaultValue }
+            guard let ptr = v else { return defaultValue }
+            return DragHandle(rawValue: String(cString: ptr)) ?? defaultValue
+        }
+
         // MONTTY: Removed windowFullscreen and windowFullscreenMode properties
         // that referenced FullscreenMode type (not copied). Can add back if needed.
 
@@ -345,7 +356,6 @@ extension Ghostty {
         }
 
         var macosCustomIcon: String {
-            #if os(macOS)
             let defaultValue = NSString("~/.config/ghostty/Ghostty.icns").expandingTildeInPath
             guard let config = self.config else { return defaultValue }
             var v: UnsafePointer<Int8>?
@@ -354,9 +364,6 @@ extension Ghostty {
             guard let ptr = v else { return defaultValue }
             guard let path = NSString(utf8String: ptr) else { return defaultValue }
             return path.expandingTildeInPath
-            #else
-            return ""
-            #endif
         }
 
         var macosIconFrame: MacOSIconFrame {
@@ -370,7 +377,7 @@ extension Ghostty {
             return MacOSIconFrame(rawValue: str) ?? defaultValue
         }
 
-        var macosIconGhostColor: OSColor? {
+        var macosIconGhostColor: NSColor? {
             guard let config = self.config else { return nil }
             var v: ghostty_config_color_s = .init()
             let key = "macos-icon-ghost-color"
@@ -378,7 +385,7 @@ extension Ghostty {
             return .init(ghostty: v)
         }
 
-        var macosIconScreenColor: [OSColor]? {
+        var macosIconScreenColor: [NSColor]? {
             guard let config = self.config else { return nil }
             var v: ghostty_config_color_list_s = .init()
             let key = "macos-icon-screen-color"
@@ -410,13 +417,7 @@ extension Ghostty {
             var color: ghostty_config_color_s = .init()
             let bg_key = "background"
             if !ghostty_config_get(config, &color, bg_key, UInt(bg_key.lengthOfBytes(using: .utf8))) {
-#if os(macOS)
                 return Color(NSColor.windowBackgroundColor)
-#elseif os(iOS)
-                return Color(UIColor.systemBackground)
-#else
-#error("unsupported")
-#endif
             }
 
             return .init(
@@ -468,7 +469,7 @@ extension Ghostty {
         }
 
         var splitDividerColor: Color {
-            let backgroundColor = OSColor(backgroundColor)
+            let backgroundColor = NSColor(backgroundColor)
             let isLightBackground = backgroundColor.isLightColor
             let newColor = isLightBackground ? backgroundColor.darken(by: 0.08) : backgroundColor.darken(by: 0.4)
 
@@ -592,6 +593,16 @@ extension Ghostty {
             return MacShortcuts(rawValue: str) ?? defaultValue
         }
 
+        var abnormalCommandExitRuntime: Duration {
+            let defaultValue: Duration = .milliseconds(250)
+            guard let config = self.config else { return defaultValue }
+            var v: UInt32?
+            let key = "abnormal-command-exit-runtime"
+            guard ghostty_config_get(config, &v, key, UInt(key.lengthOfBytes(using: .utf8))) else { return defaultValue }
+            guard let v else { return defaultValue }
+            return .milliseconds(v)
+        }
+
         var scrollbar: Scrollbar {
             let defaultValue = Scrollbar.system
             guard let config = self.config else { return defaultValue }
@@ -702,6 +713,8 @@ extension Ghostty.Config {
         static let attention = BellFeatures(rawValue: 1 << 2)
         static let title = BellFeatures(rawValue: 1 << 3)
         static let border = BellFeatures(rawValue: 1 << 4)
+
+        static let defaultValue = BellFeatures([.attention, .title])
     }
 
     struct SplitPreserveZoom: OptionSet {
@@ -805,5 +818,9 @@ extension Ghostty.Config {
     enum MacOSTitlebarStyle: String {
         static let `default` = MacOSTitlebarStyle.transparent
         case native, transparent, tabs, hidden
+    }
+
+    enum DragHandle: String {
+        case always, auto, never
     }
 }

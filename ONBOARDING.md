@@ -19,7 +19,7 @@ shipped target is macOS 26. Update the manifest if/when that drift matters.
 
 ## Common commands
 
-- Setup: `just setup` (inits submodules, builds GhosttyKit with zig 0.15.2)
+- Setup: `just setup` (inits submodules, builds GhosttyKit with zig 0.17.0)
 - Generate: `just generate` (xcodegen)
 - Build: `just build`
 - Test: `just test`
@@ -39,8 +39,8 @@ resource forks that break codesign).
 ## Architecture
 
 Three layers stacked on GhosttyKit's C API. `Sources/Ghostty/` is MIT-licensed
-Swift bindings copied verbatim from the upstream submodule and resynced via
-`just sync-bindings`; montty-local changes there are marked with `// MONTTY:`.
+Swift bindings copied from the upstream submodule and updated on a Ghostty bump
+via `just merge-bindings`; montty-local changes there are marked with `// MONTTY:`.
 `Sources/Model/` holds the pure, testable model (tabs, split tree, jump labels,
 hook events, git info). `Sources/View/` has the SwiftUI sidebar, minimap,
 splits. `Sources/App/` holds the AppKit entry point (`main.swift`),
@@ -75,6 +75,6 @@ just setup && just run
 - [docs/debug-server.md](./docs/debug-server.md) -- full debug HTTP API (`just inspect-*`)
 - [docs/montty-cli.md](./docs/montty-cli.md) -- the `montty` CLI for tab colors, names, and activity status
 - [docs/spec/contract.md](./docs/spec/contract.md) -- project contract and phase plan
-- [docs/spec/ghostty-binding-adaptation.md](./docs/spec/ghostty-binding-adaptation.md) -- how to re-apply MONTTY adaptations after `just sync-bindings`
+- [docs/spec/ghostty-binding-adaptation.md](./docs/spec/ghostty-binding-adaptation.md) -- upgrading Ghostty, and the MONTTY adaptations to the copied bindings
 - [docs/spec/progress.md](./docs/spec/progress.md) -- phase-by-phase progress log
 - `.github/workflows/release.yml` -- DMG build, optional Developer ID signing/notarization, Homebrew cask update

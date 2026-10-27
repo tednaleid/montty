@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   bump:
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v6
         with:
@@ -29,6 +29,8 @@ jobs:
           LATEST_TAG=$(git tag -l 'v[0-9]*' --sort=-version:refname | head -1)
           echo "latest=$LATEST_TAG"
 
+          echo "current=$CURRENT_TAG" >> "$GITHUB_OUTPUT"
+
           if [ "$CURRENT_TAG" = "$LATEST_TAG" ]; then
             echo "up_to_date=true" >> "$GITHUB_OUTPUT"
             echo "Already on latest: $CURRENT_TAG"
@@ -38,22 +40,36 @@ jobs:
             echo "Update available: $CURRENT_TAG -> $LATEST_TAG"
           fi
 
+      # Stage the new gitlink so `just setup` (git submodule update) keeps it.
       - name: Update submodule to new tag
+        id: bump
         if: steps.check.outputs.up_to_date == 'false'
         run: |
-          cd ghostty
-          git checkout ${{ steps.check.outputs.new_tag }}
-
-      - name: Install zig 0.15.2
-        if: steps.check.outputs.up_to_date == 'false'
-        run: |
-          curl -sL https://ziglang.org/download/0.15.2/zig-aarch64-macos-0.15.2.tar.xz | tar xJ -C /tmp
-          echo "/tmp/zig-aarch64-macos-0.15.2" >> "$GITHUB_PATH"
+          git -C ghostty checkout ${{ steps.check.outputs.new_tag }}
+          git add ghostty
+          ZIG=$(sed -n 's/.*minimum_zig_version = "\(.*\)".*/\1/p' ghostty/build.zig.zon)
+          echo "zig=$ZIG" >> "$GITHUB_OUTPUT"
+          sed -i '' "s/^zig_version := .*/zig_version := \"$ZIG\"/" justfile
 
       - uses: taiki-e/install-action@v2
         if: steps.check.outputs.up_to_date == 'false'
         with:
           tool: just
+
+      - name: Merge upstream binding changes
+        if: steps.check.outputs.up_to_date == 'false'
+        run: just merge-bindings ${{ steps.check.outputs.current }} ${{ steps.check.outputs.new_tag }}
+
+      - name: Select Xcode 27.1
+        if: steps.check.outputs.up_to_date == 'false'
+        run: sudo xcode-select -s /Applications/Xcode_27.1.app
+
+      - name: Install zig ${{ steps.bump.outputs.zig }}
+        if: steps.check.outputs.up_to_date == 'false'
+        run: |
+          ZIG=${{ steps.bump.outputs.zig }}
+          curl -sL https://ziglang.org/download/$ZIG/zig-aarch64-macos-$ZIG.tar.xz | tar xJ -C /tmp
+          echo "/tmp/zig-aarch64-macos-$ZIG" >> "$GITHUB_PATH"
 
       - name: Install SwiftLint and xcodegen
         if: steps.check.outputs.up_to_date == 'false'

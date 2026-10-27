@@ -1,7 +1,7 @@
 # justfile for montty
 
 # Required zig version (must match ghostty/build.zig.zon minimum_zig_version)
-zig_version := "0.15.2"
+zig_version := "0.17.0"
 
 # Initialize submodules and build GhosttyKit
 setup:
@@ -11,9 +11,15 @@ setup:
     @xcrun -sdk macosx metal --version >/dev/null 2>&1 || { echo "Error: Metal Toolchain missing. Run: xcodebuild -downloadComponent MetalToolchain"; exit 1; }
     # Build the xcframework. The zig install step may fail on Ghostty's own
     # app build (DockTilePlugin signing) even when the xcframework succeeds,
-    # so we check for the framework explicitly.
+    # so we check for the framework explicitly. A leftover framework would
+    # pass that check, so remove it first and confirm the header is current.
+    rm -rf ghostty/macos/GhosttyKit.xcframework
     -cd ghostty && zig build -Demit-xcframework=true -Dxcframework-target=universal -Doptimize=ReleaseFast
     @test -d ghostty/macos/GhosttyKit.xcframework || { echo "Error: GhosttyKit.xcframework not found after build"; exit 1; }
+    @cmp -s ghostty/include/ghostty.h ghostty/macos/GhosttyKit.xcframework/macos-arm64_x86_64/Headers/ghostty.h || { echo "Error: GhosttyKit.xcframework header does not match ghostty/include/ghostty.h"; exit 1; }
+    # Keep cloud-synced checkouts (Dropbox, iCloud) from syncing the rebuilt
+    # framework and restoring stale files into it.
+    @xattr -w 'com.apple.fileprovider.ignore#P' 1 ghostty/macos/GhosttyKit.xcframework 2>/dev/null || true
     # Ad-hoc sign the libraries so macOS codesign accepts the embedded framework
     find ghostty/macos/GhosttyKit.xcframework -name '*.a' -exec codesign --force --sign - {} \;
     ln -sfn ghostty/macos/GhosttyKit.xcframework GhosttyKit.xcframework
@@ -48,14 +54,18 @@ sync-bindings:
         Ghostty.Error.swift \
         Ghostty.Event.swift \
         Ghostty.Shell.swift \
+        Ghostty.ChildExitedMessage.swift \
+        Ghostty.ClipboardConfirmationRequest.swift \
         NSEvent+Extension.swift; do
         cp "$GHOSTTY/$f" "$DEST/$f"
     done
 
     # Surface view files (from ghostty/macos/Sources/Ghostty/Surface View/)
     for f in \
+        OSSurfaceView.swift \
         SurfaceView.swift \
         SurfaceView_AppKit.swift \
+        ChildExitedMessageBar.swift \
         SurfaceScrollView.swift \
         SurfaceProgressBar.swift \
         SurfaceGrabHandle.swift; do
@@ -63,12 +73,16 @@ sync-bindings:
     done
 
     # Helper files (from various locations outside Sources/Ghostty/)
-    cp "$HELPERS/CrossKit.swift"                        "$HDEST/"
     cp "$HELPERS/Weak.swift"                            "$HDEST/"
     cp "$HELPERS/Cursor.swift"                          "$HDEST/"
     cp "$HELPERS/KeyboardLayout.swift"                  "$HDEST/"
     cp "$HELPERS/AppInfo.swift"                         "$HDEST/"
+    cp "$HELPERS/UntrustedURL.swift"                    "$HDEST/"
+    cp "$HELPERS/UntrustedURLAlert.swift"               "$HDEST/"
+    cp "$HELPERS/URLHoverBanner.swift"                  "$HDEST/"
     cp "$HELPERS/Extensions/NSPasteboard+Extension.swift" "$HDEST/"
+    cp "$HELPERS/Extensions/OSPasteboard+Extension.swift" "$HDEST/"
+    cp "$HELPERS/Extensions/String+Extension.swift"     "$HDEST/"
     cp "$HELPERS/Extensions/NSColor+Extension.swift"    "$HDEST/"
     cp "$HELPERS/Extensions/NSMenuItem+Extension.swift" "$HDEST/"
     cp "$HELPERS/Extensions/NSScreen+Extension.swift"   "$HDEST/"
@@ -82,8 +96,36 @@ sync-bindings:
     cp "$HELPERS/Extensions/KeyboardShortcut+Extension.swift" "$HDEST/"
     cp "$HELPERS/Backport.swift"                       "$HDEST/"
     cp "$FEATURES/Secure Input/SecureInput.swift"       "$HDEST/"
+    cp ghostty/include/ghostty.h ghostty.h
 
     @echo "Copied {{num_cpus()}} binding files. Apply MONTTY adaptations next."
+
+# Three-way merge upstream binding changes between two Ghostty tags into
+# Sources/Ghostty, keeping MONTTY adaptations. Conflicts are left as markers.
+merge-bindings from to:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    git -C ghostty show {{to}}:include/ghostty.h > ghostty.h
+    tmp=$(mktemp -d)
+    conflicted=()
+    while IFS= read -r dest; do
+        name=$(basename "$dest")
+        old=$(git -C ghostty ls-tree -r --name-only {{from}} macos/Sources | grep "/$name$" | head -1)
+        new=$(git -C ghostty ls-tree -r --name-only {{to}} macos/Sources | grep "/$name$" | head -1)
+        if [ -z "$old" ] || [ -z "$new" ]; then
+            echo "skip (not upstream in both tags): $dest"
+            continue
+        fi
+        git -C ghostty show "{{from}}:$old" > "$tmp/base"
+        git -C ghostty show "{{to}}:$new" > "$tmp/theirs"
+        git merge-file -L montty -L {{from}} -L {{to}} "$dest" "$tmp/base" "$tmp/theirs" || conflicted+=("$dest")
+    done < <(find Sources/Ghostty -name '*.swift')
+    rm -rf "$tmp"
+    if [ ${#conflicted[@]} -gt 0 ]; then
+        printf 'conflict: %s\n' "${conflicted[@]}"
+        exit 1
+    fi
+    echo "Merged cleanly. Run: just build"
 
 # Generate Xcode project from project.yml
 generate:

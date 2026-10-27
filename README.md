@@ -53,7 +53,7 @@ Download the latest DMG from [Releases](https://github.com/tednaleid/montty/rele
 
 ## Build from source
 
-Requires macOS 14+, Xcode, [zig](https://ziglang.org/) 0.15.2, and [just](https://github.com/casey/just).
+Requires macOS 14+, Xcode, [zig](https://ziglang.org/) 0.17.0, and [just](https://github.com/casey/just).
 
 ```bash
 just setup      # init submodules, build GhosttyKit

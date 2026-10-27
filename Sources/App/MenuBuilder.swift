@@ -5,6 +5,7 @@ import AppKit
 import GhosttyKit
 import SwiftUI
 
+@MainActor
 enum MenuBuilder {
     /// Build and install the main menu bar.
     static func buildMainMenu(
