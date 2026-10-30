@@ -9,8 +9,15 @@ enum ParsedInvocation: Equatable {
     case showColor(ControlScope)
     /// A Claude Code hook event name, forwarded on the legacy wire format.
     case hook(String)
+    case installHooks(HookAgent)
+    case uninstallHooks(HookAgent)
     case version
     case help
+}
+
+/// An agent whose own settings `montty install-hooks` knows how to edit.
+enum HookAgent: String, Equatable {
+    case claude
 }
 
 enum ExitCode: Int32 {
@@ -33,6 +40,7 @@ enum ControlArgs {
         case tooManyStops
         case badTintStrength(String)
         case unexpectedArgument(String)
+        case unknownAgent(String)
     }
 
     static var usage: String {
@@ -48,6 +56,7 @@ enum ControlArgs {
           montty surface resume-command <cmd>
                                            montty surface resume-command --reset
           montty hook <event>
+          montty install-hooks claude      montty uninstall-hooks claude
           montty tint-strength <value>     montty tint-strength --reset
           montty info
           montty --version                 montty -v
@@ -147,6 +156,8 @@ enum ControlArgs {
         case "hook":
             guard arguments.count >= 2 else { return .failure(.missingValue("hook")) }
             return exactly(2, of: arguments, is: .hook(arguments[1]))
+        case "install-hooks", "uninstall-hooks":
+            return parseHookSettings(first, arguments: arguments)
         case "tint-strength":
             guard arguments.count >= 2 else { return .failure(.missingValue("tint-strength")) }
             guard arguments.count <= 2 else { return .failure(.unexpectedArgument(arguments[2])) }
@@ -154,6 +165,18 @@ enum ControlArgs {
         default:
             return nil
         }
+    }
+
+    private static func parseHookSettings(
+        _ verb: String, arguments: [String]
+    ) -> Result<ParsedInvocation, UsageError> {
+        guard arguments.count >= 2 else { return .failure(.missingValue(verb)) }
+        guard let agent = HookAgent(rawValue: arguments[1]) else {
+            return .failure(.unknownAgent(arguments[1]))
+        }
+        let invocation: ParsedInvocation = verb == "install-hooks"
+            ? .installHooks(agent) : .uninstallHooks(agent)
+        return exactly(2, of: arguments, is: invocation)
     }
 
     private static func parseTintStrength(_ value: String) -> Result<ParsedInvocation, UsageError> {

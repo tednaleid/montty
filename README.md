@@ -10,10 +10,10 @@ A macOS terminal app built on [GhosttyKit](https://github.com/ghostty-org/ghostt
 - Per-tab color coding (user-assignable or auto from directory)
 - Horizontal and vertical splits within tabs
 - Session restore (tabs, splits, names, colors, focus state survive restart)
-- Claude Code sessions come back after a relaunch: each surface that was running one has `claude --resume <id>` typed at its prompt, ready to run
+- Claude Code sessions come back after a relaunch: each surface that was running one has `claude --resume <id>` typed at its prompt, ready to run (see [Claude Code](#claude-code))
 - Click any minimap pane to jump directly to that surface
 - Git branch and directory info in tab sidebar
-- Claude Code status indicators (working, waiting, idle) on minimap panes
+- Claude Code status indicators (working, waiting, idle) on minimap panes (see [Claude Code](#claude-code))
 - Standard Ghostty theming from `~/.config/ghostty/config`
 - Multiple windows from one process, opened with `Cmd-N`, each owning its own tabs, which never move between windows
 - The `montty` CLI for setting colors, names, and activity status from a shell or a script (see [docs/montty-cli.md](docs/montty-cli.md))
@@ -51,6 +51,16 @@ brew update && brew upgrade --cask montty
 ### Manual download
 
 Download the latest DMG from [Releases](https://github.com/tednaleid/montty/releases).
+
+### Claude Code
+
+montty's Claude Code status indicators and session resume come from Claude Code hooks. Add them to your Claude Code user settings once, from a montty pane:
+
+```bash
+montty install-hooks claude
+```
+
+This adds six hook entries to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`), keeps the hooks already there, and saves the previous file as `settings.json.montty-backup`. The entries do nothing in other terminals, so every Claude session started in a montty pane reports, however it was launched. `montty uninstall-hooks claude` removes them. See [docs/montty-cli.md](docs/montty-cli.md#claude-code-hooks).
 
 ## Build from source
 

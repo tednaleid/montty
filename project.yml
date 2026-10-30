@@ -75,47 +75,6 @@ targets:
             cp -R "${THEMES_SRC}/"* "${GHOST_RES}/themes/"
           fi
 
-          # Append montty's claude() wrapper to zsh integration.
-          # Injects hooks via --settings so montty receives state callbacks.
-          ZSH_ENV="${GHOST_RES}/shell-integration/zsh/.zshenv"
-          if [ -f "${ZSH_ENV}" ]; then
-            cat >> "${ZSH_ENV}" << 'MONTTY_HOOKS'
-
-          # montty: wrap claude to inject hook callbacks for status tracking.
-          # Six hooks map to state transitions:
-          #   SessionStart/Stop           -> .idle
-          #   UserPromptSubmit/PreToolUse -> .working
-          #   Notification                -> .waiting
-          #   SessionEnd                  -> entry removed
-          # `montty hook` reads Claude's payload on stdin, forwards the cwd it
-          # reports, and always exits 0 so a pane outside montty never makes
-          # Claude Code look broken.
-          #
-          # MONTTY_BIN is the bundled binary's absolute path, injected into every
-          # surface, so hooks keep working when the app was installed by dragging
-          # it to /Applications and no Homebrew symlink exists. The PATH fallback
-          # covers a pane whose environment predates that injection.
-          if [[ -n "$MONTTY_SURFACE_ID" ]] \
-             && { [[ -x "$MONTTY_BIN" ]] || command -v montty >/dev/null 2>&1; }; then
-            claude() {
-              local settings
-              settings=$(cat <<'MONTTY_SETTINGS'
-          {"hooks":{
-            "SessionStart":     [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook session-start"}]}],
-            "UserPromptSubmit": [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook prompt-submit"}]}],
-            "PreToolUse":       [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook pre-tool-use"}]}],
-            "Notification":     [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook notification"}]}],
-            "Stop":             [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook stop"}]}],
-            "SessionEnd":       [{"hooks":[{"type":"command","command":"\"${MONTTY_BIN:-montty}\" hook session-end"}]}]
-          }}
-          MONTTY_SETTINGS
-              )
-              command claude --settings "$settings" "$@"
-            }
-          fi
-          MONTTY_HOOKS
-          fi
-
   montty-unit:
     type: bundle.unit-test
     platform: macOS

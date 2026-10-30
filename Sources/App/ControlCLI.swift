@@ -11,15 +11,7 @@ enum ControlCLI {
         signal(SIGPIPE, SIG_IGN)
 
         let invocation = parseOrExit(arguments)
-
-        if case .version = invocation {
-            print(version())
-            exit(ExitCode.ok.rawValue)
-        }
-        if case .help = invocation {
-            print(ControlArgs.usage)
-            exit(ExitCode.ok.rawValue)
-        }
+        runIfPaneless(invocation)
 
         let environment = ProcessInfo.processInfo.environment
         guard let surface = environment["MONTTY_SURFACE_ID"], !surface.isEmpty else {
@@ -33,14 +25,33 @@ enum ControlCLI {
             ?? NSTemporaryDirectory() + "montty-hook.sock"
 
         switch invocation {
-        case .version, .help:
-            fatalError("version and help already exited above; neither needs a surface")
+        case .version, .help, .installHooks, .uninstallHooks:
+            fatalError("\(invocation) already exited above; it needs no surface")
         case .showColor(let scope):
             runShowColor(scope: scope, surface: surface, socketPath: socketPath)
         case .hook(let event):
             runHook(event: event, surface: surface, socketPath: socketPath)
         case .control(let command):
             runControl(command: command, surface: surface, socketPath: socketPath)
+        }
+    }
+
+    /// Runs and exits for the invocations that need no montty pane; returns
+    /// for every other one.
+    private static func runIfPaneless(_ invocation: ParsedInvocation) {
+        switch invocation {
+        case .version:
+            print(version())
+            exit(ExitCode.ok.rawValue)
+        case .help:
+            print(ControlArgs.usage)
+            exit(ExitCode.ok.rawValue)
+        case .installHooks(let agent):
+            runHookSettings(agent: agent, install: true)
+        case .uninstallHooks(let agent):
+            runHookSettings(agent: agent, install: false)
+        case .control, .showColor, .hook:
+            return
         }
     }
 
@@ -76,13 +87,16 @@ enum ControlCLI {
                 + "\(SurfaceTintStrength.range.upperBound): \"\(value)\""
         case .unexpectedArgument(let value):
             return "unexpected argument \"\(value)\"; quote a value that contains spaces"
+        case .unknownAgent(let value): return "unknown agent \"\(value)\" (supported: claude)"
         }
     }
 
     /// Claude Code delivers its payload on stdin; forward the cwd, session id,
-    /// and end reason it reports. Best effort: never make a montty-less
+    /// and end reason it reports, for interactive sessions only. Best effort: never make a montty-less
     /// environment look broken.
     private static func runHook(event: String, surface: String, socketPath: String) -> Never {
+        let entrypoint = ProcessInfo.processInfo.environment["CLAUDE_CODE_ENTRYPOINT"]
+        guard ClaudeHooks.reportsSession(entrypoint: entrypoint) else { exit(ExitCode.ok.rawValue) }
         let input = FileHandle.standardInput.readDataToEndOfFile()
         let payload = (try? JSONSerialization.jsonObject(with: input)) as? [String: Any]
         var message: [String: Any] = ["event": event, "surface": surface]
@@ -93,6 +107,67 @@ enum ControlCLI {
             _ = ControlTransport.roundTrip(payload, socketPath: socketPath, expectReply: false)
         }
         exit(ExitCode.ok.rawValue)
+    }
+
+    /// Adds or removes montty's hooks in Claude Code's user settings. Runs from
+    /// any terminal, since it only edits a file. The previous file is kept
+    /// next to it as a backup whenever it changes.
+    private static func runHookSettings(agent: HookAgent, install: Bool) -> Never {
+        let url = claudeSettingsURL()
+        let original = FileManager.default.contents(atPath: url.path)
+        var settings: [String: Any] = [:]
+        if let original {
+            guard let parsed = (try? JSONSerialization.jsonObject(with: original)) as? [String: Any] else {
+                fail("\(url.path) is not a JSON object; left it unchanged", .rejected)
+            }
+            settings = parsed
+        }
+        let updated = install
+            ? ClaudeHooks.installing(into: settings)
+            : ClaudeHooks.uninstalling(from: settings)
+
+        let options: JSONSerialization.WritingOptions = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        guard let output = try? JSONSerialization.data(withJSONObject: updated, options: options) else {
+            fail("could not encode \(url.path)", .rejected)
+        }
+        let unchanged = (try? JSONSerialization.data(withJSONObject: settings, options: options)) == output
+        if unchanged && (original != nil || !install) {
+            print(install ? "montty hooks already in \(url.path)" : "no montty hooks in \(url.path)")
+            exit(ExitCode.ok.rawValue)
+        }
+        writeSettings(output, to: url, replacing: original)
+        if install {
+            print("added montty hooks to \(url.path)")
+            print("Claude sessions started from now on report to montty; restart running ones to include them")
+        } else {
+            print("removed montty hooks from \(url.path)")
+        }
+        exit(ExitCode.ok.rawValue)
+    }
+
+    /// Claude Code's user settings file, honoring CLAUDE_CONFIG_DIR as Claude
+    /// does. A symlinked file is written through, so a settings file kept in a
+    /// dotfiles repository stays a link.
+    private static func claudeSettingsURL() -> URL {
+        let configured = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"] ?? ""
+        let directory = configured.isEmpty ? NSHomeDirectory() + "/.claude" : configured
+        return URL(fileURLWithPath: directory)
+            .appendingPathComponent("settings.json")
+            .resolvingSymlinksInPath()
+    }
+
+    private static func writeSettings(_ output: Data, to url: URL, replacing original: Data?) {
+        do {
+            if let original {
+                try original.write(to: URL(fileURLWithPath: url.path + ".montty-backup"), options: .atomic)
+            }
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(), withIntermediateDirectories: true
+            )
+            try (output + Data("\n".utf8)).write(to: url, options: .atomic)
+        } catch {
+            fail("could not write \(url.path): \(error.localizedDescription)", .rejected)
+        }
     }
 
     /// Reads the colors back through the existing info command, so no new

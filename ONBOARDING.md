@@ -55,7 +55,7 @@ splits. `Sources/App/` holds the AppKit entry point (`main.swift`),
 - `Sources/Ghostty/` -- copied Ghostty Swift bindings (do not hand-edit without `// MONTTY:` markers)
 - `Sources/Model/TabStore.swift`, `SplitTree.swift`, `JumpLabels.swift` -- core model
 - `Sources/Persistence/SessionSnapshot.swift` -- JSON session format
-- `project.yml` -- xcodegen input (incl. post-build zsh `claude()` wrapper injection)
+- `project.yml` -- xcodegen input (incl. post-build copy of Ghostty resources)
 - `Justfile` -- all build / release / inspect recipes
 - `ghostty/` -- MIT-licensed Ghostty git submodule (source for `GhosttyKit.xcframework`)
 - `Resources/Info.plist`, `Resources/montty.entitlements` -- app metadata and entitlements

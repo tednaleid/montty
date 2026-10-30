@@ -18,7 +18,9 @@ surface and nothing runs without being seen first.
 
 ### What sets it
 
-- **Claude hooks.** Every hook event from a Claude session in a surface sets
+- **Claude hooks.** Installed by `montty install-hooks claude` (see
+  `spec-install-hooks.md`). Every hook event from an interactive Claude
+  session in a surface sets
   that surface's resume command to `claude --resume <session_id>`, using the
   `session_id` in the hook payload. Every event carries the current id, so a
   `/branch`, `/clear`, or in-session `/resume` moves the record to the new
@@ -79,7 +81,7 @@ forwards and runs effects (see `docs/architecture.md`).
 
 - **Hook payload.** `montty hook <event>` forwards `session_id` and `reason`
   from Claude's stdin payload alongside `cwd`. `ClaudeHookMessage` parses both
-  as optional fields, so an older wrapper still works.
+  as optional fields, so a payload without them still parses.
 - **Tracking.** A pure `ResumeCommandTracker`, next to `HookDirectoryTracker`,
   applies a hook message to a surface's resume command: set from `session_id`,
   clear on a deliberate `SessionEnd`, otherwise leave it.

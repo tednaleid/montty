@@ -7,10 +7,11 @@ also get `MONTTY_BIN` pointing at it by absolute path, for scripts that rewrite
 `PATH`.
 
 Most commands only work from inside a montty pane -- run one anywhere else and
-it exits 2, because there is no surface for it to act on. Two exceptions:
-`montty --version` and `montty --help` print and exit 0 from anywhere, and
-`montty hook <event>` also exits 0 outside a pane, since a hook firing there
-is normal, not an error.
+it exits 2, because there is no surface for it to act on. The exceptions:
+`montty --version` and `montty --help` print and exit 0 from anywhere,
+`montty install-hooks` and `montty uninstall-hooks` only edit a file and run
+from anywhere, and `montty hook <event>` also exits 0 outside a pane, since a
+hook firing there is normal, not an error.
 
 Anything montty cannot parse exits 64 and prints the usage text: a bad
 property, value, or color; a mistyped verb such as `montty tabb color green`;
@@ -35,6 +36,7 @@ montty surface status <working|waiting|idle|clear>
 montty surface resume-command <cmd>  montty surface resume-command --reset
 montty info
 montty hook <event>
+montty install-hooks claude          montty uninstall-hooks claude
 montty --version
 montty --help
 ```
@@ -80,10 +82,46 @@ montty info | jq -r .git.branch
 | exit | meaning |
 |---|---|
 | 0 | ok |
-| 1 | montty rejected the request (unknown surface, not in a repo, tab name over 256 characters, invalid resume command) |
+| 1 | montty rejected the request (unknown surface, not in a repo, tab name over 256 characters, invalid resume command, a settings file that is not a JSON object) |
 | 2 | not running inside a montty pane |
 | 3 | montty is not reachable: not running, or busy and refusing connections |
 | 64 | usage error: unknown verb or property, bad color spec, extra arguments, request over 1 MiB |
+
+## Claude Code hooks
+
+montty learns what Claude Code is doing through Claude's hooks: they drive the
+activity status and keep the resume command current. Add them to Claude Code's
+user settings once:
+
+```bash
+montty install-hooks claude
+montty uninstall-hooks claude
+```
+
+`install-hooks` adds a `SessionStart`, `UserPromptSubmit`, `PreToolUse`,
+`Notification`, `Stop`, and `SessionEnd` entry to `~/.claude/settings.json`
+(`$CLAUDE_CONFIG_DIR/settings.json` when that is set), each running:
+
+```sh
+[ -z "$MONTTY_BIN" ] || "$MONTTY_BIN" hook <event>
+```
+
+Every montty pane sets `MONTTY_BIN` to the running app's binary, so a session
+reports to the montty that owns its pane, and the entry does nothing in any
+other terminal. The settings never need updating for a new montty release.
+
+Both commands leave every other setting and hook in place and are safe to run
+twice. Before changing the file, they save the previous one next to it as
+`settings.json.montty-backup`. A symlinked settings file is written through,
+so it stays a link. The file is rewritten with its keys sorted. A file that is
+not a JSON object is left alone, and the command exits 1. Claude Code reads
+hooks when a session starts, so sessions already running pick them up after a
+restart.
+
+Only interactive sessions report. `claude -p` and SDK sessions set
+`CLAUDE_CODE_ENTRYPOINT` to something other than `cli`, and `montty hook`
+ignores them, so a script or an agent's tool call running `claude -p` in a pane
+cannot replace that pane's status or resume command.
 
 ## Activity status
 

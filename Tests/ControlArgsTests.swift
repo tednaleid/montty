@@ -86,6 +86,18 @@ import Testing
         #expect(event == "pre-tool-use")
     }
 
+    @Test func parsesInstallAndUninstallHooks() {
+        #expect(ControlArgs.parse(["install-hooks", "claude"]) == .success(.installHooks(.claude)))
+        #expect(ControlArgs.parse(["uninstall-hooks", "claude"]) == .success(.uninstallHooks(.claude)))
+    }
+
+    @Test func installHooksNeedsAKnownAgent() {
+        #expect(failure(["install-hooks"]) == .missingValue("install-hooks"))
+        #expect(failure(["uninstall-hooks"]) == .missingValue("uninstall-hooks"))
+        #expect(failure(["install-hooks", "codex"]) == .unknownAgent("codex"))
+        #expect(failure(["install-hooks", "claude", "extra"]) == .unexpectedArgument("extra"))
+    }
+
     @Test func parsesTintStrengthAndReset() {
         #expect(command(["tint-strength", "0.2"]) == .setTintStrength(0.2))
         #expect(command(["tint-strength", "0"]) == .setTintStrength(0))
