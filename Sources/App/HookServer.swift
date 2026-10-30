@@ -160,6 +160,11 @@ enum HookServer {
             response = .failure(
                 "tab name is longer than \(ControlWire.maxNameCharacters) characters"
             )
+        } catch ControlRequest.DecodeFailure.invalidResumeCommand {
+            response = .failure(
+                "resume command must be 1 to \(ResumeCommand.maxCharacters) characters "
+                    + "with no control characters"
+            )
         } catch {
             response = .failure("malformed request")
         }
@@ -220,7 +225,8 @@ enum HookServer {
 
             // Find the tab that owns this MONTTY_SURFACE_ID, in whichever
             // window holds it (check before mutating).
-            let owningTab = appDelegate.registry.locate(monttyID: message.surface)?.tab
+            let target = appDelegate.registry.locate(monttyID: message.surface)
+            let owningTab = target?.tab
 
             var newStateLabel: String?
             if let tab = owningTab {
@@ -240,6 +246,9 @@ enum HookServer {
                     cwd: message.cwd,
                     to: &tab.claudeDirectories
                 )
+                if let surfaceID = target?.surfaceID {
+                    ResumeCommandTracker.apply(message, to: &tab.resumeCommands[surfaceID])
+                }
             }
 
             let matched = owningTab != nil

@@ -55,6 +55,9 @@ struct ControlRequest: Equatable {
         /// A name past `ControlWire.maxNameCharacters`. Rejected rather than
         /// truncated, so a caller is never told a name it never chose is set.
         case nameTooLong
+        /// A resume command that is empty, past `ResumeCommand.maxCharacters`,
+        /// or holds a control character that would act on its own when typed.
+        case invalidResumeCommand
         /// No `cmd` field: a hook event from the shell wrapper, which the
         /// legacy ClaudeHookMessage path still owns.
         case legacyHook
@@ -105,6 +108,8 @@ struct ControlRequest: Equatable {
             return try statusCommand(value: value, isNull: isNull)
         case "tintStrength":
             return try tintStrengthCommand(value: value)
+        case "resumeCommand":
+            return try resumeCommand(value: value, isNull: isNull)
         default:
             throw DecodeFailure.malformed
         }
@@ -145,6 +150,13 @@ struct ControlRequest: Equatable {
         }
     }
 
+    private static func resumeCommand(value: Any?, isNull: Bool) throws -> ControlCommand {
+        if isNull { return .setResumeCommand(nil) }
+        guard let command = value as? String else { throw DecodeFailure.malformed }
+        guard ResumeCommand.isValid(command) else { throw DecodeFailure.invalidResumeCommand }
+        return .setResumeCommand(command)
+    }
+
     private static func tintStrengthCommand(value: Any?) throws -> ControlCommand {
         guard let strength = value as? Double else { throw DecodeFailure.malformed }
         return .setTintStrength(strength)
@@ -181,6 +193,10 @@ struct ControlRequest: Equatable {
             root["cmd"] = "set"
             root["prop"] = "tintStrength"
             root["value"] = strength
+        case .setResumeCommand(let command):
+            root["cmd"] = "set"
+            root["prop"] = "resumeCommand"
+            root["value"] = command ?? NSNull()
         }
         return try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
     }

@@ -150,6 +150,8 @@ struct TabSnapshot: Codable {
     /// Per-surface color override, keyed by leaf ID. Surfaces get fresh IDs on
     /// restore; leaf IDs survive, which is what makes this stick.
     var leafColorOverrides: [UUID: PaneTint] = [:]
+    /// Per-surface resume command, keyed by leaf ID like the color overrides.
+    var leafResumeCommands: [UUID: String] = [:]
     /// Tab-level color override, if set.
     var colorOverride: PaneTint?
 }
@@ -171,6 +173,9 @@ extension TabSnapshot {
         leafDirectories = try container.decode([UUID: String].self, forKey: .leafDirectories)
         leafColorOverrides = try container.decodeIfPresent(
             [UUID: PaneTint].self, forKey: .leafColorOverrides
+        ) ?? [:]
+        leafResumeCommands = try container.decodeIfPresent(
+            [UUID: String].self, forKey: .leafResumeCommands
         ) ?? [:]
         colorOverride = try container.decodeIfPresent(PaneTint.self, forKey: .colorOverride)
     }

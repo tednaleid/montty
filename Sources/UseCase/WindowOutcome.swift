@@ -40,6 +40,9 @@ struct SurfacePlan: Equatable {
     /// by this id, not by `leafID` or the surface id Ghostty mints.
     let monttyID: String
     let workingDirectory: String?
+    /// Typed at the new surface's prompt without pressing Enter. Only a
+    /// restore sets it.
+    let resumeCommand: String?
 }
 
 /// App-wide settings a restore recovered. They live on the shell, so they cross

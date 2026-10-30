@@ -124,7 +124,8 @@ final class WindowUseCases {
                 windowID: window.id,
                 tabID: tab.id,
                 monttyID: UUID().uuidString,
-                workingDirectory: directory
+                workingDirectory: directory,
+                resumeCommand: nil
             )
         ]
         outcome.raiseWindow = window.id
@@ -210,21 +211,7 @@ final class WindowUseCases {
                 frame: saved.frame
             ))
             for savedTab in saved.tabs.sorted(by: { $0.position < $1.position }) {
-                let tab = Tab(id: savedTab.tabID, name: savedTab.name, position: savedTab.position)
-                tab.splitRoot = savedTab.splitLayout
-                tab.focusedLeafID = savedTab.focusedLeafID
-                tab.colorOverride = savedTab.colorOverride
-                window.tabStore.append(tab: tab)
-
-                for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
-                    outcome.createSurfaces.append(SurfacePlan(
-                        leafID: leaf.id,
-                        windowID: window.id,
-                        tabID: tab.id,
-                        monttyID: UUID().uuidString,
-                        workingDirectory: savedTab.leafDirectories[leaf.id]
-                    ))
-                }
+                outcome.createSurfaces += restoreTab(savedTab, into: window)
             }
             window.tabStore.activeTabID = saved.activeTabID ?? window.tabStore.tabs.first?.id
             outcome.createWindows.append(WindowPlan(
@@ -239,6 +226,30 @@ final class WindowUseCases {
             ?? registry.windows.first?.id
         outcome.raiseWindow = registry.keyWindowID
         return outcome
+    }
+
+    /// Rebuild one saved tab in `window`, returning the surfaces it needs.
+    private func restoreTab(_ savedTab: TabSnapshot, into window: WindowModel) -> [SurfacePlan] {
+        let tab = Tab(id: savedTab.tabID, name: savedTab.name, position: savedTab.position)
+        tab.splitRoot = savedTab.splitLayout
+        tab.focusedLeafID = savedTab.focusedLeafID
+        tab.colorOverride = savedTab.colorOverride
+        window.tabStore.append(tab: tab)
+
+        return SplitTree.allLeaves(node: tab.splitRoot).map { leaf in
+            let resumeCommand = savedTab.leafResumeCommands[leaf.id]
+            // Kept on the tab so the next save writes it again; binding
+            // moves it onto the surface Ghostty creates for this leaf.
+            tab.resumeCommands[leaf.surfaceID] = resumeCommand
+            return SurfacePlan(
+                leafID: leaf.id,
+                windowID: window.id,
+                tabID: tab.id,
+                monttyID: UUID().uuidString,
+                workingDirectory: savedTab.leafDirectories[leaf.id],
+                resumeCommand: resumeCommand
+            )
+        }
     }
 
     /// The session montty would write right now. Takes the values only the

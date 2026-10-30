@@ -78,6 +78,34 @@ struct HookEventTests {
         #expect(msg?.cwd == nil)
     }
 
+    // MARK: - session_id and reason fields
+
+    @Test func parsesSessionIDAndReasonWhenPresent() {
+        let msg = ClaudeHookMessage.parse(
+            json: "{\"event\":\"session-end\",\"surface\":\"s1\","
+                + "\"session_id\":\"abc-123\",\"reason\":\"prompt_input_exit\"}"
+        )
+        #expect(msg?.sessionID == "abc-123")
+        #expect(msg?.reason == "prompt_input_exit")
+    }
+
+    @Test func sessionIDAndReasonAbsentParseAsNil() {
+        let msg = ClaudeHookMessage.parse(
+            json: "{\"event\":\"stop\",\"surface\":\"s1\"}"
+        )
+        #expect(msg != nil)
+        #expect(msg?.sessionID == nil)
+        #expect(msg?.reason == nil)
+    }
+
+    @Test func emptySessionIDAndReasonParseAsNil() {
+        let msg = ClaudeHookMessage.parse(
+            json: "{\"event\":\"stop\",\"surface\":\"s1\",\"session_id\":\"\",\"reason\":\"\"}"
+        )
+        #expect(msg?.sessionID == nil)
+        #expect(msg?.reason == nil)
+    }
+
     // MARK: - Directory tracker
 
     @Test func trackerRecordsCwdOnSessionStart() {

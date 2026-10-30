@@ -31,6 +31,9 @@ final class Tab: Identifiable {
     var claudeDirectories: [String: String] = [:]
     /// Per-surface color override, keyed by surfaceID. Beats the tab override.
     var surfaceColorOverrides: [UUID: PaneTint] = [:]
+    /// Per-surface resume command, keyed by surfaceID. Typed at the surface's
+    /// prompt, unexecuted, when a relaunch restores it.
+    var resumeCommands: [UUID: String] = [:]
     /// Tab-level color override. Beats repo/worktree colors for all surfaces in this tab.
     var colorOverride: PaneTint?
 
@@ -106,15 +109,18 @@ final class Tab: Identifiable {
     }
 
     /// Point each leaf at the surface created for it. Leaves not named in
-    /// `bindings` keep the surface they already have. A monttyID already
-    /// recorded for the leaf's placeholder surface carries over to the new
-    /// id; a monttyID already recorded under the new id (the shell may have
-    /// registered it before this call) is left untouched.
+    /// `bindings` keep the surface they already have. A monttyID or resume
+    /// command already recorded for the leaf's placeholder surface carries
+    /// over to the new id; a monttyID already recorded under the new id (the
+    /// shell may have registered it before this call) is left untouched.
     func bindSurfaces(_ bindings: [UUID: UUID]) {
         splitRoot = SplitTree.mapLeaves(node: splitRoot) { leaf in
             guard let surfaceID = bindings[leaf.id] else { return leaf }
             if let monttyID = surfaceToMonttyID.removeValue(forKey: leaf.surfaceID) {
                 surfaceToMonttyID[surfaceID] = monttyID
+            }
+            if let command = resumeCommands.removeValue(forKey: leaf.surfaceID) {
+                resumeCommands[surfaceID] = command
             }
             return SurfaceLeaf(id: leaf.id, surfaceID: surfaceID)
         }

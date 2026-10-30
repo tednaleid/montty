@@ -62,6 +62,27 @@ import Testing
         #expect(try ControlRequest.decode(payload).command == .setName(name))
     }
 
+    @Test func decodesResumeCommandAndItsClear() throws {
+        let set = Data("""
+        {"v":1,"cmd":"set","surface":"M1","prop":"resumeCommand","value":"nvim -S s.vim"}
+        """.utf8)
+        #expect(try ControlRequest.decode(set).command == .setResumeCommand("nvim -S s.vim"))
+
+        let clear = Data("""
+        {"v":1,"cmd":"set","surface":"M1","prop":"resumeCommand","value":null}
+        """.utf8)
+        #expect(try ControlRequest.decode(clear).command == .setResumeCommand(nil))
+    }
+
+    @Test func rejectsAResumeCommandThatCouldRunOnItsOwn() throws {
+        for bad in ["ls\n", "", String(repeating: "a", count: ResumeCommand.maxCharacters + 1)] {
+            let payload = try ControlRequest(surface: "M1", command: .setResumeCommand(bad)).encoded()
+            #expect(throws: ControlRequest.DecodeFailure.invalidResumeCommand) {
+                try ControlRequest.decode(payload)
+            }
+        }
+    }
+
     @Test func everyActivityStatusHasAStableWireName() {
         #expect(ActivityStatus.State.working.wireName == "working")
         #expect(ActivityStatus.State.waiting.wireName == "waiting")
@@ -151,7 +172,9 @@ import Testing
             .clearName,
             .setStatus(.waiting),
             .clearColor(scope: .surface),
-            .setTintStrength(0.2)
+            .setTintStrength(0.2),
+            .setResumeCommand("claude --resume abc"),
+            .setResumeCommand(nil)
         ]
         for command in commands {
             let request = ControlRequest(surface: "M1", command: command)
@@ -184,13 +207,14 @@ import Testing
             tabName: "montty/", tabNameIsOverride: false,
             scopes: ControlInfo.Scopes(surface: nil, tab: nil, repo: nil),
             effective: TintPayload(PaneTint(stops: [.named(.green)])),
-            git: nil, status: nil
+            git: nil, status: nil, resumeCommand: "claude --resume abc"
         )
         let data = try ControlResponse.info(info).encoded()
         let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         #expect(parsed?["ok"] as? Bool == true)
         #expect(parsed?["surface_id"] as? String == "M1")
         #expect(parsed?["tab_name_is_override"] as? Bool == false)
+        #expect(parsed?["resume_command"] as? String == "claude --resume abc")
     }
 
     @Test func aPingIsRecognizedWithoutDecodingAsARequest() throws {

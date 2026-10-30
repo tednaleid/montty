@@ -79,14 +79,16 @@ enum ControlCLI {
         }
     }
 
-    /// Claude Code delivers its payload on stdin; forward the cwd it reports.
-    /// Best effort: never make a montty-less environment look broken.
+    /// Claude Code delivers its payload on stdin; forward the cwd, session id,
+    /// and end reason it reports. Best effort: never make a montty-less
+    /// environment look broken.
     private static func runHook(event: String, surface: String, socketPath: String) -> Never {
         let input = FileHandle.standardInput.readDataToEndOfFile()
-        let cwd = (try? JSONSerialization.jsonObject(with: input))
-            .flatMap { ($0 as? [String: Any])?["cwd"] as? String }
+        let payload = (try? JSONSerialization.jsonObject(with: input)) as? [String: Any]
         var message: [String: Any] = ["event": event, "surface": surface]
-        if let cwd, !cwd.isEmpty { message["cwd"] = cwd }
+        for key in ["cwd", "session_id", "reason"] {
+            if let value = payload?[key] as? String, !value.isEmpty { message[key] = value }
+        }
         if let payload = try? JSONSerialization.data(withJSONObject: message) {
             _ = ControlTransport.roundTrip(payload, socketPath: socketPath, expectReply: false)
         }

@@ -11,7 +11,8 @@ import Testing
     private func windowWithTab(
         sidebarWidth: Double = 200,
         surfaceID: UUID = UUID(),
-        tint: PaneTint? = nil
+        tint: PaneTint? = nil,
+        resumeCommand: String? = nil
     ) -> WindowModel {
         let window = WindowModel(sidebarWidth: sidebarWidth)
         let tab = Tab(id: UUID(), name: "", position: 0)
@@ -20,6 +21,9 @@ import Testing
         tab.focusedLeafID = leafID
         if let tint {
             tab.surfaceColorOverrides[surfaceID] = tint
+        }
+        if let resumeCommand {
+            tab.resumeCommands[surfaceID] = resumeCommand
         }
         window.tabStore.append(tab: tab)
         return window
@@ -114,5 +118,15 @@ import Testing
         let recorded = snapshot(of: registry)
 
         #expect(recorded.windows.first?.tabs.first?.leafColorOverrides.values.first == tint)
+    }
+
+    @Test func capturesEachLeafsResumeCommand() {
+        let registry = WindowRegistry()
+        let surfaceID = UUID()
+        registry.add(windowWithTab(surfaceID: surfaceID, resumeCommand: "claude --resume abc"))
+
+        let recorded = snapshot(of: registry)
+
+        #expect(recorded.windows.first?.tabs.first?.leafResumeCommands.values.first == "claude --resume abc")
     }
 }

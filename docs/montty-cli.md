@@ -32,6 +32,7 @@ montty tab     color <spec>          montty tab     color --reset
 montty repo    color <spec>          montty repo    color --reset
 montty tab     name  <text>          montty tab     name  --reset
 montty surface status <working|waiting|idle|clear>
+montty surface resume-command <cmd>  montty surface resume-command --reset
 montty info
 montty hook <event>
 montty --version
@@ -79,7 +80,7 @@ montty info | jq -r .git.branch
 | exit | meaning |
 |---|---|
 | 0 | ok |
-| 1 | montty rejected the request (unknown surface, not in a repo, tab name over 256 characters) |
+| 1 | montty rejected the request (unknown surface, not in a repo, tab name over 256 characters, invalid resume command) |
 | 2 | not running inside a montty pane |
 | 3 | montty is not reachable: not running, or busy and refusing connections |
 | 64 | usage error: unknown verb or property, bad color spec, extra arguments, request over 1 MiB |
@@ -111,3 +112,28 @@ montty clears it.
 Every `waiting`, however it was set, returns to `idle` after 60 seconds so a
 pane cannot stay marked forever. `working` and `idle` persist until something
 changes them.
+
+## Resume command
+
+A surface's resume command is typed at its prompt, without pressing Enter,
+when a relaunch restores the session. You see it, can edit it, and run it with
+one keystroke.
+
+Claude Code sessions keep it current on their own: every Claude hook event sets
+it to `claude --resume <session id>`, so a `/branch`, `/clear`, or `/resume`
+moves it to the session you are in. Ending Claude yourself (`/exit`, Ctrl-D)
+clears it. Claude ending because montty quit, the machine shut down, or its
+surface closed keeps it.
+
+Any other program can register one:
+
+```bash
+montty surface resume-command "nvim -S session.vim"
+montty surface resume-command --reset
+montty info | jq -r .resume_command
+```
+
+The command stays until something replaces or clears it, so a second relaunch
+before you act on it offers it again. It takes one quoted value, at most 4096
+characters, with no control characters: a newline would run the command
+instead of waiting at the prompt, so montty rejects one with exit 1.

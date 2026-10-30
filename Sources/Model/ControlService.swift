@@ -26,6 +26,7 @@ struct ControlState: Equatable {
     var activityStates: [String: ActivityStatus.State]
     var activityWaitingSince: [String: Date]
     var activityWaitingFromControl: [String: Date]
+    var surfaceResumeCommands: [UUID: String]
 }
 
 enum ControlService {
@@ -55,6 +56,10 @@ enum ControlService {
 
         case .setStatus(let status):
             setStatus(status, target: target, to: &state, now: now)
+            return .applied
+
+        case .setResumeCommand(let command):
+            state.surfaceResumeCommands[target.surfaceID] = command
             return .applied
 
         case .setTintStrength:
@@ -171,7 +176,8 @@ enum ControlService {
                     worktree: $0.worktreeName, repoPath: $0.repoPath
                 )
             },
-            status: state.activityStates[target.monttyID].map(\.wireName)
+            status: state.activityStates[target.monttyID].map(\.wireName),
+            resumeCommand: state.surfaceResumeCommands[target.surfaceID]
         )
     }
 

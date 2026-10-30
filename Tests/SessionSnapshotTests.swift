@@ -212,6 +212,27 @@ struct SessionSnapshotTests {
         #expect(decoded.version == 4)
     }
 
+    @Test func leafResumeCommandsRoundTrip() throws {
+        let leafID = UUID()
+        let snapshot = SessionSnapshot(windows: [WindowSnapshot(
+            windowID: UUID(), frame: WindowFrame(x: 0, y: 0, width: 0, height: 0),
+            sidebarWidth: 200, activeTabID: nil,
+            tabs: [
+                TabSnapshot(
+                    tabID: UUID(), name: "", position: 0,
+                    focusedLeafID: leafID,
+                    splitLayout: .leaf(SurfaceLeaf(id: leafID, surfaceID: UUID())),
+                    leafDirectories: [:],
+                    leafResumeCommands: [leafID: "claude --resume abc"],
+                    colorOverride: nil
+                )
+            ]
+        )])
+        let data = try JSONEncoder().encode(snapshot)
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: data)
+        #expect(decoded.windows[0].tabs[0].leafResumeCommands[leafID] == "claude --resume abc")
+    }
+
     @Test func decodesAV2TabMissingLeafColorOverrides() throws {
         let tabID = UUID()
         let leafID = UUID()
@@ -238,6 +259,7 @@ struct SessionSnapshotTests {
         }
         #expect(leaf.id == leafID)
         #expect(decoded.windows[0].tabs[0].leafColorOverrides.isEmpty)
+        #expect(decoded.windows[0].tabs[0].leafResumeCommands.isEmpty)
         #expect(decoded.windows[0].tabs[0].colorOverride == PaneTint(stops: [.named(.blue)]))
     }
 }

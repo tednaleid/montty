@@ -44,6 +44,20 @@ import Testing
         #expect(command(["repo", "color", "--reset"]) == .clearColor(scope: .repo))
     }
 
+    @Test func parsesResumeCommandAndReset() {
+        #expect(
+            command(["surface", "resume-command", "nvim -S 'my session.vim'"])
+                == .setResumeCommand("nvim -S 'my session.vim'")
+        )
+        #expect(command(["surface", "resume-command", "--reset"]) == .setResumeCommand(nil))
+    }
+
+    @Test func resumeCommandNeedsExactlyOneValueOnTheSurfaceScope() {
+        #expect(failure(["surface", "resume-command"]) == .missingValue("resume-command"))
+        #expect(failure(["surface", "resume-command", "nvim", "-S"]) == .unexpectedArgument("-S"))
+        #expect(failure(["tab", "resume-command", "nvim"]) == .unknownProperty("resume-command"))
+    }
+
     @Test func parsesNameAndReset() {
         #expect(command(["tab", "name", "MR !123 fix auth"]) == .setName("MR !123 fix auth"))
         #expect(command(["tab", "name", "--reset"]) == .clearName)

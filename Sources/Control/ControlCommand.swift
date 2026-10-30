@@ -29,6 +29,9 @@ enum ControlCommand: Equatable {
     case setStatus(ActivityStatus.State?)
     /// App-wide, not scoped to the calling surface's tab or repo.
     case setTintStrength(Double)
+    /// What the calling surface types at its prompt on the next restore. nil
+    /// clears it.
+    case setResumeCommand(String?)
     case info
 }
 
@@ -75,6 +78,7 @@ struct ControlInfo: Codable, Equatable {
     let effective: TintPayload?
     let git: Git?
     let status: String?
+    let resumeCommand: String?
 }
 
 enum ControlResult: Equatable {

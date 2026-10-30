@@ -46,18 +46,22 @@ enum SessionSnapshotBuilder {
         )
     }
 
-    /// One tab's persisted shape, including each leaf's working directory and
-    /// color override keyed by leaf rather than by the surface id, which is
-    /// minted fresh on restore.
+    /// One tab's persisted shape, including each leaf's working directory,
+    /// color override, and resume command keyed by leaf rather than by the
+    /// surface id, which is minted fresh on restore.
     private static func tabSnapshot(of tab: Tab, environment: SessionEnvironment) -> TabSnapshot {
         var dirs: [UUID: String] = [:]
         var colors: [UUID: PaneTint] = [:]
+        var resumeCommands: [UUID: String] = [:]
         for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
             if let pwd = environment.directory(leaf.surfaceID) {
                 dirs[leaf.id] = pwd
             }
             if let tint = tab.surfaceColorOverrides[leaf.surfaceID] {
                 colors[leaf.id] = tint
+            }
+            if let command = tab.resumeCommands[leaf.surfaceID] {
+                resumeCommands[leaf.id] = command
             }
         }
         return TabSnapshot(
@@ -68,6 +72,7 @@ enum SessionSnapshotBuilder {
             splitLayout: tab.splitRoot,
             leafDirectories: dirs,
             leafColorOverrides: colors,
+            leafResumeCommands: resumeCommands,
             colorOverride: tab.colorOverride
         )
     }

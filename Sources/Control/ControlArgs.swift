@@ -45,6 +45,8 @@ enum ControlArgs {
           montty <scope> color             prints what that scope resolves to
           montty tab     name  <text>      montty tab     name  --reset
           montty surface status <working|waiting|idle|clear>
+          montty surface resume-command <cmd>
+                                           montty surface resume-command --reset
           montty hook <event>
           montty tint-strength <value>     montty tint-strength --reset
           montty info
@@ -122,6 +124,8 @@ enum ControlArgs {
             return parseName(value)
         case (.surface, "status"):
             return parseStatus(value)
+        case (.surface, "resume-command"):
+            return parseResumeCommand(value)
         default:
             return .failure(.unknownProperty(property))
         }
@@ -185,6 +189,12 @@ enum ControlArgs {
         guard let value else { return .failure(.missingValue("name")) }
         if value == "--reset" { return .success(.control(.clearName)) }
         return .success(.control(.setName(value)))
+    }
+
+    private static func parseResumeCommand(_ value: String?) -> Result<ParsedInvocation, UsageError> {
+        guard let value else { return .failure(.missingValue("resume-command")) }
+        if value == "--reset" { return .success(.control(.setResumeCommand(nil))) }
+        return .success(.control(.setResumeCommand(value)))
     }
 
     private static func parseStatus(_ value: String?) -> Result<ParsedInvocation, UsageError> {

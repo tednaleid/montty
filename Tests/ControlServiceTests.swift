@@ -21,7 +21,7 @@ import Testing
             tabName: "", displayName: "montty/", surfaceColorOverrides: [:],
             tabColorOverride: nil, repoColorOverrides: [:],
             activityStates: [:], activityWaitingSince: [:],
-            activityWaitingFromControl: [:]
+            activityWaitingFromControl: [:], surfaceResumeCommands: [:]
         )
     }
 
@@ -113,6 +113,34 @@ import Testing
         )
         #expect(result == .rejected(.notInRepo))
         #expect(subject.repoColorOverrides.isEmpty)
+    }
+
+    @Test func setsAndClearsResumeCommandOnTheCallingSurfaceOnly() {
+        var subject = state()
+        let other = UUID()
+        subject.surfaceResumeCommands[other] = "nvim"
+
+        _ = ControlService.apply(
+            .setResumeCommand("claude --resume abc"), target: ref(), to: &subject, gitInfoProvider: git
+        )
+        #expect(subject.surfaceResumeCommands[surfaceID] == "claude --resume abc")
+
+        _ = ControlService.apply(
+            .setResumeCommand(nil), target: ref(), to: &subject, gitInfoProvider: git
+        )
+        #expect(subject.surfaceResumeCommands[surfaceID] == nil)
+        #expect(subject.surfaceResumeCommands[other] == "nvim")
+    }
+
+    @Test func infoReportsTheResumeCommand() {
+        var subject = state()
+        subject.surfaceResumeCommands[surfaceID] = "claude --resume abc"
+        let result = ControlService.apply(.info, target: ref(), to: &subject, gitInfoProvider: git)
+        guard case .read(let info) = result else {
+            Issue.record("expected a read result")
+            return
+        }
+        #expect(info.resumeCommand == "claude --resume abc")
     }
 
     @Test func setsAndClearsTabName() {

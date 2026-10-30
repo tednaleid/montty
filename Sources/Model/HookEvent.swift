@@ -20,14 +20,28 @@ struct ClaudeHookMessage: Equatable {
     /// The cwd Claude Code reported on stdin. Optional for backward compat with
     /// older wrappers; the worktree color tracking depends on it being present.
     let cwd: String?
+    /// The Claude Code session the event belongs to. Optional for backward
+    /// compat with older wrappers that forward only cwd.
+    let sessionID: String?
+    /// Why a session ended, as Claude Code reports it on `SessionEnd`.
+    let reason: String?
 
-    init(event: ClaudeHookEvent, surface: String, cwd: String? = nil) {
+    init(
+        event: ClaudeHookEvent,
+        surface: String,
+        cwd: String? = nil,
+        sessionID: String? = nil,
+        reason: String? = nil
+    ) {
         self.event = event
         self.surface = surface
         self.cwd = cwd
+        self.sessionID = sessionID
+        self.reason = reason
     }
 
-    /// Parse a hook message body. Expects: {"event": "<name>", "surface": "<id>", "cwd": "<path>"?}.
+    /// Parse a hook message body. Expects: {"event": "<name>", "surface": "<id>",
+    /// "cwd": "<path>"?, "session_id": "<id>"?, "reason": "<reason>"?}.
     /// Returns nil for malformed JSON, unknown events, or missing fields.
     static func parse(json: String) -> ClaudeHookMessage? {
         guard let data = json.data(using: .utf8),
@@ -38,9 +52,18 @@ struct ClaudeHookMessage: Equatable {
               !surface.isEmpty else {
             return nil
         }
-        let rawCwd = obj["cwd"] as? String
-        let cwd = (rawCwd?.isEmpty ?? true) ? nil : rawCwd
-        return ClaudeHookMessage(event: event, surface: surface, cwd: cwd)
+        return ClaudeHookMessage(
+            event: event,
+            surface: surface,
+            cwd: nonEmpty(obj["cwd"]),
+            sessionID: nonEmpty(obj["session_id"]),
+            reason: nonEmpty(obj["reason"])
+        )
+    }
+
+    private static func nonEmpty(_ value: Any?) -> String? {
+        guard let text = value as? String, !text.isEmpty else { return nil }
+        return text
     }
 }
 

@@ -284,6 +284,45 @@ import Testing
                 ["/Users/dev/work/alpha", "/Users/dev/work/beta"])
     }
 
+    @Test func restoringHandsEachSurfaceItsResumeCommand() {
+        let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
+        let leafID = UUID()
+        var window = windowSnapshot(leafID: leafID, directory: nil, name: "", colorOverride: nil)
+        window.tabs[0].leafResumeCommands = [leafID: "claude --resume abc"]
+
+        let outcome = useCases.restore(SessionSnapshot(
+            surfaceTintEnabled: true, windows: [window],
+            keyWindowID: nil, repoColorOverrides: [:]
+        ))
+
+        #expect(outcome.createSurfaces.map(\.resumeCommand) == ["claude --resume abc"])
+    }
+
+    /// The restored command stays on the surface Ghostty creates, so the next
+    /// save writes it again and a second relaunch still offers it.
+    @Test func aRestoredResumeCommandFollowsTheLeafToItsCreatedSurface() {
+        let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
+        let leafID = UUID()
+        var window = windowSnapshot(leafID: leafID, directory: nil, name: "", colorOverride: nil)
+        window.tabs[0].leafResumeCommands = [leafID: "claude --resume abc"]
+        _ = useCases.restore(SessionSnapshot(
+            surfaceTintEnabled: true, windows: [window],
+            keyWindowID: nil, repoColorOverrides: [:]
+        ))
+
+        let createdSurfaceID = UUID()
+        _ = useCases.surfacesCreated([leafID: createdSurfaceID])
+
+        let tab = useCases.registry.windows.first?.tabStore.tabs.first
+        #expect(tab?.resumeCommands == [createdSurfaceID: "claude --resume abc"])
+    }
+
+    @Test func aNewWindowHasNoResumeCommand() {
+        let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
+        let outcome = useCases.newWindow(from: nil)
+        #expect(outcome.createSurfaces.map(\.resumeCommand) == [nil])
+    }
+
     /// A window whose tabs all vanished is not worth restoring.
     @Test func restoringSkipsWindowsWithNoTabs() {
         let (useCases, _) = makeUseCases(windowSurfaceCounts: [])
