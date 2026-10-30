@@ -10,10 +10,10 @@ A macOS terminal app built on [GhosttyKit](https://github.com/ghostty-org/ghostt
 - Per-tab color coding (user-assignable or auto from directory)
 - Horizontal and vertical splits within tabs
 - Session restore (tabs, splits, names, colors, focus state survive restart)
-- Claude Code sessions come back after a relaunch: each surface that was running one has `claude --resume <id>` typed at its prompt, ready to run (see [Claude Code](#claude-code))
+- Claude Code sessions come back after a relaunch: each surface that was running one has `claude --resume <id>` typed at its prompt, ready to run (see [Claude Code hooks](#claude-code-hooks))
 - Click any minimap pane to jump directly to that surface
 - Git branch and directory info in tab sidebar
-- Claude Code status indicators (working, waiting, idle) on minimap panes (see [Claude Code](#claude-code))
+- Claude Code status indicators (working, waiting, idle) on minimap panes (see [Claude Code hooks](#claude-code-hooks))
 - Standard Ghostty theming from `~/.config/ghostty/config`
 - Multiple windows from one process, opened with `Cmd-N`, each owning its own tabs, which never move between windows
 - The `montty` CLI for setting colors, names, and activity status from a shell or a script (see [docs/montty-cli.md](docs/montty-cli.md))
@@ -52,15 +52,15 @@ brew update && brew upgrade --cask montty
 
 Download the latest DMG from [Releases](https://github.com/tednaleid/montty/releases).
 
-### Claude Code
+### Claude Code hooks
 
-montty's Claude Code status indicators and session resume come from Claude Code hooks. Add them to your Claude Code user settings once, from a montty pane:
+If you use Claude Code, install montty's Claude Code hooks once after installing montty. They drive the Claude status indicators and session resume. From a montty pane:
 
 ```bash
 montty install-hooks claude
 ```
 
-This adds six hook entries to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`) and changes nothing else in the file. It keeps the hooks already there and saves the previous file as `settings.json.montty-backup`. The entries do nothing in other terminals, so every Claude session started in a montty pane reports, however it was launched. If a later montty needs different entries, Claude says so when a session starts; run the same command again to update. `montty uninstall-hooks claude` removes them. See [docs/montty-cli.md](docs/montty-cli.md#claude-code-hooks).
+This adds six hook entries to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`) and changes nothing else in the file. It keeps the hooks already there and saves the previous file as `settings.json.montty-backup`. The entries do nothing in other terminals, so every Claude session started in a montty pane reports, however it was launched. If a later montty needs different entries, Claude says so when a session starts; run the same command again to update. `montty uninstall-hooks claude` removes them. When `~/.claude` exists and the hooks are not in its settings, `brew install` and `brew upgrade` print this reminder too. See [docs/montty-cli.md](docs/montty-cli.md#claude-code-hooks).
 
 ## Build from source
 
