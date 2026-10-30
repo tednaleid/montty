@@ -1,33 +1,57 @@
-// ABOUTME: Tests for adding montty's hooks to Claude Code's settings and removing
-// ABOUTME: them, and for which Claude sessions report to montty.
+// ABOUTME: Tests for syncing montty's hooks into Claude Code's settings and
+// ABOUTME: removing them, the hooks version check, and which sessions report.
 
 import Foundation
 import Testing
 
 struct ClaudeHooksTests {
-    private func json(_ settings: [String: Any]) -> String {
-        let data = try? JSONSerialization.data(withJSONObject: settings, options: [.sortedKeys])
-        return data.flatMap { String(data: $0, encoding: .utf8) } ?? "<invalid>"
+    private func settings(_ text: String) -> JSONValue {
+        guard let value = JSONValue.parse(text) else {
+            Issue.record("fixture is not JSON: \(text)")
+            return .object([])
+        }
+        return value
     }
 
-    private func commands(_ settings: [String: Any], event: String) -> [String] {
-        let groups = (settings["hooks"] as? [String: Any])?[event] as? [[String: Any]] ?? []
-        return groups.flatMap { ($0["hooks"] as? [[String: Any]] ?? []).compactMap { $0["command"] as? String } }
+    private func commands(_ settings: JSONValue, event: String) -> [String] {
+        guard case .array(let groups)? = settings["hooks"]?[event] else { return [] }
+        return groups.flatMap { group -> [String] in
+            guard case .array(let hooks)? = group["hooks"] else { return [] }
+            return hooks.compactMap { hook in
+                guard case .string(let command)? = hook["command"] else { return nil }
+                return command
+            }
+        }
     }
 
-    private let userHook: [String: Any] = [
-        "hooks": [
+    private func monttyCommand(_ argument: String) -> String {
+        "[ -z \"$MONTTY_BIN\" ] || \"$MONTTY_BIN\" hook \(argument) --hooks-version \(ClaudeHooks.version)"
+    }
+
+    private let userSettings = """
+        {
+          "model": "opus",
+          "hooks": {
             "PreToolUse": [
-                ["matcher": "Bash", "hooks": [["type": "command", "command": "veer check"]]]
+              {
+                "matcher": "Bash",
+                "hooks": [
+                  {
+                    "type": "command",
+                    "command": "veer check"
+                  }
+                ]
+              }
             ]
-        ],
-        "model": "opus"
-    ]
+          },
+          "cleanupPeriodDays": 99999
+        }
+        """
 
     // MARK: - Install
 
     @Test func installAddsOneCommandPerEvent() {
-        let installed = ClaudeHooks.installing(into: [:])
+        let installed = ClaudeHooks.installing(into: .object([]))
         let expected: [(String, String)] = [
             ("SessionStart", "session-start"),
             ("UserPromptSubmit", "prompt-submit"),
@@ -37,53 +61,93 @@ struct ClaudeHooksTests {
             ("SessionEnd", "session-end")
         ]
         for (event, argument) in expected {
-            #expect(
-                commands(installed, event: event) == ["[ -z \"$MONTTY_BIN\" ] || \"$MONTTY_BIN\" hook \(argument)"],
-                "for \(event)"
-            )
+            #expect(commands(installed, event: event) == [monttyCommand(argument)], "for \(event)")
         }
     }
 
-    @Test func installKeepsUserHooksAndSettings() {
-        let installed = ClaudeHooks.installing(into: userHook)
-        #expect(commands(installed, event: "PreToolUse").first == "veer check")
-        #expect(commands(installed, event: "PreToolUse").count == 2)
-        #expect(installed["model"] as? String == "opus")
+    @Test func installKeepsUserHooksSettingsAndKeyOrder() {
+        let installed = ClaudeHooks.installing(into: settings(userSettings))
+        #expect(commands(installed, event: "PreToolUse") == ["veer check", monttyCommand("pre-tool-use")])
+        guard case .object(let members) = installed else {
+            Issue.record("expected an object")
+            return
+        }
+        #expect(members.map(\.key) == ["model", "hooks", "cleanupPeriodDays"])
     }
 
     @Test func installTwiceChangesNothing() {
-        let once = ClaudeHooks.installing(into: userHook)
-        #expect(json(ClaudeHooks.installing(into: once)) == json(once))
+        let once = ClaudeHooks.installing(into: settings(userSettings))
+        #expect(ClaudeHooks.installing(into: once) == once)
+    }
+
+    @Test func installReplacesEntriesFromAnEarlierVersion() {
+        let earlier = settings("""
+            {"hooks": {
+              "Stop": [{"hooks": [{"type": "command",
+                "command": "[ -z \\"$MONTTY_BIN\\" ] || \\"$MONTTY_BIN\\" hook stop"}]}],
+              "PostToolUse": [{"hooks": [{"type": "command", "command": "\\"$MONTTY_BIN\\" hook post-tool-use"}]}]
+            }}
+            """)
+        let installed = ClaudeHooks.installing(into: earlier)
+        #expect(commands(installed, event: "Stop") == [monttyCommand("stop")])
+        #expect(installed["hooks"]?["PostToolUse"] == nil)
+    }
+
+    @Test func installLeavesCurrentEntriesWhereTheyAre() {
+        let current = ClaudeHooks.installing(into: .object([]))
+        guard case .array(var stop)? = current["hooks"]?["Stop"] else {
+            Issue.record("expected Stop groups")
+            return
+        }
+        stop.append(settings(#"{"hooks": [{"type": "command", "command": "say done"}]}"#))
+        let withUserHookAfter = current.setting("hooks", to: current["hooks"]!.setting("Stop", to: .array(stop)))
+        #expect(ClaudeHooks.installing(into: withUserHookAfter) == withUserHookAfter)
     }
 
     // MARK: - Uninstall
 
-    @Test func uninstallRestoresOriginalSettings() {
-        let installed = ClaudeHooks.installing(into: userHook)
-        #expect(json(ClaudeHooks.uninstalling(from: installed)) == json(userHook))
+    @Test func uninstallRestoresOriginalTextExactly() {
+        let installed = ClaudeHooks.installing(into: settings(userSettings))
+        #expect(ClaudeHooks.uninstalling(from: installed).formatted() == userSettings)
     }
 
     @Test func uninstallDropsEmptyHooksKey() {
-        let installed = ClaudeHooks.installing(into: ["model": "opus"])
-        #expect(json(ClaudeHooks.uninstalling(from: installed)) == json(["model": "opus"]))
+        let installed = ClaudeHooks.installing(into: settings(#"{"model": "opus"}"#))
+        #expect(ClaudeHooks.uninstalling(from: installed) == settings(#"{"model": "opus"}"#))
     }
 
     @Test func uninstallWithoutMonttyHooksChangesNothing() {
-        #expect(json(ClaudeHooks.uninstalling(from: userHook)) == json(userHook))
+        #expect(ClaudeHooks.uninstalling(from: settings(userSettings)) == settings(userSettings))
     }
 
     @Test func uninstallKeepsUserCommandSharingAGroup() {
-        let shared: [String: Any] = [
-            "hooks": [
-                "Stop": [
-                    ["hooks": [
-                        ["type": "command", "command": "say done"],
-                        ["type": "command", "command": "[ -z \"$MONTTY_BIN\" ] || \"$MONTTY_BIN\" hook stop"]
-                    ]]
-                ]
-            ]
-        ]
+        let shared = settings("""
+            {"hooks": {"Stop": [{"hooks": [
+              {"type": "command", "command": "say done"},
+              {"type": "command", "command": "[ -z \\"$MONTTY_BIN\\" ] || \\"$MONTTY_BIN\\" hook stop"}
+            ]}]}}
+            """)
         #expect(commands(ClaudeHooks.uninstalling(from: shared), event: "Stop") == ["say done"])
+    }
+
+    // MARK: - Hooks version check
+
+    @Test func entriesWithoutAVersionAreOutOfDate() {
+        #expect(ClaudeHooks.sessionStartReply(installedVersion: nil) != nil)
+    }
+
+    @Test func olderEntriesGetASystemMessage() {
+        let reply = ClaudeHooks.sessionStartReply(installedVersion: ClaudeHooks.version - 1)
+        guard case .string(let message)? = reply.flatMap(JSONValue.parse)?["systemMessage"] else {
+            Issue.record("expected a systemMessage, got \(reply ?? "nil")")
+            return
+        }
+        #expect(message.contains("montty install-hooks claude"))
+    }
+
+    @Test func currentOrNewerEntriesSayNothing() {
+        #expect(ClaudeHooks.sessionStartReply(installedVersion: ClaudeHooks.version) == nil)
+        #expect(ClaudeHooks.sessionStartReply(installedVersion: ClaudeHooks.version + 1) == nil)
     }
 
     // MARK: - Which sessions report

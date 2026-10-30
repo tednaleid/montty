@@ -7,8 +7,9 @@ enum ParsedInvocation: Equatable {
     case control(ControlCommand)
     /// `montty <scope> color` with no value: print what that scope resolves to.
     case showColor(ControlScope)
-    /// A Claude Code hook event name, forwarded on the legacy wire format.
-    case hook(String)
+    /// A Claude Code hook event name, forwarded on the legacy wire format,
+    /// with the version of the installed entry that ran it, when it says.
+    case hook(event: String, hooksVersion: Int?)
     case installHooks(HookAgent)
     case uninstallHooks(HookAgent)
     case version
@@ -155,7 +156,7 @@ enum ControlArgs {
             return exactly(1, of: arguments, is: .control(.info))
         case "hook":
             guard arguments.count >= 2 else { return .failure(.missingValue("hook")) }
-            return exactly(2, of: arguments, is: .hook(arguments[1]))
+            return .success(.hook(event: arguments[1], hooksVersion: hooksVersion(in: arguments)))
         case "install-hooks", "uninstall-hooks":
             return parseHookSettings(first, arguments: arguments)
         case "tint-strength":
@@ -165,6 +166,16 @@ enum ControlArgs {
         default:
             return nil
         }
+    }
+
+    /// Hook entries are written by whichever montty installed them, which can
+    /// be newer than the one running, so `hook` reads `--hooks-version` and
+    /// skips every argument it does not know rather than failing a hook.
+    private static func hooksVersion(in arguments: [String]) -> Int? {
+        guard let flag = arguments.firstIndex(of: "--hooks-version"), flag + 1 < arguments.count else {
+            return nil
+        }
+        return Int(arguments[flag + 1])
     }
 
     private static func parseHookSettings(

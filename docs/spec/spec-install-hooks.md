@@ -30,28 +30,54 @@ instead, where every Claude process reads them.
 `SessionEnd` each get a group with one command:
 
 ```sh
-[ -z "$MONTTY_BIN" ] || "$MONTTY_BIN" hook <event>
+[ -z "$MONTTY_BIN" ] || "$MONTTY_BIN" hook <event> --hooks-version <n>
 ```
 
 - `MONTTY_BIN` is set in every surface to the running app's binary, so the
   command reports to the montty that owns the surface, a dev build included.
+  Everything montty does with an event lives in that binary and updates with
+  montty.
 - Outside montty the guard exits 0, so Claude never reports a hook error.
-- The text does not depend on the montty version, so a release never needs to
-  rewrite the user's settings.
 - montty's entries are recognized by containing `"$MONTTY_BIN" hook `.
+
+### Hooks version
+
+`ClaudeHooks.version` is the version of the entries, separate from montty's
+release version. It goes up only when the entries change: the event list, the
+command text, or hook options. Entries written before versioning (montty
+0.5.0) have no `--hooks-version` and count as 1.
+
+On `SessionStart`, when the entry's version is older than the running
+montty's, `montty hook` prints a JSON reply whose `systemMessage` Claude shows
+to the user, asking them to run `montty install-hooks claude`. An entry newer
+than the running montty, as when a dev build installed them and an older
+installed montty runs them, says nothing. The check is an integer comparison in
+a process the hook already starts.
+
+`montty hook` reads `--hooks-version` and ignores any other argument it does
+not know, so entries written by a newer montty never make an older one fail a
+hook.
 
 ### Editing the settings file
 
 - The file is `$CLAUDE_CONFIG_DIR/settings.json`, or `~/.claude/settings.json`
   when that is unset or empty. A symlink is resolved and its target written.
-- Install adds montty's group to each event that has no montty entry, after
-  the groups already there. Running it twice changes nothing.
+- Install syncs montty's entries to the current set. An event holding exactly
+  the current entry, and no other montty entry, is left as it is. Any other
+  montty entry in that event is removed and the current one appended after the
+  groups already there. montty entries for events no longer in the set are
+  removed. Running it twice changes nothing, and running it after an upgrade
+  updates outdated entries.
 - Uninstall removes montty's commands, then any group, event, or `hooks` key
   left empty. Other commands in a shared group stay.
+- The file is read into an order-keeping JSON value (`JSONValue`) and written
+  in the format `JSON.stringify(value, null, 2)` produces, which is Claude
+  Code's own. Key order and number text are kept, so the diff is only
+  montty's lines, and uninstall restores the original bytes. A file in another
+  format is rewritten in Claude's format.
 - When the content changes, the previous file is saved as
-  `settings.json.montty-backup` and the new one is written atomically,
-  pretty-printed with sorted keys. When nothing changes, the file is not
-  touched.
+  `settings.json.montty-backup` and the new one is written atomically. When
+  nothing changes, the file is not touched.
 - A file that is not a JSON object is left alone, and the command exits 1. A
   missing file is created by install and ignored by uninstall.
 
@@ -67,12 +93,14 @@ interactive session still running there.
 ## Design
 
 - `Sources/Control/ClaudeHooks.swift` holds the pure parts: the event list,
-  the command text, `installing(into:)`, `uninstalling(from:)`, and
+  the hooks version, the command text, `installing(into:)`,
+  `uninstalling(from:)`, `sessionStartReply(installedVersion:)`, and
   `reportsSession(entrypoint:)`.
+- `Sources/Control/JSONValue.swift` parses and writes the settings file.
 - `ControlArgs` parses `install-hooks <agent>` and `uninstall-hooks <agent>`
   into `ParsedInvocation.installHooks` and `.uninstallHooks`.
-- `ControlCLI` reads and writes the file and checks the entrypoint before
-  forwarding a hook.
+- `ControlCLI` reads and writes the file, checks the entrypoint before
+  forwarding a hook, and prints the session-start reply.
 - The `claude()` wrapper is gone from `project.yml`. Running both would send
   every event twice.
 
@@ -83,3 +111,6 @@ Observed against Claude Code 2.1.312:
 - An interactive session's hooks see `CLAUDE_CODE_ENTRYPOINT=cli`.
 - `claude -p` hooks see `CLAUDE_CODE_ENTRYPOINT=sdk-cli`, even when started
   from a shell whose environment already has `cli`.
+- A `SessionStart` hook that prints JSON with a `systemMessage` field shows it
+  under the session banner as `SessionStart:startup says: <message>`
+  (Claude Code 2.1.314).

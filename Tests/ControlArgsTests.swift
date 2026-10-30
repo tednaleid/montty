@@ -79,11 +79,30 @@ import Testing
     }
 
     @Test func parsesHook() {
-        guard case .success(.hook(let event)) = ControlArgs.parse(["hook", "pre-tool-use"]) else {
-            Issue.record("expected hook")
-            return
-        }
-        #expect(event == "pre-tool-use")
+        #expect(
+            ControlArgs.parse(["hook", "pre-tool-use"]) == .success(.hook(event: "pre-tool-use", hooksVersion: nil))
+        )
+    }
+
+    @Test func parsesHookWithHooksVersion() {
+        #expect(
+            ControlArgs.parse(["hook", "session-start", "--hooks-version", "2"])
+                == .success(.hook(event: "session-start", hooksVersion: 2))
+        )
+    }
+
+    /// Hook entries are written by whichever montty installed them, which can
+    /// be newer than the one running, so `hook` skips arguments it does not know.
+    @Test func hookIgnoresArgumentsItDoesNotKnow() {
+        #expect(ControlArgs.parse(["hook", "stop", "extra"]) == .success(.hook(event: "stop", hooksVersion: nil)))
+        #expect(
+            ControlArgs.parse(["hook", "stop", "--future", "x", "--hooks-version", "3"])
+                == .success(.hook(event: "stop", hooksVersion: 3))
+        )
+        #expect(
+            ControlArgs.parse(["hook", "stop", "--hooks-version", "two"])
+                == .success(.hook(event: "stop", hooksVersion: nil))
+        )
     }
 
     @Test func parsesInstallAndUninstallHooks() {
@@ -173,7 +192,6 @@ import Testing
         #expect(failure(["info", "extra"]) == .unexpectedArgument("extra"))
         #expect(failure(["--version", "extra"]) == .unexpectedArgument("extra"))
         #expect(failure(["--help", "extra"]) == .unexpectedArgument("extra"))
-        #expect(failure(["hook", "stop", "extra"]) == .unexpectedArgument("extra"))
         #expect(failure(["tint-strength", "0.2", "extra"]) == .unexpectedArgument("extra"))
     }
 

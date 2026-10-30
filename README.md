@@ -60,7 +60,7 @@ montty's Claude Code status indicators and session resume come from Claude Code 
 montty install-hooks claude
 ```
 
-This adds six hook entries to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`), keeps the hooks already there, and saves the previous file as `settings.json.montty-backup`. The entries do nothing in other terminals, so every Claude session started in a montty pane reports, however it was launched. `montty uninstall-hooks claude` removes them. See [docs/montty-cli.md](docs/montty-cli.md#claude-code-hooks).
+This adds six hook entries to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`) and changes nothing else in the file. It keeps the hooks already there and saves the previous file as `settings.json.montty-backup`. The entries do nothing in other terminals, so every Claude session started in a montty pane reports, however it was launched. If a later montty needs different entries, Claude says so when a session starts; run the same command again to update. `montty uninstall-hooks claude` removes them. See [docs/montty-cli.md](docs/montty-cli.md#claude-code-hooks).
 
 ## Build from source
 

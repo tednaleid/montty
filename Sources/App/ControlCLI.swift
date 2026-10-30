@@ -29,8 +29,8 @@ enum ControlCLI {
             fatalError("\(invocation) already exited above; it needs no surface")
         case .showColor(let scope):
             runShowColor(scope: scope, surface: surface, socketPath: socketPath)
-        case .hook(let event):
-            runHook(event: event, surface: surface, socketPath: socketPath)
+        case .hook(let event, let hooksVersion):
+            runHook(event: event, hooksVersion: hooksVersion, surface: surface, socketPath: socketPath)
         case .control(let command):
             runControl(command: command, surface: surface, socketPath: socketPath)
         }
@@ -92,11 +92,15 @@ enum ControlCLI {
     }
 
     /// Claude Code delivers its payload on stdin; forward the cwd, session id,
-    /// and end reason it reports, for interactive sessions only. Best effort: never make a montty-less
-    /// environment look broken.
-    private static func runHook(event: String, surface: String, socketPath: String) -> Never {
+    /// and end reason it reports, for interactive sessions only. At session
+    /// start, tell the user when the installed entries are out of date. Best
+    /// effort: never make a montty-less environment look broken.
+    private static func runHook(event: String, hooksVersion: Int?, surface: String, socketPath: String) -> Never {
         let entrypoint = ProcessInfo.processInfo.environment["CLAUDE_CODE_ENTRYPOINT"]
         guard ClaudeHooks.reportsSession(entrypoint: entrypoint) else { exit(ExitCode.ok.rawValue) }
+        if event == "session-start", let reply = ClaudeHooks.sessionStartReply(installedVersion: hooksVersion) {
+            print(reply)
+        }
         let input = FileHandle.standardInput.readDataToEndOfFile()
         let payload = (try? JSONSerialization.jsonObject(with: input)) as? [String: Any]
         var message: [String: Any] = ["event": event, "surface": surface]
@@ -115,9 +119,10 @@ enum ControlCLI {
     private static func runHookSettings(agent: HookAgent, install: Bool) -> Never {
         let url = claudeSettingsURL()
         let original = FileManager.default.contents(atPath: url.path)
-        var settings: [String: Any] = [:]
+        var settings = JSONValue.object([])
         if let original {
-            guard let parsed = (try? JSONSerialization.jsonObject(with: original)) as? [String: Any] else {
+            guard let text = String(data: original, encoding: .utf8),
+                  let parsed = JSONValue.parse(text), case .object = parsed else {
                 fail("\(url.path) is not a JSON object; left it unchanged", .rejected)
             }
             settings = parsed
@@ -126,18 +131,15 @@ enum ControlCLI {
             ? ClaudeHooks.installing(into: settings)
             : ClaudeHooks.uninstalling(from: settings)
 
-        let options: JSONSerialization.WritingOptions = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        guard let output = try? JSONSerialization.data(withJSONObject: updated, options: options) else {
-            fail("could not encode \(url.path)", .rejected)
-        }
-        let unchanged = (try? JSONSerialization.data(withJSONObject: settings, options: options)) == output
-        if unchanged && (original != nil || !install) {
-            print(install ? "montty hooks already in \(url.path)" : "no montty hooks in \(url.path)")
+        if updated == settings && (original != nil || !install) {
+            print(install ? "montty hooks already current in \(url.path)" : "no montty hooks in \(url.path)")
             exit(ExitCode.ok.rawValue)
         }
-        writeSettings(output, to: url, replacing: original)
+        let endsWithNewline = original.map { $0.last == UInt8(ascii: "\n") } ?? true
+        let output = updated.formatted() + (endsWithNewline ? "\n" : "")
+        writeSettings(Data(output.utf8), to: url, replacing: original)
         if install {
-            print("added montty hooks to \(url.path)")
+            print("installed montty hooks version \(ClaudeHooks.version) in \(url.path)")
             print("Claude sessions started from now on report to montty; restart running ones to include them")
         } else {
             print("removed montty hooks from \(url.path)")
@@ -164,7 +166,7 @@ enum ControlCLI {
             try FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(), withIntermediateDirectories: true
             )
-            try (output + Data("\n".utf8)).write(to: url, options: .atomic)
+            try output.write(to: url, options: .atomic)
         } catch {
             fail("could not write \(url.path): \(error.localizedDescription)", .rejected)
         }

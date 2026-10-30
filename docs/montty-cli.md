@@ -103,20 +103,32 @@ montty uninstall-hooks claude
 (`$CLAUDE_CONFIG_DIR/settings.json` when that is set), each running:
 
 ```sh
-[ -z "$MONTTY_BIN" ] || "$MONTTY_BIN" hook <event>
+[ -z "$MONTTY_BIN" ] || "$MONTTY_BIN" hook <event> --hooks-version <n>
 ```
 
 Every montty pane sets `MONTTY_BIN` to the running app's binary, so a session
 reports to the montty that owns its pane, and the entry does nothing in any
-other terminal. The settings never need updating for a new montty release.
+other terminal. What montty does with each event lives in that binary and
+updates with montty.
 
-Both commands leave every other setting and hook in place and are safe to run
-twice. Before changing the file, they save the previous one next to it as
+`--hooks-version` is the version of the entries themselves, separate from
+montty's release version. It changes only when montty needs different entries,
+such as another event. When a Claude session starts with entries older than the
+running montty's, Claude shows a message asking you to run
+`montty install-hooks claude` again. Entries newer than the running montty say
+nothing.
+
+`install-hooks` brings montty's entries to the current set: it adds missing
+ones, replaces outdated ones, and leaves current ones where they are, so
+running it again is how you update. Both commands change only montty's entries
+and leave every other setting and hook in place. The file keeps its key order
+and Claude Code's own 2-space formatting, so the change is only the lines
+montty adds or removes, and uninstalling gives back the file as it was. Before
+changing the file, they save the previous one next to it as
 `settings.json.montty-backup`. A symlinked settings file is written through,
-so it stays a link. The file is rewritten with its keys sorted. A file that is
-not a JSON object is left alone, and the command exits 1. Claude Code reads
-hooks when a session starts, so sessions already running pick them up after a
-restart.
+so it stays a link. A file that is not a JSON object is left alone, and the
+command exits 1. Claude Code reads hooks when a session starts, so sessions
+already running pick them up after a restart.
 
 Only interactive sessions report. `claude -p` and SDK sessions set
 `CLAUDE_CODE_ENTRYPOINT` to something other than `cli`, and `montty hook`
