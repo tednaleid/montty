@@ -1,3 +1,5 @@
+// ABOUTME: Tests NSWindow.contentHitTest against top/bottom panes in flipped and
+// ABOUTME: unflipped content views, so a click resolves to the pane under it.
 import AppKit
 import Testing
 
