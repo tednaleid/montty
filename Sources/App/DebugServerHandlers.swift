@@ -1,5 +1,5 @@
 // ABOUTME: Route handlers for DebugServer HTTP endpoints.
-// ABOUTME: Handles /surfaces, /type, /key, /screen, /screenshot, /state, /action, /jump requests.
+// ABOUTME: Handles /surfaces, /type, /key, /screen, /screenshot, /state, /action, /click, /jump requests.
 #if DEBUG
 import AppKit
 import GhosttyKit
@@ -26,6 +26,8 @@ extension DebugServer {
             handleState(surfaceID: surfaceID, connection: connection)
         case ("POST", "/action"):
             handleAction(body: request.body, surfaceID: surfaceID, connection: connection)
+        case ("POST", "/click"):
+            handleClick(surfaceID: surfaceID, connection: connection)
         case ("GET", "/palette"):
             handlePalette(connection: connection)
         case ("GET", "/session"):

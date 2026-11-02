@@ -214,6 +214,16 @@ Trigger a Ghostty keybind action.
 curl -s -X POST localhost:9876/action -d 'copy_to_clipboard'
 ```
 
+### POST /click
+
+Left-click the center of a surface. The mouse-down and mouse-up go through the
+app's event queue, so the local event monitors that move split focus see them
+the way they see a real click.
+
+```bash
+curl -s -X POST 'localhost:9876/click?surface=<uuid>' | jq .
+```
+
 ### POST /jump
 
 Enter jump mode or jump directly to a surface by leaf ID.
@@ -298,6 +308,7 @@ curl -s -X POST localhost:9876/quit | jq .
 | `just inspect-screen` | Read terminal text |
 | `just inspect-screenshot` | Save screenshot to `.llm/inspect/` |
 | `just inspect-state` | Get terminal state |
+| `just inspect-click` | Left-click the center of a surface |
 | `just inspect-jump` | Enter jump mode |
 | `just inspect-jump <leaf_id>` | Jump to a specific surface |
 | `just inspect-jump-state` | Show jump mode state |
@@ -310,7 +321,7 @@ curl -s -X POST localhost:9876/quit | jq .
 | `just inspect-quit` | Quit through the real `Cmd-Q` path, saving the session |
 | `just inspect-shells` | List every process descended from a dev-build montty -- no HTTP endpoint; reads the process table, rooted at `just dev-pids` |
 
-`inspect-type`, `inspect-key`, `inspect-screen`, `inspect-screenshot`, `inspect-state`, and `inspect-action` accept an optional `surface=<uuid>` parameter to target a specific surface. The rest are app-wide.
+`inspect-type`, `inspect-key`, `inspect-screen`, `inspect-screenshot`, `inspect-state`, `inspect-action`, and `inspect-click` accept an optional `surface=<uuid>` parameter to target a specific surface. The rest are app-wide.
 
 ## README screenshots
 
