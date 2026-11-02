@@ -676,14 +676,13 @@ extension Ghostty {
                   window == event.window else { return event }
 
             // The clicked location in this window should be this view.
-            guard
-                let location = window.contentView?.convert(event.locationInWindow, from: nil)
-            else {
-                return event
-            }
             // We should use window to perform hitTest here,
             // because there could be some other overlays on top, like search bar
-            guard window.contentView?.hitTest(location) == self else { return event }
+            // MONTTY: Upstream converts into contentView's own coordinates, but
+            // hitTest takes superview coordinates. montty's flipped NSHostingView
+            // content view mirrors y, so clicking one pane of a top/bottom split
+            // focused the other. contentHitTest converts correctly.
+            guard window.contentHitTest(event.locationInWindow) == self else { return event }
 
             // We always assume that we're resetting our mouse suppression
             // unless we see the specific scenario below to set it.

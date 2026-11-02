@@ -84,6 +84,7 @@ targets:
       - path: Sources/Model
       - path: Sources/Persistence
       - path: Sources/UseCase
+      - path: Sources/View/NSWindow+HitTest.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.montty.app.tests

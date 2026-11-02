@@ -87,6 +87,7 @@ The big one -- the NSView subclass that handles all terminal rendering and input
 - Remove references to `Ghostty.Inspector` / `InspectorView` (search for `inspector`)
 - Remove the `SurfaceDragSource` integration if it causes compilation issues (drag source for terminal text selection)
 - The file uses `GhosttyPackage.swift` notification names extensively -- make sure that file is copied first
+- In `localEventLeftMouseDown`, keep the hit test as `window.contentHitTest(event.locationInWindow)`. Upstream converts the click into `contentView`'s own coordinates, but `hitTest` takes superview coordinates. montty's content view is a flipped `NSHostingView`, so upstream's version mirrors y: a click in one pane of a top/bottom split focuses the other pane and swallows the click
 
 ## Files to copy with significant adaptation
 
