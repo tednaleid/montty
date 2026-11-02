@@ -1,3 +1,5 @@
+// ABOUTME: Tests jump mode: label generation, assigning labels to targets in priority
+// ABOUTME: order, and handling typed keys.
 import Foundation
 import Testing
 @testable import montty_unit

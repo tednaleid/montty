@@ -1,3 +1,5 @@
+// ABOUTME: Tests minimap layout from split trees: pane rects, custom ratios, nesting,
+// ABOUTME: focus, and Claude activity per pane.
 import Foundation
 import Testing
 @testable import montty_unit

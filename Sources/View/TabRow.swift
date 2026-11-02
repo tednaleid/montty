@@ -1,3 +1,5 @@
+// ABOUTME: One tab in the sidebar: color bar, editable name, git and directory lines, minimap.
+// ABOUTME: Also maps TabColor cases to slots in the Ghostty ANSI palette.
 import SwiftUI
 
 struct TabRow: View {

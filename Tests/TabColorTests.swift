@@ -1,3 +1,5 @@
+// ABOUTME: Tests TabColor's Codable round trip, the size of the palette, and the ANSI
+// ABOUTME: slot each color maps to.
 import Foundation
 import Testing
 

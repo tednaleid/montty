@@ -1,3 +1,5 @@
+// ABOUTME: Derives a tab color from git repo and worktree identity by hashing it.
+// ABOUTME: Also defines the key that repo color overrides are stored under.
 import Foundation
 
 extension TabColor {

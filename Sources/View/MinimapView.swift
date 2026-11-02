@@ -1,3 +1,5 @@
+// ABOUTME: Draws a tab's split minimap: a tinted rect per pane with focus and jump badges,
+// ABOUTME: plus the animated indicator for Claude activity state.
 import SwiftUI
 
 struct MinimapView: View {

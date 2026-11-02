@@ -1,3 +1,5 @@
+// ABOUTME: Tests GitInfo against real .git layouts in temp directories: normal repos,
+// ABOUTME: detached HEAD, linked worktrees, and submodules.
 import Foundation
 import Testing
 @testable import montty_unit

@@ -1,3 +1,5 @@
+// ABOUTME: Tests the plan for opening a pane's directory in an editor: when there is
+// ABOUTME: nothing to open, how the editor is resolved, and the argv it builds.
 import Foundation
 import Testing
 @testable import montty_unit

@@ -1,3 +1,5 @@
+// ABOUTME: The window's vertical sidebar: a scrolling list of tab rows and a new-tab button.
+// ABOUTME: Handles row selection, renaming, reordering, and jump labels.
 import SwiftUI
 
 struct TabSidebar: View {

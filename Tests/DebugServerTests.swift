@@ -1,3 +1,5 @@
+// ABOUTME: Tests the debug server's HTTP request parsing and key-to-text mapping,
+// ABOUTME: using copies of those pure functions because the server needs Ghostty to link.
 #if DEBUG
 
 import Foundation

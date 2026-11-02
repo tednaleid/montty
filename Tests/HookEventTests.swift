@@ -1,3 +1,5 @@
+// ABOUTME: Tests Claude Code hook messages: parsing, the per-surface directory tracker,
+// ABOUTME: and the activity state machine.
 import Foundation
 import Testing
 

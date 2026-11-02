@@ -1,3 +1,5 @@
+// ABOUTME: Renders a tab's split tree as nested terminal panes with draggable dividers,
+// ABOUTME: worktree tint overlays, focus borders, and dimming of unfocused panes.
 import SwiftUI
 
 struct SplitContainerView: View {

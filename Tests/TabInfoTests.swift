@@ -1,3 +1,5 @@
+// ABOUTME: Tests the sidebar info derived from tab properties: display name, directory,
+// ABOUTME: per-surface directories, git info, and split count.
 import Foundation
 import Testing
 @testable import montty_unit

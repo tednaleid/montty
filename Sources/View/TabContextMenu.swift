@@ -1,3 +1,5 @@
+// ABOUTME: Right-click menu for a tab row: rename, close, and the surface, tab, and repo
+// ABOUTME: color override submenus.
 import SwiftUI
 
 struct TabContextMenu: View {

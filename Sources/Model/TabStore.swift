@@ -1,3 +1,5 @@
+// ABOUTME: The ordered list of a window's tabs and which one is active. Appends, closes,
+// ABOUTME: moves, and renames tabs while keeping positions contiguous.
 import Foundation
 
 @Observable

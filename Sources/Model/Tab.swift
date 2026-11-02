@@ -1,3 +1,5 @@
+// ABOUTME: Model state for one tab: split tree, focused pane, name, color overrides,
+// ABOUTME: and per-surface titles, directories, and Claude activity from hook events.
 import Foundation
 
 @Observable

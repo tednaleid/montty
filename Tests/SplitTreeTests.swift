@@ -1,3 +1,5 @@
+// ABOUTME: Tests split tree operations: splitting, closing, leaf lookup and ordering,
+// ABOUTME: directional splits, spatial navigation, and resizing.
 import Foundation
 import Testing
 

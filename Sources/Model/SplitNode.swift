@@ -1,3 +1,5 @@
+// ABOUTME: Split tree node types: a leaf that holds a surface, or a branch of two children
+// ABOUTME: with an orientation and ratio. Codable for session persistence.
 import Foundation
 
 indirect enum SplitNode: Identifiable, Equatable, Codable {

@@ -1,3 +1,5 @@
+// ABOUTME: Tests repo-derived tab colors, override precedence, pane color resolution,
+// ABOUTME: and the worktree gradient tints.
 import Foundation
 import Testing
 @testable import montty_unit

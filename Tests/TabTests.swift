@@ -1,3 +1,5 @@
+// ABOUTME: Tests the Tab model: display name, surface binding, focused surface fallback,
+// ABOUTME: effective color, Claude waiting-state cleanup, and Claude-reported cwd.
 import Foundation
 import Testing
 

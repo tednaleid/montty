@@ -1,3 +1,5 @@
+// ABOUTME: Tests TabStore appending, closing, moving, and renaming tabs, and which tab
+// ABOUTME: becomes active when the active one closes.
 import Foundation
 import Testing
 

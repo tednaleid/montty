@@ -1,3 +1,5 @@
+// ABOUTME: Lays out two panes with a draggable divider between them to resize a split,
+// ABOUTME: and adds a cursor modifier for the divider's hover cursor.
 import SwiftUI
 
 struct SplitDividerView<First: View, Second: View>: View {

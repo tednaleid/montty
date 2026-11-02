@@ -1,3 +1,5 @@
+// ABOUTME: Reads the repo name, branch, and worktree for a directory from .git files
+// ABOUTME: on disk, without running git. Handles worktrees and submodules.
 import Foundation
 
 struct GitInfo: Equatable {

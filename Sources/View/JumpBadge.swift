@@ -1,3 +1,5 @@
+// ABOUTME: Rounded badge that shows a jump label on a terminal pane or a minimap pane,
+// ABOUTME: with black or white text picked from the badge color's luminance.
 import AppKit
 import SwiftUI
 

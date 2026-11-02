@@ -1,3 +1,5 @@
+// ABOUTME: Tests SurfaceFocus.plan, which decides which surface is focused from the
+// ABOUTME: active tab, its focused pane, and whether the window is key.
 import Foundation
 import Testing
 

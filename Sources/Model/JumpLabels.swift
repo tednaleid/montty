@@ -1,3 +1,5 @@
+// ABOUTME: Assigns keyboard labels to surfaces for jump mode, shortest labels first,
+// ABOUTME: and holds the jump overlay state while a label is being typed.
 import Foundation
 
 /// A target surface that can be jumped to.

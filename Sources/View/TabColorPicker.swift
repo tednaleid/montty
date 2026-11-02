@@ -1,3 +1,5 @@
+// ABOUTME: Menu of color swatches that sets or clears a color override. Draws its own
+// ABOUTME: swatch images because menus force SF Symbols into template mode.
 import AppKit
 import SwiftUI
 

@@ -1,3 +1,5 @@
+// ABOUTME: Pure operations on the split tree: split, close, find and walk leaves,
+// ABOUTME: spatial navigation between panes, and resizing and equalizing splits.
 import Foundation
 
 enum SplitTree {

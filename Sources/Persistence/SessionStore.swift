@@ -1,3 +1,5 @@
+// ABOUTME: Saves and loads the session snapshot JSON file and runs the autosave timer.
+// ABOUTME: Before the first save, it backs up an unreadable or other-version file.
 import Foundation
 import os
 

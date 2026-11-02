@@ -1,3 +1,5 @@
+// ABOUTME: Computes a tab's minimap layout from its split tree: one normalized 0-1 rect
+// ABOUTME: per pane, with focus and Claude activity state.
 import Foundation
 
 struct MinimapRect: Equatable {

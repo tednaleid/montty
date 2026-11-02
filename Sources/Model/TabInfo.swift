@@ -1,3 +1,5 @@
+// ABOUTME: Computes what the sidebar shows for a tab: name, directory, git info, split count.
+// ABOUTME: TabProperties is the subset of Tab state it reads, so it is testable alone.
 import Foundation
 
 struct TabInfo: Equatable {
