@@ -170,6 +170,46 @@ final class WindowUseCases {
         return outcome
     }
 
+    /// A tab drag was released at `point`, in screen coordinates. Released over
+    /// empty space it tears the tab off into a window of its own, sized like the
+    /// one it left and opened with its title bar under the cursor. Released over
+    /// any window it is not a tear-off: that was a drop on a sidebar, or a drag
+    /// that went nowhere.
+    ///
+    /// `windowFrames` is every open window's on-screen frame, which only the
+    /// shell can read. A window's only tab is never torn off, since the new
+    /// window would just replace the one it left.
+    func tabDragEnded(
+        id tabID: UUID,
+        releasedAt point: CGPoint,
+        windowFrames: [UUID: WindowFrame]
+    ) -> WindowOutcome {
+        guard !windowFrames.values.contains(where: { $0.rect.contains(point) }),
+              let source = registry.locate(tabID: tabID),
+              source.tabStore.tabs.count > 1,
+              let tab = source.tabStore.detach(id: tabID) else { return WindowOutcome() }
+
+        let size = windowFrames[source.id] ?? source.frame
+        let frame = size.isEmpty ? nil : WindowFrame(
+            x: point.x - 40, y: point.y + 12 - size.height,
+            width: size.width, height: size.height
+        )
+
+        let window = registry.add(WindowModel(
+            sidebarWidth: source.sidebarWidth,
+            frame: frame ?? WindowFrame(x: 0, y: 0, width: 0, height: 0)
+        ))
+        window.tabStore.insert(tab: tab, at: 0)
+        window.tabStore.activeTabID = tab.id
+        registry.keyWindowID = window.id
+
+        var outcome = WindowOutcome()
+        outcome.createWindows = [WindowPlan(windowID: window.id, frame: frame, cascadeFrom: nil)]
+        outcome.raiseWindow = window.id
+        outcome.save = true
+        return outcome
+    }
+
     /// Close the window owning `surfaceID`. `nil` means the caller has no
     /// surface to give, and the window in front closes. A surface id that was
     /// given but does not resolve to a window returns an inert outcome rather
