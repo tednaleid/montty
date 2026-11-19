@@ -60,6 +60,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// `AppDelegate+WindowLifecycle.swift` forgets a closing window's entries.
     var surfaces: [UUID: Ghostty.SurfaceView] = [:]
 
+    /// The tab most recently dragged from any window's sidebar. A sidebar the
+    /// drag is over cannot read the payload until it drops, and needs to know
+    /// which tab it is to leave the insertion line out where a drop would do
+    /// nothing. May outlive a cancelled drag, so a drop never trusts it.
+    var draggingTabID: UUID?
+
     /// Combine subscriptions for surface property observation. Not private,
     /// for the same reason `surfaces` isn't.
     var surfaceObservers: [UUID: Set<AnyCancellable>] = [:]

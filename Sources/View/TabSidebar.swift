@@ -1,14 +1,19 @@
 // ABOUTME: The window's vertical sidebar: a scrolling list of tab rows and a new-tab button.
-// ABOUTME: Handles row selection, renaming, reordering, moving tabs between windows, and jump labels.
+// ABOUTME: Handles selection, renaming, jump labels, and dragging tabs within and between windows.
 import SwiftUI
 
 struct TabSidebar: View {
     @Bindable var tabStore: TabStore
     let onNewTab: () -> Void
     let onCloseTab: (UUID) -> Void
-    /// A dragged tab was dropped at this index of this window. The tab may
-    /// belong to another window. Returns whether the drop was accepted.
+    /// A dragged tab was dropped to land at this index of this window. The tab
+    /// may belong to another window. Returns whether the move happened.
     let onMoveTab: (UUID, Int) -> Bool
+    /// A drag of this tab began, in this window or another.
+    let onDragTab: (UUID) -> Void
+    /// The tab most recently dragged, which a window other than its own cannot
+    /// otherwise learn while the drag is still over it.
+    let draggingTabID: () -> UUID?
     let onControl: (Tab, ControlCommand) -> Void
     var repoColorOverrides: [String: PaneTint] = [:]
     var shared = SharedSettings()
@@ -16,84 +21,166 @@ struct TabSidebar: View {
     var onJumpToSurface: ((UUID, UUID) -> Void)?
 
     @State private var editingTabID: UUID?
+    @State private var dropIndicator: DropIndicator?
+    @State private var rowHeights: [UUID: CGFloat] = [:]
+
+    /// The gap a drag is over and the part of the sidebar reporting it. Gaps
+    /// are reported by whichever target the cursor is in, and the one it just
+    /// left may report leaving after the one it entered reports arriving, so a
+    /// target only ever clears its own.
+    private struct DropIndicator {
+        let owner: String
+        let gap: Int
+    }
+
+    private static let listOwner = "list"
 
     var body: some View {
         VStack(spacing: 0) {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(tabStore.tabs) { tab in
-                            let isActive = tab.id == tabStore.activeTabID
-                            TabRow(
-                                tab: tab,
-                                isActive: isActive,
-                                repoColorOverrides: repoColorOverrides,
-                                editingTabID: $editingTabID,
-                                showsMinimap: tab.showsMinimap(
-                                    global: shared.app.minimapVisibility),
-                                minimapHeight: tab.minimapHeight ?? shared.app.minimapHeight,
-                                tabTintStrength: tab.tabTintStrength(shared: shared),
-                                jumpLabels: jumpLabels,
-                                onPaneTap: { leafID in
-                                    onJumpToSurface?(tab.id, leafID)
-                                }
-                            )
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                tabStore.activeTabID = tab.id
-                            }
-                            .draggable(tab.id.uuidString) {
-                                Text(tab.tabInfo.displayName)
-                                    .padding(4)
-                            }
-                            .dropDestination(for: String.self) { items, _ in
-                                guard let toIndex = tabStore.tabs.firstIndex(
-                                    where: { $0.id == tab.id })
-                                else { return false }
-                                return drop(items, at: toIndex)
-                            }
-                            .contextMenu {
-                                TabContextMenu(
-                                    tab: tab,
-                                    repoColorOverrides: repoColorOverrides,
-                                    onRename: {
-                                        editingTabID = tab.id
-                                    },
-                                    onControl: { command in
-                                        onControl(tab, command)
-                                    },
-                                    onClose: {
-                                        onCloseTab(tab.id)
-                                    }
-                                )
-                            }
-                        }
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(tabStore.tabs.enumerated()), id: \.element.id) { index, tab in
+                        tabRow(tab, at: index)
                     }
                 }
-                // Below the last row: append, which is how a tab from another
-                // window lands at the end.
-                .dropDestination(for: String.self) { items, _ in
-                    drop(items, at: tabStore.tabs.count)
-                }
-
-                Divider()
-
-                Button(action: onNewTab) {
-                    HStack {
-                        Image(systemName: "plus")
-                        Text("New Tab")
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                }
-                .buttonStyle(.plain)
             }
+            // Below the last row: the end of the list, which is how a tab from
+            // another window lands last.
+            .onDrop(of: [.plainText], delegate: dropDelegate(
+                owner: Self.listOwner,
+                gapAt: { _ in tabStore.tabs.count }
+            ))
+
+            Divider()
+
+            Button(action: onNewTab) {
+                HStack {
+                    Image(systemName: "plus")
+                    Text("New Tab")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func tabRow(_ tab: Tab, at index: Int) -> some View {
+        TabRow(
+            tab: tab,
+            isActive: tab.id == tabStore.activeTabID,
+            repoColorOverrides: repoColorOverrides,
+            editingTabID: $editingTabID,
+            showsMinimap: tab.showsMinimap(global: shared.app.minimapVisibility),
+            minimapHeight: tab.minimapHeight ?? shared.app.minimapHeight,
+            tabTintStrength: tab.tabTintStrength(shared: shared),
+            jumpLabels: jumpLabels,
+            onPaneTap: { leafID in
+                onJumpToSurface?(tab.id, leafID)
+            }
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            tabStore.activeTabID = tab.id
+        }
+        .onDrag {
+            onDragTab(tab.id)
+            return NSItemProvider(object: tab.id.uuidString as NSString)
+        } preview: {
+            Text(tab.tabInfo.displayName)
+                .padding(4)
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            rowHeights[tab.id] = height
+        }
+        .onDrop(of: [.plainText], delegate: dropDelegate(
+            owner: tab.id.uuidString,
+            gapAt: { point in
+                TabDropTarget.gap(
+                    overRow: index,
+                    lowerHalf: point.y > (rowHeights[tab.id] ?? 0) / 2
+                )
+            }
+        ))
+        .overlay(alignment: .top) {
+            if insertionGap == index { InsertionLine() }
+        }
+        .overlay(alignment: .bottom) {
+            if index == tabStore.tabs.count - 1, insertionGap == tabStore.tabs.count {
+                InsertionLine()
+            }
+        }
+        .contextMenu { contextMenu(for: tab) }
+    }
+
+    private func contextMenu(for tab: Tab) -> some View {
+        TabContextMenu(
+            tab: tab,
+            repoColorOverrides: repoColorOverrides,
+            onRename: {
+                editingTabID = tab.id
+            },
+            onControl: { command in
+                onControl(tab, command)
+            },
+            onClose: {
+                onCloseTab(tab.id)
+            }
+        )
+    }
+
+    /// The gap to draw the line in: the one a drag is over, unless dropping
+    /// there would leave the dragged tab where it is.
+    private var insertionGap: Int? {
+        guard let gap = dropIndicator?.gap else { return nil }
+        let draggedIndex = draggingTabID().flatMap { id in
+            tabStore.tabs.firstIndex { $0.id == id }
+        }
+        return TabDropTarget.landingIndex(gap: gap, draggedIndex: draggedIndex) == nil ? nil : gap
+    }
+
+    private func dropDelegate(
+        owner: String,
+        gapAt: @escaping (CGPoint) -> Int
+    ) -> TabDropDelegate {
+        TabDropDelegate(
+            gapAt: gapAt,
+            onTarget: { gap in
+                if let gap {
+                    dropIndicator = DropIndicator(owner: owner, gap: gap)
+                } else if dropIndicator?.owner == owner {
+                    dropIndicator = nil
+                }
+            },
+            onDrop: { provider, gap in
+                moveDroppedTab(from: provider, intoGap: gap)
+            }
+        )
     }
 
     /// The dragged tab's id is the payload; anything else dropped here (text
-    /// from another app) is refused rather than guessed at.
-    private func drop(_ items: [String], at index: Int) -> Bool {
-        guard let draggedID = items.first.flatMap(UUID.init(uuidString:)) else { return false }
-        return onMoveTab(draggedID, index)
+    /// from another app) names no tab and is ignored.
+    private func moveDroppedTab(from provider: NSItemProvider, intoGap gap: Int) {
+        _ = provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let id = (object as? String).flatMap(UUID.init(uuidString:)) else { return }
+            DispatchQueue.main.async {
+                let draggedIndex = tabStore.tabs.firstIndex { $0.id == id }
+                guard let landing = TabDropTarget.landingIndex(
+                    gap: gap, draggedIndex: draggedIndex
+                ) else { return }
+                _ = onMoveTab(id, landing)
+            }
+        }
+    }
+}
+
+/// The line drawn between two rows where a dragged tab will land.
+private struct InsertionLine: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.accentColor)
+            .frame(height: 2)
+            .allowsHitTesting(false)
     }
 }
