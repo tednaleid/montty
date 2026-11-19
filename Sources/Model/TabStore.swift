@@ -1,5 +1,5 @@
 // ABOUTME: The ordered list of a window's tabs and which one is active. Appends, closes,
-// ABOUTME: moves, and renames tabs while keeping positions contiguous.
+// ABOUTME: moves, detaches, inserts, and renames tabs while keeping positions contiguous.
 import Foundation
 
 @Observable
@@ -39,8 +39,17 @@ final class TabStore {
     func close(id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         lastClosedDirectory = tabs[index].focusedDirectory ?? lastClosedDirectory
+        detach(id: id)
+    }
 
-        // If closing the active tab, switch to adjacent
+    /// Takes a tab out of this store and hands it back, for a caller that is
+    /// moving it somewhere else. Unlike `close`, the tab is not going away, so
+    /// the store keeps no record of its directory.
+    @discardableResult
+    func detach(id: UUID) -> Tab? {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return nil }
+
+        // If detaching the active tab, switch to adjacent
         if activeTabID == id {
             if index > 0 {
                 activeTabID = tabs[index - 1].id
@@ -51,8 +60,19 @@ final class TabStore {
             }
         }
 
-        tabs.remove(at: index)
+        let tab = tabs.remove(at: index)
         reindex()
+        return tab
+    }
+
+    /// Places a tab at `index`, clamped to the ends. The first tab into an
+    /// empty store becomes active.
+    func insert(tab: Tab, at index: Int) {
+        tabs.insert(tab, at: min(max(index, 0), tabs.count))
+        reindex()
+        if activeTabID == nil {
+            activeTabID = tab.id
+        }
     }
 
     func move(fromIndex: Int, toIndex: Int) {

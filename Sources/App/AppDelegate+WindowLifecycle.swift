@@ -178,6 +178,24 @@ extension AppDelegate {
         apply(useCases.newWindow(from: focusedSurfaceID()))
     }
 
+    /// Moves a tab to `index` in `window`: a reorder when it is already there,
+    /// a transfer between windows otherwise. Returns whether `tabID` named a
+    /// tab at all, so a drop of anything else is refused.
+    ///
+    /// Surfaces are keyed app-wide, so a transferred tab needs no new ones; the
+    /// views are reparented when SwiftUI redraws the two sidebars. Focus and
+    /// titles are settled here because both windows just changed their active
+    /// tab, which `apply(_:)` does not know to resync.
+    @discardableResult
+    func moveTab(id tabID: UUID, to window: WindowModel, at index: Int) -> Bool {
+        guard let source = registry.locate(tabID: tabID) else { return false }
+        apply(useCases.moveTab(id: tabID, toWindow: window.id, at: index))
+        syncSurfaceFocus()
+        controllers[source.id]?.syncTitle()
+        controllers[window.id]?.syncTitle()
+        return true
+    }
+
     /// Asks for the window owning `surfaceID` to close. A caller with no
     /// surface to name passes nil, and the window in front closes.
     func closeWindow(containing surfaceID: UUID?) {

@@ -227,6 +227,19 @@ the way they see a real click.
 curl -s -X POST 'localhost:9876/click?surface=<uuid>' | jq .
 ```
 
+### POST /move-tab
+
+Move a tab to a window, through the same `AppDelegate.moveTab` a sidebar drop
+calls: a reorder if the tab is already in that window, a transfer otherwise.
+`index` is the tab's position once it lands and defaults to the end. A window
+left with no tabs closes. Find tab and window ids with `GET /session`.
+
+```bash
+curl -s -X POST 'localhost:9876/move-tab?tab=<uuid>&window=<uuid>&index=0' | jq .
+```
+
+This skips the drag gesture itself; try that by hand.
+
 ### POST /jump
 
 Enter jump mode or jump directly to a surface by leaf ID.
@@ -314,6 +327,7 @@ curl -s -X POST localhost:9876/quit | jq .
 | `just inspect-click` | Left-click the center of a surface |
 | `just inspect-jump` | Enter jump mode |
 | `just inspect-jump <leaf_id>` | Jump to a specific surface |
+| `just inspect-move-tab <tab> <window> [index]` | Move a tab to a window, as a sidebar drop does |
 | `just inspect-jump-state` | Show jump mode state |
 | `just inspect-action <action>` | Trigger a Ghostty keybind action |
 | `just inspect-hook-log` | Show the last 200 hook events |

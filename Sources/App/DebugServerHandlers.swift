@@ -42,6 +42,8 @@ extension DebugServer {
             handleClaudeStates(connection: connection)
         case ("GET", "/icon"):
             handleIcon(connection: connection)
+        case ("POST", "/move-tab"):
+            handleMoveTab(query: request.query, connection: connection)
         case ("POST", "/quit"):
             handleQuit(connection: connection)
         default:

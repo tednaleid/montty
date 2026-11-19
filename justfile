@@ -286,6 +286,10 @@ inspect-session:
 inspect-jump leaf_id="":
     @curl -sf -X POST localhost:9876/jump -d '{{leaf_id}}' | jq .
 
+# Move a tab to a window (a reorder if it is already there), as a sidebar drop does
+inspect-move-tab tab window index="":
+    @curl -sf -X POST 'localhost:9876/move-tab?tab={{tab}}&window={{window}}{{ if index != "" { "&index=" + index } else { "" } }}' | jq .
+
 # Left-click the center of a surface through the app event queue
 inspect-click surface="":
     @curl -sf -X POST 'localhost:9876/click{{ if surface != "" { "?surface=" + surface } else { "" } }}' | jq .

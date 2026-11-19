@@ -238,4 +238,102 @@ struct TabStoreTests {
 
         #expect(store.lastClosedDirectory == "/Users/dev/work/alpha")
     }
+
+    // MARK: - Detach and insert
+
+    @Test func detachRemovesTheTabAndHandsItBack() {
+        let store = TabStore()
+        let tabA = Tab(name: "a")
+        let tabB = Tab(name: "b")
+        let tabC = Tab(name: "c")
+        store.append(tab: tabA)
+        store.append(tab: tabB)
+        store.append(tab: tabC)
+
+        let detached = store.detach(id: tabB.id)
+
+        #expect(detached === tabB)
+        #expect(store.tabs.map(\.id) == [tabA.id, tabC.id])
+        #expect(store.tabs.map(\.position) == [0, 1])
+    }
+
+    @Test func detachingAnUnknownTabChangesNothing() {
+        let store = TabStore()
+        store.append(tab: Tab(name: "a"))
+
+        #expect(store.detach(id: UUID()) == nil)
+        #expect(store.tabs.count == 1)
+    }
+
+    @Test func detachingTheActiveTabSwitchesToItsNeighbor() {
+        let store = TabStore()
+        let tabA = Tab(name: "a")
+        let tabB = Tab(name: "b")
+        store.append(tab: tabA)
+        store.append(tab: tabB)
+        store.activeTabID = tabB.id
+
+        _ = store.detach(id: tabB.id)
+
+        #expect(store.activeTabID == tabA.id)
+    }
+
+    @Test func detachingTheOnlyTabLeavesNoActiveTab() {
+        let store = TabStore()
+        let tab = Tab(name: "a")
+        store.append(tab: tab)
+
+        _ = store.detach(id: tab.id)
+
+        #expect(store.tabs.isEmpty)
+        #expect(store.activeTabID == nil)
+    }
+
+    /// A detached tab is on its way somewhere else, not closed, so the store
+    /// has no directory to remember it by.
+    @Test func detachDoesNotRecordALastClosedDirectory() {
+        let store = TabStore()
+        let surfaceID = UUID()
+        let tab = Tab(name: "a", surfaceID: surfaceID)
+        tab.surfaceDirectories[surfaceID] = "/Users/dev/work/alpha"
+        store.append(tab: tab)
+
+        _ = store.detach(id: tab.id)
+
+        #expect(store.lastClosedDirectory == nil)
+    }
+
+    @Test func insertPlacesTheTabAtTheIndexAndReindexes() {
+        let store = TabStore()
+        let tabA = Tab(name: "a")
+        let tabB = Tab(name: "b")
+        let moved = Tab(name: "moved")
+        store.append(tab: tabA)
+        store.append(tab: tabB)
+
+        store.insert(tab: moved, at: 1)
+
+        #expect(store.tabs.map(\.id) == [tabA.id, moved.id, tabB.id])
+        #expect(store.tabs.map(\.position) == [0, 1, 2])
+    }
+
+    @Test func insertClampsAnIndexPastTheEndToAppend() {
+        let store = TabStore()
+        let tabA = Tab(name: "a")
+        let moved = Tab(name: "moved")
+        store.append(tab: tabA)
+
+        store.insert(tab: moved, at: 99)
+
+        #expect(store.tabs.map(\.id) == [tabA.id, moved.id])
+    }
+
+    @Test func insertingIntoAnEmptyStoreMakesTheTabActive() {
+        let store = TabStore()
+        let moved = Tab(name: "moved")
+
+        store.insert(tab: moved, at: 0)
+
+        #expect(store.activeTabID == moved.id)
+    }
 }

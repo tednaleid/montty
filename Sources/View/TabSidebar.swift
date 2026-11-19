@@ -1,11 +1,14 @@
 // ABOUTME: The window's vertical sidebar: a scrolling list of tab rows and a new-tab button.
-// ABOUTME: Handles row selection, renaming, reordering, and jump labels.
+// ABOUTME: Handles row selection, renaming, reordering, moving tabs between windows, and jump labels.
 import SwiftUI
 
 struct TabSidebar: View {
     @Bindable var tabStore: TabStore
     let onNewTab: () -> Void
     let onCloseTab: (UUID) -> Void
+    /// A dragged tab was dropped at this index of this window. The tab may
+    /// belong to another window. Returns whether the drop was accepted.
+    let onMoveTab: (UUID, Int) -> Bool
     let onControl: (Tab, ControlCommand) -> Void
     var repoColorOverrides: [String: PaneTint] = [:]
     var shared = SharedSettings()
@@ -43,16 +46,10 @@ struct TabSidebar: View {
                                     .padding(4)
                             }
                             .dropDestination(for: String.self) { items, _ in
-                                guard let draggedIDString = items.first,
-                                      let draggedID = UUID(uuidString: draggedIDString),
-                                      let fromIndex = tabStore.tabs.firstIndex(
-                                          where: { $0.id == draggedID }),
-                                      let toIndex = tabStore.tabs.firstIndex(
-                                          where: { $0.id == tab.id }),
-                                      fromIndex != toIndex
+                                guard let toIndex = tabStore.tabs.firstIndex(
+                                    where: { $0.id == tab.id })
                                 else { return false }
-                                tabStore.move(fromIndex: fromIndex, toIndex: toIndex)
-                                return true
+                                return drop(items, at: toIndex)
                             }
                             .contextMenu {
                                 TabContextMenu(
@@ -72,6 +69,11 @@ struct TabSidebar: View {
                         }
                     }
                 }
+                // Below the last row: append, which is how a tab from another
+                // window lands at the end.
+                .dropDestination(for: String.self) { items, _ in
+                    drop(items, at: tabStore.tabs.count)
+                }
 
                 Divider()
 
@@ -86,5 +88,12 @@ struct TabSidebar: View {
                 }
                 .buttonStyle(.plain)
             }
+    }
+
+    /// The dragged tab's id is the payload; anything else dropped here (text
+    /// from another app) is refused rather than guessed at.
+    private func drop(_ items: [String], at index: Int) -> Bool {
+        guard let draggedID = items.first.flatMap(UUID.init(uuidString:)) else { return false }
+        return onMoveTab(draggedID, index)
     }
 }

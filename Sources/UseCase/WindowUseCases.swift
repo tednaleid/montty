@@ -132,6 +132,44 @@ final class WindowUseCases {
         return outcome
     }
 
+    /// Move a tab to `index` in `window`, which may be the window it is already
+    /// in (a reorder) or another one. `index` is the tab's position once it
+    /// lands, so a drop on a row takes that row's place.
+    ///
+    /// The tab moves whole, surfaces and all: nothing is destroyed or created,
+    /// so the shells in its panes keep running. A window left with no tabs is
+    /// closed through the usual path, and the tab lands focused in the window
+    /// it moved to.
+    func moveTab(id tabID: UUID, toWindow windowID: UUID, at index: Int) -> WindowOutcome {
+        guard let source = registry.locate(tabID: tabID),
+              let destination = registry.window(id: windowID) else { return WindowOutcome() }
+
+        var outcome = WindowOutcome()
+        if source.id == destination.id {
+            let store = source.tabStore
+            guard let from = store.tabs.firstIndex(where: { $0.id == tabID }) else {
+                return outcome
+            }
+            let landing = min(max(index, 0), store.tabs.count - 1)
+            guard from != landing else { return outcome }
+            store.move(fromIndex: from, toIndex: landing)
+            outcome.save = true
+            return outcome
+        }
+
+        guard let tab = source.tabStore.detach(id: tabID) else { return outcome }
+        destination.tabStore.insert(tab: tab, at: index)
+        destination.tabStore.activeTabID = tab.id
+        registry.keyWindowID = destination.id
+
+        if source.tabStore.tabs.isEmpty {
+            outcome.closeWindows = [source.id]
+        }
+        outcome.raiseWindow = destination.id
+        outcome.save = true
+        return outcome
+    }
+
     /// Close the window owning `surfaceID`. `nil` means the caller has no
     /// surface to give, and the window in front closes. A surface id that was
     /// given but does not resolve to a window returns an inert outcome rather

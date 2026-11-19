@@ -19,6 +19,7 @@ struct MainWindow: View {
                     tabStore: tabStore,
                     onNewTab: { appDelegate.createTab(in: window) },
                     onCloseTab: { appDelegate.closeTab(id: $0) },
+                    onMoveTab: { appDelegate.moveTab(id: $0, to: window, at: $1) },
                     onControl: { tab, command in
                         guard let surfaceID = tab.focusedSurfaceID else { return }
                         appDelegate.applyControl(command, to: tab, surfaceID: surfaceID)
