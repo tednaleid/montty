@@ -12,6 +12,21 @@ struct ActivityStatus: Equatable {
         case waiting    // needs user input (hook: notification)
         case idle       // session present, not actively working (hook: session-start, stop)
 
+        /// How much a state wants the user's attention; higher is more urgent.
+        private var urgency: Int {
+            switch self {
+            case .waiting: return 2
+            case .working: return 1
+            case .idle: return 0
+            }
+        }
+
+        /// The state of a group of panes that matters most to the user:
+        /// waiting on them, then working, then idle. Nil for no panes at all.
+        static func mostUrgent(of states: [State]) -> State? {
+            states.max { $0.urgency < $1.urgency }
+        }
+
         /// The name this state travels under on the control socket and in the
         /// debug server payloads. Spelled out so renaming a case is a compile
         /// error here rather than a silent change to the public protocol.

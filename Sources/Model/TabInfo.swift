@@ -12,6 +12,12 @@ struct TabInfo: Equatable {
     let splitCount: Int             // 1 = no splits
     let minimap: SplitMinimap
 
+    /// The Claude status of the tab as a whole: its most urgent pane's, or nil
+    /// when no pane has a session reporting in.
+    var activity: ActivityStatus.State? {
+        ActivityStatus.State.mostUrgent(of: minimap.panes.compactMap { $0.activity?.state })
+    }
+
     static func from(
         tab: TabProperties,
         gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:)
