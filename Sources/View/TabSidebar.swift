@@ -43,6 +43,9 @@ struct TabSidebar: View {
                         tabRow(tab, at: index)
                     }
                 }
+                // Tabs slide to their new places when one is dropped, rather
+                // than snapping.
+                .animation(.easeInOut(duration: 0.2), value: tabStore.tabs.map(\.id))
             }
             // Below the last row: the end of the list, which is how a tab from
             // another window lands last.
@@ -80,6 +83,11 @@ struct TabSidebar: View {
                 onJumpToSurface?(tab.id, leafID)
             }
         )
+        // Shifted inside the drop target, which stays where it was: moving the
+        // target itself would carry the row out from under the cursor and
+        // change the gap it reports.
+        .offset(y: gapShift(forRowAt: index))
+        .animation(.easeOut(duration: 0.12), value: insertionGap)
         .contentShape(Rectangle())
         .onTapGesture {
             tabStore.activeTabID = tab.id
@@ -129,6 +137,15 @@ struct TabSidebar: View {
             }
         )
     }
+
+    /// How far a row moves to open room for the insertion line: rows above the
+    /// gap up, rows below it down, so the space opens around the line.
+    private func gapShift(forRowAt index: Int) -> CGFloat {
+        guard let gap = insertionGap else { return 0 }
+        return index < gap ? -Self.gapSpread : Self.gapSpread
+    }
+
+    private static let gapSpread: CGFloat = 4
 
     /// The gap to draw the line in: the one a drag is over, unless dropping
     /// there would leave the dragged tab where it is.
