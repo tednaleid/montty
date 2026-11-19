@@ -44,6 +44,8 @@ extension DebugServer {
             handleIcon(connection: connection)
         case ("POST", "/move-tab"):
             handleMoveTab(query: request.query, connection: connection)
+        case ("POST", "/tear-off"):
+            handleTearOff(query: request.query, connection: connection)
         case ("POST", "/quit"):
             handleQuit(connection: connection)
         default:

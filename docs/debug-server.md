@@ -240,6 +240,21 @@ curl -s -X POST 'localhost:9876/move-tab?tab=<uuid>&window=<uuid>&index=0' | jq 
 
 This skips the drag gesture itself; try that by hand.
 
+### POST /tear-off
+
+Release a tab drag at a screen point, through the same `AppDelegate.tabDragEnded`
+the drag tracker calls when the mouse button comes up. `x` and `y` are screen
+coordinates with the origin at the bottom left, as `NSEvent.mouseLocation`
+reports them. Released over empty space, the tab moves into a new window of its
+own, sized like the one it left; released over any window, or for a window's only
+tab, nothing happens. The response says whether a window was opened.
+
+```bash
+curl -s -X POST 'localhost:9876/tear-off?tab=<uuid>&x=1800&y=600' | jq .
+```
+
+This skips the drag gesture and the release detection; try those by hand.
+
 ### POST /jump
 
 Enter jump mode or jump directly to a surface by leaf ID.
@@ -328,6 +343,7 @@ curl -s -X POST localhost:9876/quit | jq .
 | `just inspect-jump` | Enter jump mode |
 | `just inspect-jump <leaf_id>` | Jump to a specific surface |
 | `just inspect-move-tab <tab> <window> [index]` | Move a tab to a window, as a sidebar drop does |
+| `just inspect-tear-off <tab> <x> <y>` | Release a tab drag at a screen point, tearing it off over empty space |
 | `just inspect-jump-state` | Show jump mode state |
 | `just inspect-action <action>` | Trigger a Ghostty keybind action |
 | `just inspect-hook-log` | Show the last 200 hook events |

@@ -49,7 +49,7 @@ struct TabSidebar: View {
             }
             // Below the last row: the end of the list, which is how a tab from
             // another window lands last.
-            .onDrop(of: [.plainText], delegate: dropDelegate(
+            .onDrop(of: [.monttyTab], delegate: dropDelegate(
                 owner: Self.listOwner,
                 gapAt: { _ in tabStore.tabs.count }
             ))
@@ -94,7 +94,7 @@ struct TabSidebar: View {
         }
         .onDrag {
             onDragTab(tab.id)
-            return NSItemProvider(object: tab.id.uuidString as NSString)
+            return TabDragPayload.provider(for: tab.id)
         } preview: {
             Text(tab.tabInfo.displayName)
                 .padding(4)
@@ -102,7 +102,7 @@ struct TabSidebar: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
             rowHeights[tab.id] = height
         }
-        .onDrop(of: [.plainText], delegate: dropDelegate(
+        .onDrop(of: [.monttyTab], delegate: dropDelegate(
             owner: tab.id.uuidString,
             gapAt: { point in
                 TabDropTarget.gap(
@@ -176,18 +176,16 @@ struct TabSidebar: View {
         )
     }
 
-    /// The dragged tab's id is the payload; anything else dropped here (text
-    /// from another app) names no tab and is ignored.
+    /// The dragged tab's id is the payload; a provider that carries none names
+    /// no tab and is ignored.
     private func moveDroppedTab(from provider: NSItemProvider, intoGap gap: Int) {
-        _ = provider.loadObject(ofClass: NSString.self) { object, _ in
-            guard let id = (object as? String).flatMap(UUID.init(uuidString:)) else { return }
-            DispatchQueue.main.async {
-                let draggedIndex = tabStore.tabs.firstIndex { $0.id == id }
-                guard let landing = TabDropTarget.landingIndex(
-                    gap: gap, draggedIndex: draggedIndex
-                ) else { return }
-                _ = onMoveTab(id, landing)
-            }
+        TabDragPayload.tabID(from: provider) { id in
+            guard let id else { return }
+            let draggedIndex = tabStore.tabs.firstIndex { $0.id == id }
+            guard let landing = TabDropTarget.landingIndex(
+                gap: gap, draggedIndex: draggedIndex
+            ) else { return }
+            _ = onMoveTab(id, landing)
         }
     }
 }

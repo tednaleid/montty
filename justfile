@@ -290,6 +290,10 @@ inspect-jump leaf_id="":
 inspect-move-tab tab window index="":
     @curl -sf -X POST 'localhost:9876/move-tab?tab={{tab}}&window={{window}}{{ if index != "" { "&index=" + index } else { "" } }}' | jq .
 
+# Release a tab drag at a screen point (origin bottom-left); over empty space it tears the tab off
+inspect-tear-off tab x y:
+    @curl -sf -X POST 'localhost:9876/tear-off?tab={{tab}}&x={{x}}&y={{y}}' | jq .
+
 # Left-click the center of a surface through the app event queue
 inspect-click surface="":
     @curl -sf -X POST 'localhost:9876/click{{ if surface != "" { "?surface=" + surface } else { "" } }}' | jq .

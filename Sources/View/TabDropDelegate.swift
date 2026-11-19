@@ -14,7 +14,7 @@ struct TabDropDelegate: DropDelegate {
     let onDrop: (NSItemProvider, Int) -> Void
 
     func validateDrop(info: DropInfo) -> Bool {
-        info.hasItemsConforming(to: [.plainText])
+        info.hasItemsConforming(to: [.monttyTab])
     }
 
     func dropEntered(info: DropInfo) {
@@ -33,7 +33,7 @@ struct TabDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         let gap = gapAt(info.location)
         onTarget(nil)
-        guard let provider = info.itemProviders(for: [.plainText]).first else { return false }
+        guard let provider = info.itemProviders(for: [.monttyTab]).first else { return false }
         onDrop(provider, gap)
         return true
     }

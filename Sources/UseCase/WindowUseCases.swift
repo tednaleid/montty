@@ -176,13 +176,15 @@ final class WindowUseCases {
     /// any window it is not a tear-off: that was a drop on a sidebar, or a drag
     /// that went nowhere.
     ///
-    /// `windowFrames` is every open window's on-screen frame, which only the
-    /// shell can read. A window's only tab is never torn off, since the new
-    /// window would just replace the one it left.
+    /// `windowFrames` is every open window's on-screen frame and `screens` the
+    /// visible area of each display, which only the shell can read. The new
+    /// window is kept on the display the cursor is on. A window's only tab is
+    /// never torn off, since the new window would just replace the one it left.
     func tabDragEnded(
         id tabID: UUID,
         releasedAt point: CGPoint,
-        windowFrames: [UUID: WindowFrame]
+        windowFrames: [UUID: WindowFrame],
+        screens: [CGRect]
     ) -> WindowOutcome {
         guard !windowFrames.values.contains(where: { $0.rect.contains(point) }),
               let source = registry.locate(tabID: tabID),
@@ -190,10 +192,14 @@ final class WindowUseCases {
               let tab = source.tabStore.detach(id: tabID) else { return WindowOutcome() }
 
         let size = windowFrames[source.id] ?? source.frame
+        // Clamped to the display under the cursor, not to whichever display the
+        // frame overlaps most: dropped near the bottom of one display, a window
+        // that overhangs would otherwise open on the one beneath it.
+        let display = screens.first { $0.contains(point) } ?? screens.first
         let frame = size.isEmpty ? nil : WindowFrame(
             x: point.x - 40, y: point.y + 12 - size.height,
             width: size.width, height: size.height
-        )
+        ).clamped(toVisible: display.map { [$0] } ?? [])
 
         let window = registry.add(WindowModel(
             sidebarWidth: source.sidebarWidth,

@@ -10,6 +10,8 @@ import Testing
     private let sourceFrame = WindowFrame(x: 100, y: 100, width: 1200, height: 800)
     /// Somewhere no window is.
     private let emptySpace = CGPoint(x: 1800, y: 600)
+    /// One display, the visible area of a 1920x1080 screen.
+    private let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
 
     /// A window with `tabCount` tabs, already registered, with a known frame.
     private func makeUseCases(tabCount: Int) -> (WindowUseCases, WindowModel) {
@@ -30,7 +32,7 @@ import Testing
         let moved = source.tabStore.tabs[1]
 
         let outcome = useCases.tabDragEnded(
-            id: moved.id, releasedAt: emptySpace, windowFrames: frames(source)
+            id: moved.id, releasedAt: emptySpace, windowFrames: frames(source), screens: [screen]
         )
 
         #expect(useCases.registry.windows.count == 2)
@@ -52,7 +54,7 @@ import Testing
         let surfaceID = moved.allSurfaceIDs[0]
 
         let outcome = useCases.tabDragEnded(
-            id: moved.id, releasedAt: emptySpace, windowFrames: frames(source)
+            id: moved.id, releasedAt: emptySpace, windowFrames: frames(source), screens: [screen]
         )
 
         #expect(outcome.createSurfaces.isEmpty)
@@ -68,20 +70,68 @@ import Testing
 
         let outcome = useCases.tabDragEnded(
             id: source.tabStore.tabs[1].id,
-            releasedAt: CGPoint(x: 1800, y: 600),
-            windowFrames: frames(source)
+            releasedAt: CGPoint(x: 700, y: 900),
+            windowFrames: frames(source), screens: [screen]
         )
 
         let frame = outcome.createWindows[0].frame
-        #expect(frame == WindowFrame(x: 1760, y: 600 + 12 - 800, width: 1200, height: 800))
+        #expect(frame == WindowFrame(x: 660, y: 900 + 12 - 800, width: 1200, height: 800))
         #expect(outcome.createWindows[0].cascadeFrom == nil)
+    }
+
+    /// A window wider or taller than the room left is pulled back onto the
+    /// screen rather than hanging off its edge.
+    @Test func theNewWindowIsPulledBackOntoTheScreen() {
+        let (useCases, source) = makeUseCases(tabCount: 2)
+
+        let outcome = useCases.tabDragEnded(
+            id: source.tabStore.tabs[1].id,
+            releasedAt: CGPoint(x: 1800, y: 200),
+            windowFrames: frames(source), screens: [screen]
+        )
+
+        let frame = outcome.createWindows.first?.frame?.rect ?? .zero
+        #expect(screen.contains(frame))
+    }
+
+    /// The cursor's screen decides, not whichever screen the window would
+    /// overlap most: a window dropped near the bottom of one display must not
+    /// open on the display beneath it.
+    @Test func theNewWindowStaysOnTheScreenTheCursorIsOn() {
+        let (useCases, source) = makeUseCases(tabCount: 2)
+        let main = CGRect(x: 0, y: 0, width: 1728, height: 1117)
+        let below = CGRect(x: 0, y: -1200, width: 1920, height: 1200)
+
+        let outcome = useCases.tabDragEnded(
+            id: source.tabStore.tabs[1].id,
+            releasedAt: CGPoint(x: 50, y: 400),
+            windowFrames: frames(source), screens: [below, main]
+        )
+
+        let frame = outcome.createWindows.first?.frame?.rect ?? .zero
+        #expect(main.contains(frame))
+    }
+
+    @Test func aCursorOnASecondScreenPlacesTheWindowThere() {
+        let (useCases, source) = makeUseCases(tabCount: 2)
+        let main = CGRect(x: 0, y: 0, width: 1728, height: 1117)
+        let right = CGRect(x: 1728, y: 0, width: 1920, height: 1080)
+
+        let outcome = useCases.tabDragEnded(
+            id: source.tabStore.tabs[1].id,
+            releasedAt: CGPoint(x: 2000, y: 900),
+            windowFrames: frames(source), screens: [main, right]
+        )
+
+        let frame = outcome.createWindows.first?.frame?.rect ?? .zero
+        #expect(right.contains(frame))
     }
 
     @Test func theNewWindowKeepsTheSourcesSidebarWidth() {
         let (useCases, source) = makeUseCases(tabCount: 2)
 
         _ = useCases.tabDragEnded(
-            id: source.tabStore.tabs[1].id, releasedAt: emptySpace, windowFrames: frames(source)
+            id: source.tabStore.tabs[1].id, releasedAt: emptySpace, windowFrames: frames(source), screens: [screen]
         )
 
         #expect(useCases.registry.windows[1].sidebarWidth == 260)
@@ -92,7 +142,7 @@ import Testing
         let (useCases, source) = makeUseCases(tabCount: 1)
 
         let outcome = useCases.tabDragEnded(
-            id: source.tabStore.tabs[0].id, releasedAt: emptySpace, windowFrames: frames(source)
+            id: source.tabStore.tabs[0].id, releasedAt: emptySpace, windowFrames: frames(source), screens: [screen]
         )
 
         #expect(outcome == WindowOutcome())
@@ -110,11 +160,11 @@ import Testing
 
         let overSource = useCases.tabDragEnded(
             id: source.tabStore.tabs[1].id,
-            releasedAt: CGPoint(x: 400, y: 400), windowFrames: windowFrames
+            releasedAt: CGPoint(x: 400, y: 400), windowFrames: windowFrames, screens: [screen]
         )
         let overOther = useCases.tabDragEnded(
             id: source.tabStore.tabs[1].id,
-            releasedAt: CGPoint(x: 1800, y: 400), windowFrames: windowFrames
+            releasedAt: CGPoint(x: 1800, y: 400), windowFrames: windowFrames, screens: [screen]
         )
 
         #expect(overSource == WindowOutcome())
@@ -127,7 +177,7 @@ import Testing
         let (useCases, source) = makeUseCases(tabCount: 2)
 
         let outcome = useCases.tabDragEnded(
-            id: UUID(), releasedAt: emptySpace, windowFrames: frames(source)
+            id: UUID(), releasedAt: emptySpace, windowFrames: frames(source), screens: [screen]
         )
 
         #expect(outcome == WindowOutcome())
@@ -140,7 +190,7 @@ import Testing
         moved.name = "build"
 
         _ = useCases.tabDragEnded(
-            id: moved.id, releasedAt: emptySpace, windowFrames: frames(source)
+            id: moved.id, releasedAt: emptySpace, windowFrames: frames(source), screens: [screen]
         )
 
         #expect(useCases.registry.windows[1].tabStore.tabs[0] === moved)
@@ -153,7 +203,7 @@ import Testing
         let (useCases, source) = makeUseCases(tabCount: 2)
         let moved = source.tabStore.tabs[1]
         _ = useCases.tabDragEnded(
-            id: moved.id, releasedAt: emptySpace, windowFrames: frames(source)
+            id: moved.id, releasedAt: emptySpace, windowFrames: frames(source), screens: [screen]
         )
 
         let outcome = useCases.windowDidClose(id: source.id, frame: sourceFrame)
