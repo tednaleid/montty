@@ -1,17 +1,25 @@
-// ABOUTME: Verifies the one Claude status a tab shows when it holds several panes: the most
-// ABOUTME: urgent of them, so a pane that needs the user is never hidden behind a quiet one.
+// ABOUTME: Verifies the one Claude status a tab shows when it holds several panes: the one
+// ABOUTME: that most wants the user -- waiting, then idle, then working -- so none is hidden.
 
 import Foundation
 import Testing
 @testable import montty_unit
 
 struct TabActivitySummaryTests {
-    @Test func waitingBeatsWorkingAndIdle() {
+    @Test func waitingBeatsIdleAndWorking() {
         #expect(ActivityStatus.State.mostUrgent(of: [.idle, .working, .waiting]) == .waiting)
+        #expect(ActivityStatus.State.mostUrgent(of: [.working, .waiting, .idle]) == .waiting)
     }
 
-    @Test func workingBeatsIdle() {
-        #expect(ActivityStatus.State.mostUrgent(of: [.idle, .working]) == .working)
+    /// A finished session is waiting on its next prompt, which wants the user
+    /// more than one still busy on its own.
+    @Test func idleBeatsWorking() {
+        #expect(ActivityStatus.State.mostUrgent(of: [.working, .idle]) == .idle)
+        #expect(ActivityStatus.State.mostUrgent(of: [.idle, .working]) == .idle)
+    }
+
+    @Test func workingIsTheLeastUrgent() {
+        #expect(ActivityStatus.State.mostUrgent(of: [.working, .working]) == .working)
     }
 
     @Test func aLoneStateIsItself() {

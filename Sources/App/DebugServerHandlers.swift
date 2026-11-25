@@ -301,6 +301,7 @@ extension DebugServer {
                 return
             }
             ghostty_surface_text(surface, text, UInt(text.utf8.count))
+            postUserTyped(in: view)
             sendJSON(["ok": true, "typed": text], connection: connection)
         }
     }
@@ -326,7 +327,17 @@ extension DebugServer {
             // Must call ghostty_surface_key inside the text scope
             // because the text pointer is only valid within withCString.
             sendKeyEvent(for: keyName, surface: surface, connection: connection)
+            postUserTyped(in: view)
         }
+    }
+
+    /// This server types straight into libghostty, which skips the key handler
+    /// that tells montty the user typed. Tell it here, so a surface the debug
+    /// server types into behaves as it would for a person at the keyboard.
+    private static func postUserTyped(in view: Ghostty.SurfaceView) {
+        NotificationCenter.default.post(
+            name: Ghostty.Notification.ghosttySurfaceTyped, object: view
+        )
     }
 
     // Send a key event to the surface, keeping text pointer alive for the duration.

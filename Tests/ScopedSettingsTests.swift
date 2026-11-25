@@ -59,7 +59,7 @@ import Testing
             tabName: "", displayName: "montty/", surfaceColorOverrides: [:],
             tabColorOverride: nil, repoColorOverrides: [:],
             activityStates: [:], activityWaitingSince: [:],
-            activityWaitingFromControl: [:], surfaceResumeCommands: [:]
+            surfaceResumeCommands: [:]
         )
     }
 

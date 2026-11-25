@@ -15,12 +15,8 @@ final class Tab: Identifiable {
     /// Per-surface activity state populated by hook events, keyed by MONTTY_SURFACE_ID.
     var activityStates: [String: ActivityStatus.State] = [:]
     /// Timestamps for when each surface entered `.waiting`, keyed by MONTTY_SURFACE_ID.
-    /// Used for the timeout sweep that clears stuck `*?` indicators.
+    /// Reported by the debug server as how long a surface has waited.
     var activityWaitingSince: [String: Date] = [:]
-    /// The `activityWaitingSince` timestamp of a `.waiting` the control CLI set,
-    /// keyed by MONTTY_SURFACE_ID. A hook-driven `.waiting` stamps a fresh time,
-    /// so a tag only ever describes the episode that recorded it.
-    var activityWaitingFromControl: [String: Date] = [:]
     /// Maps Ghostty surfaceID -> MONTTY_SURFACE_ID for hook routing.
     var surfaceToMonttyID: [UUID: String] = [:]
     /// Per-surface working directories, keyed by surfaceID.
@@ -207,45 +203,18 @@ final class Tab: Identifiable {
         }
     }
 
-    /// Safety net: if the given surface is currently `.waiting`, transition to `.working`.
-    /// Called when a new title arrives — a title change is strong evidence Claude is active.
-    /// A `.waiting` the control CLI set is exempt, because an ordinary shell reprints
-    /// its title at every prompt and would clear the state the moment it was set.
-    /// Returns true if the state changed.
+    /// The user typed into this surface. A `.waiting` state is a session waiting
+    /// on the user, so typing is the answer and nothing else ends it: not time,
+    /// not a title change. It becomes `.idle` -- if Claude carries on, its next
+    /// hook says `.working`, and if the user interrupted it, no hook comes and
+    /// idle is what it is. Returns true if the state changed.
     @discardableResult
-    func clearWaitingOnTitleChange(for surfaceID: UUID) -> Bool {
+    func clearWaitingOnUserInput(for surfaceID: UUID) -> Bool {
         guard let monttyID = surfaceToMonttyID[surfaceID],
-              activityStates[monttyID] == .waiting,
-              !waitingCameFromControl(monttyID) else { return false }
-        activityStates[monttyID] = .working
+              activityStates[monttyID] == .waiting else { return false }
+        activityStates[monttyID] = .idle
         activityWaitingSince.removeValue(forKey: monttyID)
         return true
-    }
-
-    /// Whether this surface's current `.waiting` episode came from the control CLI.
-    private func waitingCameFromControl(_ monttyID: String) -> Bool {
-        guard let tagged = activityWaitingFromControl[monttyID],
-              let since = activityWaitingSince[monttyID] else { return false }
-        return tagged == since
-    }
-
-    /// Safety net: transition any surfaces stuck in `.waiting` for more than
-    /// `threshold` seconds back to `.idle`. Protects against lost hook events.
-    /// Returns the MONTTY_SURFACE_IDs that were transitioned.
-    @discardableResult
-    func sweepStaleWaiting(threshold: TimeInterval = 60, now: Date = Date()) -> [String] {
-        var transitioned: [String] = []
-        for (monttyID, since) in activityWaitingSince
-        where activityStates[monttyID] == .waiting
-            && now.timeIntervalSince(since) > threshold {
-            activityStates[monttyID] = .idle
-            transitioned.append(monttyID)
-        }
-        for monttyID in transitioned {
-            activityWaitingSince.removeValue(forKey: monttyID)
-            activityWaitingFromControl.removeValue(forKey: monttyID)
-        }
-        return transitioned
     }
 
     init(

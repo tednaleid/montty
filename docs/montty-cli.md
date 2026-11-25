@@ -199,15 +199,17 @@ returns to the shell prompt:
 just deploy && montty surface status waiting
 ```
 
-A `waiting` set here survives the terminal title changing, so a shell redrawing
-its prompt does not wipe it. Claude Code's `waiting` behaves differently on
-purpose: its TUI does not redraw the title while it is blocked, so a title
-change there means the hook that should have cleared the state was lost, and
-montty clears it.
+A `waiting` is a surface waiting on you, so it ends when you answer: when you
+press a key in that surface, it becomes `idle`. Nothing else ends it, neither a
+timer nor the terminal title changing, so a shell redrawing its prompt does not
+wipe it and a question left unanswered is still marked when you come back. For
+a Claude Code session a hook can also replace it: a prompt submission or a tool
+run sets `working`, `Stop` sets `idle`, and `SessionEnd` clears it. `working`
+and `idle` persist until something changes them.
 
-Every `waiting`, however it was set, returns to `idle` after 60 seconds so a
-pane cannot stay marked forever. `working` and `idle` persist until something
-changes them.
+A tab whose minimap is hidden shows one status on its row: the most urgent
+among its surfaces, `waiting` ahead of `idle` ahead of `working`, whichever
+surface has focus.
 
 ## Minimap
 

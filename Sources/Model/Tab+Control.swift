@@ -58,7 +58,6 @@ extension Tab {
             repoColorOverrides: repoColorOverrides,
             activityStates: activityStates,
             activityWaitingSince: activityWaitingSince,
-            activityWaitingFromControl: activityWaitingFromControl,
             surfaceResumeCommands: resumeCommands,
             tabMinimapVisibility: self.minimapVisibility,
             tabMinimapHeight: minimapHeight,
@@ -76,7 +75,6 @@ extension Tab {
         colorOverride = state.tabColorOverride
         activityStates = state.activityStates
         activityWaitingSince = state.activityWaitingSince
-        activityWaitingFromControl = state.activityWaitingFromControl
         resumeCommands = state.surfaceResumeCommands
         self.minimapVisibility = state.tabMinimapVisibility
         minimapHeight = state.tabMinimapHeight

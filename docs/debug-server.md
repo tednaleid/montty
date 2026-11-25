@@ -262,8 +262,8 @@ curl -s localhost:9876/hook-log | jq .
 The current activity state of every surface that has one, whether a hook or
 `montty surface status` set it. Each entry carries `tab_id`, `surface_id`,
 `montty_surface_id`, and `state` (`working`, `waiting`, or `idle`). A `waiting`
-surface also reports `waiting_since` and `waiting_seconds`, which is what the
-idle sweep measures.
+surface also reports `waiting_since` and `waiting_seconds`, how long it has
+been waiting on the user.
 
 ```bash
 curl -s localhost:9876/claude-states | jq .

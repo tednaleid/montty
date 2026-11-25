@@ -332,6 +332,10 @@ extension Ghostty.Notification {
     // MONTTY: Posted when a surface gains focus (e.g. via mouse click).
     // The sending object is the SurfaceView that gained focus.
     static let ghosttySurfaceFocused = Notification.Name("montty.surfaceFocused")
+
+    // MONTTY: Posted when the user types into a surface. The sending object is
+    // the SurfaceView that was typed into.
+    static let ghosttySurfaceTyped = Notification.Name("montty.surfaceTyped")
     static let SplitDirectionKey = ghosttyFocusSplit.rawValue
 
     /// Goto tab. Has tab index in the userinfo.

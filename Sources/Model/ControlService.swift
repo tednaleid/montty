@@ -25,7 +25,6 @@ struct ControlState: Equatable {
     var repoColorOverrides: [String: PaneTint]
     var activityStates: [String: ActivityStatus.State]
     var activityWaitingSince: [String: Date]
-    var activityWaitingFromControl: [String: Date]
     var surfaceResumeCommands: [UUID: String]
     var tabMinimapVisibility: MinimapVisibility?
     var tabMinimapHeight: Double?
@@ -164,13 +163,6 @@ enum ControlService {
             isKnownSurface: true,
             now: now
         )
-        // Tag a CLI-set `waiting` so the title-change safety net leaves it
-        // alone. Hooks reach the state machine directly and stay untagged.
-        if status == .waiting, let since = state.activityWaitingSince[target.monttyID] {
-            state.activityWaitingFromControl[target.monttyID] = since
-        } else {
-            state.activityWaitingFromControl.removeValue(forKey: target.monttyID)
-        }
     }
 
     /// A nil tint clears that scope. Repo scope needs a git identity, so it is

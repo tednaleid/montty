@@ -66,7 +66,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
     /// Tick timer for the Ghostty event loop
     private var tickTimer: Timer?
-    private var claudeWaitingTimer: Timer?
 
     /// NSEvent monitor for capturing keys during jump mode
     private var jumpKeyMonitor: Any?
@@ -130,19 +129,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         #if DEBUG
         DebugServer.start()
         #endif
-
-        // Sweep stale Claude `.waiting` states every 5 seconds. Safety net
-        // against lost hook events leaving `*?` stuck on the minimap.
-        claudeWaitingTimer = Timer.scheduledTimer(
-            withTimeInterval: 5.0, repeats: true
-        ) { [weak self] _ in
-            guard let self else { return }
-            for window in self.registry.windows {
-                for tab in window.tabStore.tabs {
-                    tab.sweepStaleWaiting()
-                }
-            }
-        }
     }
 
     /// Saves every open window before AppKit starts closing them one by one as
@@ -170,8 +156,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
 
         tickTimer?.invalidate()
         tickTimer = nil
-        claudeWaitingTimer?.invalidate()
-        claudeWaitingTimer = nil
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -431,9 +415,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
             .sink { [weak self, weak tab, id = surfaceView.id] title in
                 tab?.autoName = title
                 tab?.surfaceTitles[id] = title
-                // Safety net: a title change is strong evidence Claude is active,
-                // so clear any stuck `.waiting` state on this surface.
-                tab?.clearWaitingOnTitleChange(for: id)
                 // The reporting surface may belong to a background window, so
                 // this resolves and syncs that window specifically rather than
                 // the key window.

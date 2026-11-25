@@ -22,6 +22,7 @@ extension AppDelegate {
         observeTabActions(center)
         observeSplitActions(center)
         observeSurfaceFocus(center)
+        observeSurfaceTyping(center)
     }
 
     private func observeTabActions(_ center: NotificationCenter) {
@@ -141,6 +142,19 @@ extension AppDelegate {
                 tab.focusedLeafID = leaf.id
             }
             self.syncSurfaceFocus()
+        }
+    }
+
+    /// Typing into a pane is the user answering whatever it was waiting on.
+    private func observeSurfaceTyping(_ center: NotificationCenter) {
+        center.addObserver(
+            forName: Ghostty.Notification.ghosttySurfaceTyped,
+            object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let surfaceView = notification.object as? Ghostty.SurfaceView,
+                  let tab = self?.registry.locate(surfaceID: surfaceView.id)?.tab
+            else { return }
+            tab.clearWaitingOnUserInput(for: surfaceView.id)
         }
     }
 

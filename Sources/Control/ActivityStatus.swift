@@ -12,17 +12,20 @@ struct ActivityStatus: Equatable {
         case waiting    // needs user input (hook: notification)
         case idle       // session present, not actively working (hook: session-start, stop)
 
-        /// How much a state wants the user's attention; higher is more urgent.
+        /// How much a state wants the user's attention; higher wants more. A
+        /// session that is waiting on a question comes first, a finished one
+        /// waiting on its next prompt second, and one still busy last, since
+        /// it needs nothing from the user yet.
         private var urgency: Int {
             switch self {
             case .waiting: return 2
-            case .working: return 1
-            case .idle: return 0
+            case .idle: return 1
+            case .working: return 0
             }
         }
 
-        /// The state of a group of panes that matters most to the user:
-        /// waiting on them, then working, then idle. Nil for no panes at all.
+        /// The state of a group of panes that wants the user most: waiting,
+        /// then idle, then working. Nil for no panes at all.
         static func mostUrgent(of states: [State]) -> State? {
             states.max { $0.urgency < $1.urgency }
         }

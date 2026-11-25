@@ -1104,6 +1104,13 @@ extension Ghostty {
             // On any keyDown event we unset our bell state
             bell = false
 
+            // MONTTY: Notify montty that the user typed, which ends a Claude
+            // `waiting` state on this surface.
+            NotificationCenter.default.post(
+                name: Ghostty.Notification.ghosttySurfaceTyped,
+                object: self
+            )
+
             // We need to translate the mods (maybe) to handle configs such as option-as-alt
             let translationModsGhostty = Ghostty.eventModifierFlags(
                 mods: ghostty_surface_key_translation_mods(
