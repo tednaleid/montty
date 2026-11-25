@@ -101,7 +101,7 @@ class MaterializeWorldTest(unittest.TestCase):
 
     def test_pins_the_palette_so_colors_do_not_follow_the_users_theme(self):
         config = (self.root / "config" / "ghostty" / "config").read_text()
-        self.assertIn("palette = 2=#00bb00", config)
+        self.assertIn("palette = 2=#99cc99", config)
         self.assertIn("command = /bin/zsh", config)
 
     def test_zshrc_sets_a_prompt_that_names_no_user(self):

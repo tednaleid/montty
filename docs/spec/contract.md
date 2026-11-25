@@ -69,6 +69,7 @@ Fresh Xcode project. Copy Ghostty's MIT-licensed Swift binding layer (~8000 line
 ### Key dependencies
 - **GhosttyKit.xcframework** -- terminal rendering engine, built from Ghostty source via Zig
 - **Ghostty Swift bindings** -- copied from `ghostty/macos/Sources/Ghostty/` (MIT)
+- **swift-argument-parser** -- parses the `montty` command line; the only Swift package dependency, pinned in `project.yml`
 - **No other runtime dependencies** -- no Sparkle, PostHog, Sentry, Bonsplit
 
 ### Architecture layers

@@ -193,24 +193,24 @@ BRANCHES = {
 
 GHOSTTY_CONFIG = """\
 palette = 0=#000000
-palette = 1=#b30d0e
-palette = 2=#00bb00
-palette = 3=#fecd22
-palette = 4=#3a9bdb
-palette = 5=#bb00bb
-palette = 6=#00bbbb
-palette = 7=#bbbbbb
-palette = 8=#555555
-palette = 9=#ff0003
-palette = 10=#93c863
-palette = 11=#fef874
-palette = 12=#a1d7ff
-palette = 13=#ff55ff
-palette = 14=#55ffff
+palette = 1=#f2777a
+palette = 2=#99cc99
+palette = 3=#ffcc66
+palette = 4=#6699cc
+palette = 5=#cc99cc
+palette = 6=#66cccc
+palette = 7=#ffffff
+palette = 8=#595959
+palette = 9=#f2777a
+palette = 10=#99cc99
+palette = 11=#ffcc66
+palette = 12=#6699cc
+palette = 13=#cc99cc
+palette = 14=#66cccc
 palette = 15=#ffffff
-background = #283033
-foreground = #cdcdcd
-cursor-color = #c0cad0
+background = #2d2d2d
+foreground = #cccccc
+cursor-color = #cccccc
 font-family = "Fira Code"
 font-size = 15
 window-padding-x = 10
@@ -515,7 +515,11 @@ def fill_panes() -> None:
                     # ZSHRC aliases montty to $MONTTY_BIN, so this types as a
                     # normal invocation while still running the binary that is
                     # driving this demo, not whatever PATH resolves elsewhere.
+                    # The overview lists scopes and verbs, and a scope's
+                    # help lists its settings. Together they fill the pane;
+                    # a setting's own help would scroll the overview away.
                     run_in(surface, "montty --help")
+                    run_in(surface, "montty tab --help")
                 else:
                     run_in(surface, f"cat {DEMO_ROOT}/fixtures/{fixture}.txt")
     time.sleep(1.5)
@@ -527,18 +531,19 @@ def set_statuses() -> None:
         for tab in window.tabs:
             for pane, status in tab.statuses.items():
                 surface = surface_for(tab.key, pane, surfaces)
-                env = demo_env()
-                env["MONTTY_SURFACE_ID"] = surface["montty_surface_id"]
-                result = subprocess.run(
-                    [str(APP), "surface", "status", status],
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                )
-                if result.returncode != 0:
-                    raise SystemExit(
-                        f"montty surface status {status} failed: {result.stderr.strip()}"
-                    )
+                run_montty(surface, "surface", "status", status)
+
+
+def run_montty(surface: dict, *arguments: str) -> None:
+    """Run the montty CLI as though typed in `surface`, without touching what
+    the pane shows."""
+    env = demo_env()
+    env["MONTTY_SURFACE_ID"] = surface["montty_surface_id"]
+    result = subprocess.run(
+        [str(APP), *arguments], env=env, capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        raise SystemExit(f"montty {' '.join(arguments)} failed: {result.stderr.strip()}")
 
 
 CLAUDE_PROMPTS = [
@@ -645,6 +650,7 @@ def postprocess() -> None:
     for source, target in [
         ("hero.png", "screenshot.png"),
         ("jump.png", "screenshot-easymotion.png"),
+        ("compact.png", "screenshot-compact.png"),
         ("cli.png", "screenshot-cli.png"),
     ]:
         image = Image.open(RAW / source)
@@ -692,6 +698,14 @@ def capture_all() -> None:
     # Each window is captured on its own; they are composited in postprocess().
     capture(hero["id"], RAW / "window-one.png")
     capture(second_window["id"], RAW / "window-two.png")
+
+    # The same window with every minimap hidden, then shown again so the
+    # shot after this one matches the others.
+    run_montty(hero, "app", "minimap", "never")
+    time.sleep(0.5)
+    capture(hero["id"], RAW / "compact.png")
+    run_montty(hero, "app", "minimap", "--reset")
+    time.sleep(0.5)
 
     # Last, because switching tabs moves the focus. goto_tab is window-scoped,
     # resolved from the surface named in the query string, so cli's id (fixed

@@ -17,7 +17,7 @@ A macOS terminal app built on [GhosttyKit](https://github.com/ghostty-org/ghostt
 - Claude Code status indicators (working, waiting, idle) on minimap panes (see [Claude Code hooks](#claude-code-hooks))
 - Standard Ghostty theming from `~/.config/ghostty/config`
 - Multiple windows from one process, opened with `Cmd-N`, each owning its own tabs, which never move between windows
-- The `montty` CLI for setting colors, names, and activity status from a shell or a script (see [docs/montty-cli.md](docs/montty-cli.md))
+- The `montty` CLI for setting colors, names, tint strengths, minimaps, and activity status from a shell or a script, for one surface, one tab, one repo, or the whole app (see [docs/montty-cli.md](docs/montty-cli.md))
 - Colors resolving surface, then tab, then repo, then the automatic git signature, with repo colors shared across every tab in a repo
 - Gradient tints of up to three stops, with a worktree's gradient carrying its parent repo's colors on the leading edge and its own color on the trailing edge
 - Opening the focused pane's directory in an editor (`Cmd-Shift-E`)
@@ -27,11 +27,15 @@ Easy Motion allows movement directly to any terminal surface across tabs:
 
 ![Montty easy motion screenshot](docs/screenshot-easymotion.png)
 
+Minimaps can be hidden to fit more tabs in the sidebar, everywhere or per tab, or shown only for tabs that are split or have an activity status. A tab without its minimap keeps its color:
+
+![Montty hidden minimaps screenshot](docs/screenshot-compact.png)
+
 `Cmd-N` opens another window from the same process. Each window keeps its own tabs and splits; tabs never move between windows:
 
 ![Montty two windows screenshot](docs/screenshot-windows.png)
 
-The `montty` command line tool sets colors, names, and activity status on the pane it runs in, from a shell or a script. Run `montty --help` for the full command list, or see [docs/montty-cli.md](docs/montty-cli.md):
+The `montty` command line tool sets colors, names, and activity status on the pane it runs in, from a shell or a script. Run `montty --help` for the scopes and verbs, add `--help` after any part of a command for help on that part, or see [docs/montty-cli.md](docs/montty-cli.md):
 
 ![Montty CLI help screenshot](docs/screenshot-cli.png)
 

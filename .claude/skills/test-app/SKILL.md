@@ -22,7 +22,8 @@ and splits, and verify behavior.
 |--------|-------------|
 | `just build` | Compile the app |
 | `just run-bg` | Build and launch in background |
-| `just stop` | Quit gracefully (triggers session save) |
+| `just stop` | Stop the debug build (does not save the session) |
+| `just inspect-quit` | Quit through the real Cmd-Q path, saving the session |
 | `just inspect-surfaces` | List all terminal surfaces (tabs/panes) |
 | `just inspect-type "text"` | Type text into focused terminal |
 | `just inspect-key return` | Send a key event |
@@ -54,9 +55,9 @@ run at a time.
 just stop
 ```
 
-This sends a graceful quit via osascript. The app saves its session on quit,
-so always use `just stop` rather than killing the process if you care about
-session state.
+This sends SIGTERM, which skips the save-on-quit path: only what the periodic
+auto-save already wrote survives. When session state matters, quit with
+`just inspect-quit`, which goes through the real Cmd-Q path and saves.
 
 ### Full restart cycle
 
@@ -148,7 +149,7 @@ just inspect-key return
 sleep 0.5
 
 # 2. Quit (triggers session save)
-just stop
+just inspect-quit
 sleep 1
 
 # 3. Inspect saved session (optional, for debugging)
@@ -192,5 +193,6 @@ Key fields in session.json:
 - Use `just inspect-surfaces` liberally to understand which surfaces exist
   and which is focused.
 - Screenshots are the best way to verify visual layout (splits, tab sidebar).
-- The session auto-saves every 8 seconds, but `just stop` forces an immediate
-  save, which is more reliable for testing persistence.
+- The session auto-saves every 8 seconds. `just inspect-quit` forces an
+  immediate save, which is more reliable for testing persistence; `just stop`
+  does not save.

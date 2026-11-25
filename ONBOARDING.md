@@ -10,6 +10,7 @@ Code status indicators, and a Cmd+; surface-jump mode.
 - Language: Swift 5 (targets macOS 26 / Tahoe; Homebrew cask also pins `>= :tahoe`)
 - UI: AppKit lifecycle with SwiftUI views; Ghostty's C API via `GhosttyKit.xcframework`
 - Build: Xcode project generated from `project.yml` via `xcodegen`
+- CLI parsing: `swift-argument-parser`, the only Swift package dependency, pinned in `project.yml`
 - Task runner: Justfile (authoritative)
 - Tests: Swift Testing (`import Testing`, `@Test`, `#expect`) -- not XCTest
 - Lint: SwiftLint (strict); `Sources/Ghostty/` is excluded as upstream code
