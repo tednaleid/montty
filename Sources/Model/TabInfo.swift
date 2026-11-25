@@ -4,6 +4,8 @@ import Foundation
 
 struct TabInfo: Equatable {
     let displayName: String
+    /// The name the tab shows when neither it nor its focused surface has one.
+    let autoDisplayName: String
     let workingDirectory: String?
     let directoryName: String?      // last path component
     let gitInfo: GitInfo?           // nil if not in a git repo
@@ -14,42 +16,44 @@ struct TabInfo: Equatable {
         tab: TabProperties,
         gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:)
     ) -> TabInfo {
-        // Use the focused surface's directory
-        let focusedDir: String? = tab.focusedLeafID.flatMap { leafID in
+        let focusedSurfaceID: UUID? = tab.focusedLeafID.flatMap { leafID in
             SplitTree.allLeaves(node: tab.splitRoot)
                 .first { $0.id == leafID }?.surfaceID
-        }.flatMap { tab.surfaceDirectories[$0] }
+        }
+        // Use the focused surface's directory
+        let focusedDir: String? = focusedSurfaceID.flatMap { tab.surfaceDirectories[$0] }
 
         let dirName = focusedDir.map {
             ($0 as NSString).lastPathComponent
         }
 
-        // Display name: user-set name takes priority.
-        // Otherwise show "dirname/" (short, scannable).
-        // Falls back to autoName or "Terminal".
-        let name: String
-        if !tab.name.isEmpty {
-            name = tab.name
-        } else if let pwd = focusedDir, let dir = dirName {
+        // The automatic name is "dirname/" (short, scannable), falling back
+        // to autoName or "Terminal".
+        let auto: String
+        if let pwd = focusedDir, let dir = dirName {
             let home = NSHomeDirectory()
             if pwd == "/" {
-                name = "/"
+                auto = "/"
             } else if pwd == home {
-                name = "~"
+                auto = "~"
             } else if pwd == home + "/" + dir {
                 // Direct child of home: ~/dirname
-                name = "~/\(dir)"
+                auto = "~/\(dir)"
             } else if pwd.hasPrefix(home + "/") {
-                name = "\(dir)/"
+                auto = "\(dir)/"
             } else {
                 let parent = (pwd as NSString).deletingLastPathComponent
-                name = (parent == "/" || parent.isEmpty) ? "/\(dir)" : "\(dir)/"
+                auto = (parent == "/" || parent.isEmpty) ? "/\(dir)" : "\(dir)/"
             }
         } else if !tab.autoName.isEmpty {
-            name = tab.autoName
+            auto = tab.autoName
         } else {
-            name = "Terminal"
+            auto = "Terminal"
         }
+
+        // The focused surface's name takes priority, then the tab's.
+        let named = focusedSurfaceID.flatMap { tab.surfaceNames[$0] } ?? tab.name
+        let name = named.isEmpty ? auto : named
 
         let gitInfo: GitInfo? = focusedDir.flatMap { pwd in
             gitInfoProvider(pwd)
@@ -64,6 +68,7 @@ struct TabInfo: Equatable {
 
         return TabInfo(
             displayName: name,
+            autoDisplayName: auto,
             workingDirectory: focusedDir,
             directoryName: dirName,
             gitInfo: gitInfo,
@@ -87,4 +92,6 @@ struct TabProperties: Equatable {
     var activityStates: [String: ActivityStatus.State] = [:]
     /// Maps Ghostty surfaceID -> MONTTY_SURFACE_ID.
     var surfaceToMonttyID: [UUID: String] = [:]
+    /// Per-surface name, keyed by surfaceID.
+    var surfaceNames: [UUID: String] = [:]
 }

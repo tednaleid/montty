@@ -117,21 +117,21 @@ import Testing
     }
 
     @Test func parsesTheMinimapHeightWithinItsRange() {
-        #expect(command(["app", "minimap-height", "40"]) == .setMinimapHeight(40))
-        #expect(command(["app", "minimap-height", "200"]) == .setMinimapHeight(200))
+        #expect(command(["app", "minimap-height", "40"]) == .setMinimapHeight(scope: .app, value: 40))
+        #expect(command(["app", "minimap-height", "200"]) == .setMinimapHeight(scope: .app, value: 200))
         #expect(command(["app", "minimap-height", "--reset"])
-            == .setMinimapHeight(MinimapHeight.default))
+            == .setMinimapHeight(scope: .app, value: nil))
         #expect(isUsageError(["app", "minimap-height", "39"]))
         #expect(isUsageError(["app", "minimap-height", "201"]))
         #expect(isUsageError(["app", "minimap-height", "tall"]))
     }
 
     @Test func parsesTheSurfaceTintStrengthWithinItsRange() {
-        #expect(command(["app", "surface-tint-strength", "0.2"]) == .setTintStrength(0.2))
-        #expect(command(["app", "surface-tint-strength", "0"]) == .setTintStrength(0))
-        #expect(command(["app", "surface-tint-strength", "0.5"]) == .setTintStrength(0.5))
+        #expect(command(["app", "surface-tint-strength", "0.2"]) == .setStrength(.surfaceTint, scope: .app, value: 0.2))
+        #expect(command(["app", "surface-tint-strength", "0"]) == .setStrength(.surfaceTint, scope: .app, value: 0))
+        #expect(command(["app", "surface-tint-strength", "0.5"]) == .setStrength(.surfaceTint, scope: .app, value: 0.5))
         #expect(command(["app", "surface-tint-strength", "--reset"])
-            == .setTintStrength(SurfaceTintStrength.default))
+            == .setStrength(.surfaceTint, scope: .app, value: nil))
     }
 
     @Test(arguments: ["0.51", "1", "-0.1", "nope", "nan"])
@@ -140,13 +140,39 @@ import Testing
     }
 
     @Test func parsesTheTabTintStrengthWithinItsRange() {
-        #expect(command(["app", "tab-tint-strength", "0"]) == .setTabTintStrength(0))
-        #expect(command(["app", "tab-tint-strength", "0.3"]) == .setTabTintStrength(0.3))
+        #expect(command(["app", "tab-tint-strength", "0"]) == .setStrength(.tabTint, scope: .app, value: 0))
+        #expect(command(["app", "tab-tint-strength", "0.3"]) == .setStrength(.tabTint, scope: .app, value: 0.3))
         #expect(command(["app", "tab-tint-strength", "--reset"])
-            == .setTabTintStrength(TabTintStrength.default))
+            == .setStrength(.tabTint, scope: .app, value: nil))
         #expect(isUsageError(["app", "tab-tint-strength", "-0.1"]))
         #expect(isUsageError(["app", "tab-tint-strength", "0.31"]))
         #expect(isUsageError(["app", "tab-tint-strength", "strong"]))
+    }
+
+    @Test(arguments: [SettingScope.surface, .tab, .repo, .app])
+    func aStrengthIsSetAndResetAtEveryScope(scope: SettingScope) {
+        let name = scope.rawValue
+        #expect(command([name, "surface-tint-strength", "0.2"])
+            == .setStrength(.surfaceTint, scope: scope, value: 0.2))
+        #expect(command([name, "surface-tint-strength", "--reset"])
+            == .setStrength(.surfaceTint, scope: scope, value: nil))
+        #expect(command([name, "tab-tint-strength", "0.2"])
+            == .setStrength(.tabTint, scope: scope, value: 0.2))
+        #expect(read([name, "tab-tint-strength"])
+            == SettingRead(setting: .tabTintStrength, scope: scope))
+    }
+
+    @Test func theMinimapHeightIsSetAndResetForATab() {
+        #expect(command(["tab", "minimap-height", "60"]) == .setMinimapHeight(scope: .tab, value: 60))
+        #expect(command(["tab", "minimap-height", "--reset"])
+            == .setMinimapHeight(scope: .tab, value: nil))
+        #expect(read(["tab", "minimap-height"]) == SettingRead(setting: .minimapHeight, scope: .tab))
+    }
+
+    @Test func aNameIsSetAndResetForASurface() {
+        #expect(command(["surface", "name", "logs"]) == .setSurfaceName("logs"))
+        #expect(command(["surface", "name", "--reset"]) == .setSurfaceName(nil))
+        #expect(read(["surface", "name"]) == SettingRead(setting: .name, scope: .surface))
     }
 
     // MARK: - The read form
@@ -178,9 +204,9 @@ import Testing
 
     @Test(arguments: [
         ["surface", "minimap", "never"], ["repo", "minimap", "never"],
-        ["surface", "name", "x"], ["tab", "status", "idle"],
-        ["tab", "resume-command", "nvim"], ["tab", "minimap-height", "60"],
-        ["tab", "surface-tint-strength", "0.2"], ["surface", "tab-tint-strength", "0.2"]
+        ["repo", "name", "x"], ["app", "name", "x"], ["tab", "status", "idle"],
+        ["tab", "resume-command", "nvim"], ["surface", "minimap-height", "60"],
+        ["repo", "minimap-height", "60"]
     ])
     func aSettingAtAScopeThatDoesNotAcceptItIsAUsageError(args: [String]) {
         #expect(isUsageError(args))

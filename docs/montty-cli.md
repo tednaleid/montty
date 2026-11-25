@@ -46,13 +46,13 @@ across all windows.
 | setting | scopes | value |
 |---|---|---|
 | `color` | `surface`, `tab`, `repo` | `<spec>`, 1 to 3 color stops |
-| `name` | `tab` | text |
+| `name` | `surface`, `tab` | text |
 | `status` | `surface` | `working`, `waiting`, `idle`, or `clear` |
 | `resume-command` | `surface` | a shell command |
-| `surface-tint-strength` | `app` | 0 to 0.5, default 0.12 |
-| `tab-tint-strength` | `app` | 0 to 0.3, default 0.12 |
+| `surface-tint-strength` | `surface`, `tab`, `repo`, `app` | 0 to 0.5, default 0.12 |
+| `tab-tint-strength` | `surface`, `tab`, `repo`, `app` | 0 to 0.3, default 0.12 |
 | `minimap` | `tab`, `app` | `always`, `never`, or conditions; default `always` |
-| `minimap-height` | `app` | 40 to 200 points, default 90 |
+| `minimap-height` | `tab`, `app` | 40 to 200 points, default 90 |
 
 The rest are verbs:
 
@@ -80,17 +80,36 @@ exits 64.
 
 ## Scopes
 
-Colors resolve surface first, then tab, then repo, then the automatic git
-signature:
+A setting held at more than one scope resolves from the narrowest scope that
+has a value: surface first, then tab, then repo, then app. Colors end with the
+automatic git signature where the others end with the app value.
 
 | scope | affects |
 |---|---|
 | `surface` | the one pane that ran the command |
-| `tab` | every pane in the tab that has no surface override |
-| `repo` | every tab whose focused pane sits in this repo or worktree |
+| `tab` | every pane in the tab that has no surface value |
+| `repo` | every pane in this repo or worktree that has no surface or tab value |
+| `app` | everything that has no narrower value |
 
-Each scope has its own Reset in the tab's right-click menu, so anything set here
-can be cleared from the GUI.
+What a tab shows in the sidebar (its color, its name, and the strength of its
+tint) comes from its focused surface, so each can change as focus moves
+between the tab's surfaces.
+
+Each color scope has its own Reset in the tab's right-click menu, so a color
+set here can be cleared from the GUI. The other settings are reset from the
+CLI with `--reset`.
+
+## Names
+
+`montty tab name` names the tab. `montty surface name` names one surface, and
+its tab shows that name while the surface has focus. A surface name beats the
+tab's name, and a tab with neither shows a name made from its directory.
+
+```bash
+montty tab name "MR !123"
+montty surface name logs
+montty surface name --reset
+```
 
 Every command targets the surface it runs in, which resolves no matter which
 window holds it. There is no window scope.
@@ -218,7 +237,8 @@ montty info | jq .settings.minimap
 `montty info` reports each of `minimap`, `minimap_height`,
 `surface_tint_strength`, and `tab_tint_strength` under `settings`, with the
 value at each scope that has one and `effective`, what the calling surface
-resolves to:
+resolves to. It also reports `surface_name`, which is null when the surface
+has no name of its own:
 
 ```json
 "minimap": {"tab": "never", "app": "split,status", "effective": "never"}
@@ -231,7 +251,8 @@ one and has a hidden minimap gets a single label, drawn at the right edge of
 its row, that jumps to that same surface.
 
 `montty app minimap-height` sets how tall a shown minimap is, in points, for
-every tab: 40 to 200, default 90. The activity indicator and jump labels stay the
+every tab: 40 to 200, default 90. `montty tab minimap-height` sets it for one
+tab, which suits a tab with many splits. The activity indicator and jump labels stay the
 same size at every height.
 
 ## Tint strength
@@ -239,6 +260,15 @@ same size at every height.
 A terminal surface is tinted with its color. `montty app surface-tint-strength`
 sets how strong that tint is, for every surface: 0 to 0.5, default 0.12. View >
 Toggle Surface Tint switches it off and on without changing the strength.
+
+Both strengths can also be set for one surface, one tab, or one repo, and the
+narrowest value wins:
+
+```bash
+montty surface surface-tint-strength 0    # no tint on this one surface
+montty repo surface-tint-strength 0.3     # stronger in this repo
+montty tab surface-tint-strength --reset  # this tab follows its repo or the app again
+```
 
 Each tab row in the sidebar is washed with the color of its tab's focused
 surface. `montty app tab-tint-strength` sets how strong that wash is, for

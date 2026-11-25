@@ -317,12 +317,13 @@ import Testing
     @Test func appScopeCommandsChangeTheAppSettings() {
         var subject = state()
         for command: ControlCommand in [
-            .setTintStrength(0.3), .setTabTintStrength(0.2),
-            .setMinimapVisibility(.never), .setMinimapHeight(60)
+            .setStrength(.surfaceTint, scope: .app, value: 0.3),
+            .setStrength(.tabTint, scope: .app, value: 0.2),
+            .setMinimapVisibility(.never), .setMinimapHeight(scope: .app, value: 60)
         ] {
             #expect(ControlService.apply(command, target: ref(), to: &subject, gitInfoProvider: git) == .applied)
         }
-        #expect(subject.app == AppSettings(
+        #expect(subject.shared.app == AppSettings(
             surfaceTintStrength: 0.3, tabTintStrength: 0.2,
             minimapVisibility: .never, minimapHeight: 60
         ))
@@ -330,7 +331,7 @@ import Testing
 
     @Test func infoReportsEachAppSettingAsItsEffectiveValue() {
         var subject = state()
-        subject.app = AppSettings(
+        subject.shared.app = AppSettings(
             surfaceTintStrength: 0.3, tabTintStrength: 0.2,
             minimapVisibility: .never, minimapHeight: 60
         )
@@ -356,13 +357,13 @@ import Testing
 
     @Test func infoReportsTheAppWideMinimapVisibilityWhenTheTabHasNoOverride() {
         var subject = state()
-        subject.app.minimapVisibility = .when([.split])
+        subject.shared.app.minimapVisibility = .when([.split])
         #expect(settingsInfo(subject)?.minimap == .init(app: "split", effective: "split"))
     }
 
     @Test func infoReportsTheTabMinimapOverrideAsEffective() {
         var subject = state()
-        subject.app.minimapVisibility = .when([.split])
+        subject.shared.app.minimapVisibility = .when([.split])
         subject.tabMinimapVisibility = .never
         #expect(settingsInfo(subject)?.minimap
             == .init(tab: "never", app: "split", effective: "never"))

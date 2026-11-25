@@ -165,8 +165,8 @@ In the session JSON file:
   `minimapVisibility`, and `minimapHeight` keep their keys.
 - Repo overrides are keyed by repo identity, beside `repoColorOverrides`.
 - Tab overrides sit on `TabSnapshot`.
-- Surface overrides sit on `TabSnapshot` keyed by leaf ID, like
-  `leafColorOverrides`, because leaf IDs survive a restore.
+- Surface overrides and surface names sit on `TabSnapshot` keyed by leaf ID,
+  like `leafColorOverrides`, because leaf IDs survive a restore.
 
 Every key is optional when decoding, and a value this montty cannot read falls
 back to the next wider scope rather than failing the session.
@@ -193,7 +193,8 @@ has one and the effective value:
 
 The keys are snake-cased like the rest of `montty info`. A scope with no value
 is absent. This replaces the `minimap` object. The read form of a setting is
-answered from this object.
+answered from this object. `montty info` also carries `surface_name`, the
+calling surface's own name, and `tab_name` stays the tab's name without it.
 
 ## Order of work
 

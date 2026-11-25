@@ -197,7 +197,8 @@ final class WindowUseCases {
                 minimap: MinimapSettings(
                     visibility: snapshot.minimapVisibility, height: snapshot.minimapHeight
                 ),
-                tabTintStrength: snapshot.tabTintStrength
+                tabTintStrength: snapshot.tabTintStrength,
+                repoSettingOverrides: snapshot.repoSettingOverrides
             )
         }
 
@@ -239,6 +240,8 @@ final class WindowUseCases {
         tab.focusedLeafID = savedTab.focusedLeafID
         tab.colorOverride = savedTab.colorOverride
         tab.minimapVisibility = savedTab.minimapVisibility
+        tab.minimapHeight = savedTab.minimapHeight
+        tab.settings = savedTab.settingOverrides
         window.tabStore.append(tab: tab)
 
         return SplitTree.allLeaves(node: tab.splitRoot).map { leaf in
@@ -246,6 +249,8 @@ final class WindowUseCases {
             // Kept on the tab so the next save writes it again; binding
             // moves it onto the surface Ghostty creates for this leaf.
             tab.resumeCommands[leaf.surfaceID] = resumeCommand
+            tab.surfaceSettings[leaf.surfaceID] = savedTab.leafSettingOverrides[leaf.id]
+            tab.surfaceNames[leaf.surfaceID] = savedTab.leafNames[leaf.id]
             return SurfacePlan(
                 leafID: leaf.id,
                 windowID: window.id,
@@ -267,7 +272,8 @@ final class WindowUseCases {
         frames: [UUID: WindowFrame],
         directories: [UUID: String],
         minimap: MinimapSettings = MinimapSettings(),
-        tabTintStrength: Double = TabTintStrength.default
+        tabTintStrength: Double = TabTintStrength.default,
+        repoSettingOverrides: [String: SettingOverrides] = [:]
     ) -> SessionSnapshot {
         var snapshot = SessionSnapshotBuilder.snapshot(
             windows: registry.windows,
@@ -281,7 +287,8 @@ final class WindowUseCases {
                 directory: { directories[$0] }
             ),
             minimap: minimap,
-            tabTintStrength: tabTintStrength
+            tabTintStrength: tabTintStrength,
+            repoSettingOverrides: repoSettingOverrides
         )
         snapshot.lastClosedWindow = lastClosedWindow
         return snapshot

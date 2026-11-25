@@ -172,7 +172,11 @@ import Testing
             .clearName,
             .setStatus(.waiting),
             .clearColor(scope: .surface),
-            .setTintStrength(0.2),
+            .setStrength(.surfaceTint, scope: .app, value: 0.2),
+            .setStrength(.surfaceTint, scope: .surface, value: nil),
+            .setStrength(.tabTint, scope: .repo, value: 0.1),
+            .setSurfaceName("logs"),
+            .setSurfaceName(nil),
             .setResumeCommand("claude --resume abc"),
             .setResumeCommand(nil)
         ]
@@ -206,8 +210,9 @@ import Testing
         .setMinimapVisibility(.never),
         .setTabMinimapVisibility(.always),
         .setTabMinimapVisibility(nil),
-        .setMinimapHeight(120),
-        .setTabTintStrength(0.2)
+        .setMinimapHeight(scope: .app, value: 120),
+        .setMinimapHeight(scope: .tab, value: 60),
+        .setMinimapHeight(scope: .tab, value: nil)
     ])
     func minimapCommandsRoundTrip(command: ControlCommand) throws {
         let request = ControlRequest(surface: "M1", command: command)
@@ -220,8 +225,11 @@ import Testing
         #"{"cmd":"set","v":1,"surface":"M1","prop":"tabMinimapVisibility","value":7}"#,
         #"{"cmd":"set","v":1,"surface":"M1","prop":"minimapHeight","value":500}"#,
         #"{"cmd":"set","v":1,"surface":"M1","prop":"minimapHeight","value":"tall"}"#,
-        #"{"cmd":"set","v":1,"surface":"M1","prop":"tabTintStrength","value":0.9}"#,
-        #"{"cmd":"set","v":1,"surface":"M1","prop":"tabTintStrength","value":"strong"}"#
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"minimapHeight","scope":"repo","value":60}"#,
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"tabTintStrength","scope":"app","value":0.9}"#,
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"tabTintStrength","scope":"app","value":"strong"}"#,
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"tabTintStrength","scope":"window","value":0.1}"#,
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"surfaceTintStrength","value":0.1}"#
     ])
     func aBadMinimapValueIsMalformed(payload: String) {
         #expect(throws: ControlRequest.DecodeFailure.malformed) {
@@ -232,7 +240,7 @@ import Testing
     @Test func infoResponseCarriesOkAlongsideSnakeCasedFields() throws {
         let info = ControlInfo(
             surfaceID: "M1", leafID: "L1", tabID: "T1",
-            tabName: "montty/", tabNameIsOverride: false,
+            tabName: "montty/", tabNameIsOverride: false, surfaceName: nil,
             scopes: ControlInfo.Scopes(surface: nil, tab: nil, repo: nil),
             effective: TintPayload(PaneTint(stops: [.named(.green)])),
             git: nil, status: nil, resumeCommand: "claude --resume abc",

@@ -131,8 +131,11 @@ enum CLI {
             abstract: "Settings for the surface this command runs in.",
             subcommands: [
                 Setting<ColorSetting, AtSurface>.self,
+                Setting<NameSetting, AtSurface>.self,
                 Setting<StatusSetting, AtSurface>.self,
-                Setting<ResumeCommandSetting, AtSurface>.self
+                Setting<ResumeCommandSetting, AtSurface>.self,
+                Setting<SurfaceTintStrengthSetting, AtSurface>.self,
+                Setting<TabTintStrengthSetting, AtSurface>.self
             ]
         )
     }
@@ -144,7 +147,10 @@ enum CLI {
             subcommands: [
                 Setting<ColorSetting, AtTab>.self,
                 Setting<NameSetting, AtTab>.self,
-                Setting<MinimapSetting, AtTab>.self
+                Setting<SurfaceTintStrengthSetting, AtTab>.self,
+                Setting<TabTintStrengthSetting, AtTab>.self,
+                Setting<MinimapSetting, AtTab>.self,
+                Setting<MinimapHeightSetting, AtTab>.self
             ]
         )
     }
@@ -153,7 +159,11 @@ enum CLI {
         static let configuration = CommandConfiguration(
             commandName: SettingScope.repo.rawValue,
             abstract: "Settings for the repo or worktree this surface is in.",
-            subcommands: [Setting<ColorSetting, AtRepo>.self]
+            subcommands: [
+                Setting<ColorSetting, AtRepo>.self,
+                Setting<SurfaceTintStrengthSetting, AtRepo>.self,
+                Setting<TabTintStrengthSetting, AtRepo>.self
+            ]
         )
     }
 
@@ -294,8 +304,18 @@ enum NameSetting: SettingDefinition {
     static let valueName = "text"
     static let valueHelp = "The name. Quote it if it contains spaces."
 
-    static func set(_ text: String, at scope: SettingScope) -> ControlCommand { .setName(text) }
-    static func reset(at scope: SettingScope) -> ControlCommand { .clearName }
+    static let discussion = """
+        A tab shows the name of its focused surface when that surface has one,
+        then the tab's own name, then a name made from its directory.
+        """
+
+    static func set(_ text: String, at scope: SettingScope) -> ControlCommand {
+        scope == .surface ? .setSurfaceName(text) : .setName(text)
+    }
+
+    static func reset(at scope: SettingScope) -> ControlCommand {
+        scope == .surface ? .setSurfaceName(nil) : .clearName
+    }
 }
 
 enum StatusSetting: SettingDefinition {
@@ -337,12 +357,17 @@ enum SurfaceTintStrengthSetting: SettingDefinition {
     static let valueHelp = "A number from \(SurfaceTintStrength.range.lowerBound) to "
         + "\(SurfaceTintStrength.range.upperBound). The default is \(SurfaceTintStrength.default)."
 
+    static let discussion = """
+        A surface uses the value set on it, then its tab's, then its repo's,
+        then the app's.
+        """
+
     static func set(_ text: String, at scope: SettingScope) throws -> ControlCommand {
-        .setTintStrength(try number(text, in: SurfaceTintStrength.range))
+        .setStrength(.surfaceTint, scope: scope, value: try number(text, in: SurfaceTintStrength.range))
     }
 
     static func reset(at scope: SettingScope) -> ControlCommand {
-        .setTintStrength(SurfaceTintStrength.default)
+        .setStrength(.surfaceTint, scope: scope, value: nil)
     }
 }
 
@@ -357,14 +382,17 @@ enum TabTintStrengthSetting: SettingDefinition {
         The value is the strength for a tab that is not active and shows its
         minimap. The active tab is a little stronger, and a tab with its
         minimap hidden is stronger again.
+
+        A tab uses the value set on its focused surface, then its own, then
+        that surface's repo's, then the app's.
         """
 
     static func set(_ text: String, at scope: SettingScope) throws -> ControlCommand {
-        .setTabTintStrength(try number(text, in: TabTintStrength.range))
+        .setStrength(.tabTint, scope: scope, value: try number(text, in: TabTintStrength.range))
     }
 
     static func reset(at scope: SettingScope) -> ControlCommand {
-        .setTabTintStrength(TabTintStrength.default)
+        .setStrength(.tabTint, scope: scope, value: nil)
     }
 }
 
@@ -400,10 +428,10 @@ enum MinimapHeightSetting: SettingDefinition {
         + "\(Int(MinimapHeight.range.upperBound)). The default is \(Int(MinimapHeight.default))."
 
     static func set(_ text: String, at scope: SettingScope) throws -> ControlCommand {
-        .setMinimapHeight(try number(text, in: MinimapHeight.range))
+        .setMinimapHeight(scope: scope, value: try number(text, in: MinimapHeight.range))
     }
 
     static func reset(at scope: SettingScope) -> ControlCommand {
-        .setMinimapHeight(MinimapHeight.default)
+        .setMinimapHeight(scope: scope, value: nil)
     }
 }

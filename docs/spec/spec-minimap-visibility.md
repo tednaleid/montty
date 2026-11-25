@@ -102,15 +102,16 @@ so the surfaces drawn on top still stand out.
 | minimap hidden | 0.40 | 0.20 |
 | minimap showing | 0.15 | 0.12 |
 
-Those are the defaults. The tab tint strength is one app-wide value, stored in
-`SessionSnapshot`, default 0.12, range 0 to 0.3. It is the strength of a row
+Those are the defaults. The tab tint strength defaults to 0.12, range 0 to 0.3,
+and can be set at every scope; see
+[spec-cli-grammar.md](./spec-cli-grammar.md) for how it resolves. It is the strength of a row
 that is not active and shows its minimap, and the other three scale from it in
 the proportions above, so 0 turns the wash off and 0.3 makes the strongest row
 fully opaque. CLI only:
 
 ```
-montty app tab-tint-strength <value>
-montty app tab-tint-strength --reset
+montty <surface|tab|repo|app> tab-tint-strength <value>
+montty <surface|tab|repo|app> tab-tint-strength --reset
 ```
 
 A value outside the range, or not a number, is a usage error (exit 64).
@@ -140,7 +141,8 @@ The target list is built without reference to sidebar width or badge width.
 
 ## Minimap height
 
-- App-wide, across all windows. Stored in `SessionSnapshot`. Default 90 points.
+- Held at the app scope, across all windows, and optionally overridden for
+  one tab. Stored in `SessionSnapshot` and `TabSnapshot`. Default 90 points.
 - Range 40 to 200 points. A value outside the range, or not a number, is a
   usage error (exit 64).
 - CLI only:
@@ -148,9 +150,11 @@ The target list is built without reference to sidebar width or badge width.
 ```
 montty app minimap-height <points>
 montty app minimap-height --reset
+montty tab minimap-height <points>
+montty tab minimap-height --reset
 ```
 
-- No menu item and no per-tab value.
+- No menu item.
 - The activity indicator and jump badge keep their fixed sizes at every height.
   In a short minimap with several stacked surfaces they can overflow their
   rectangle.

@@ -24,9 +24,7 @@ struct MainWindow: View {
                         appDelegate.applyControl(command, to: tab, surfaceID: surfaceID)
                     },
                     repoColorOverrides: appDelegate.repoColorOverrides,
-                    minimapVisibility: appDelegate.minimapVisibility,
-                    minimapHeight: appDelegate.minimapHeight,
-                    tabTintStrength: appDelegate.tabTintStrength,
+                    shared: appDelegate.sharedSettings,
                     jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:],
                     onJumpToSurface: { tabID, leafID in
                         appDelegate.exitJumpMode()
@@ -89,7 +87,8 @@ struct MainWindow: View {
                 tabColorOverride: activeTab.colorOverride,
                 surfaceColorOverrides: activeTab.surfaceColorOverrides,
                 surfaceTintEnabled: appDelegate.surfaceTintEnabled,
-                surfaceTintStrength: appDelegate.surfaceTintStrength,
+                surfaceTintStrengths: activeTab.surfaceTintStrengths(
+                    shared: appDelegate.sharedSettings),
                 onRatioChange: { branchID, newRatio in
                     activeTab.splitRoot = SplitTree.updateRatio(
                         node: activeTab.splitRoot, branchID: branchID, ratio: newRatio

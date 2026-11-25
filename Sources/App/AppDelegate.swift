@@ -31,6 +31,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     @Published var minimapHeight = MinimapHeight.default
     /// Strength of the tint wash behind each tab row.
     @Published var tabTintStrength = TabTintStrength.default
+    /// Strength overrides per repo, keyed by repo identity string.
+    @Published var repoSettingOverrides: [String: SettingOverrides] = [:]
     /// Per-repo/worktree color overrides, keyed by repo identity string.
     @Published var repoColorOverrides: [String: PaneTint] = [:]
     /// ANSI palette colors from the Ghostty config (14 colors, reordered).
@@ -458,38 +460,39 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// CLI, the context menu, and the Claude hooks -- comes through here.
     @discardableResult
     func applyControl(_ command: ControlCommand, to tab: Tab, surfaceID: UUID) -> ControlResult {
-        var settings = appSettings
+        var shared = sharedSettings
         let result = tab.applyControl(
             command, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides,
-            appSettings: &settings
+            shared: &shared
         )
-        appSettings = settings
+        sharedSettings = shared
         return result
     }
 
-    /// The settings held at the app scope, gathered for the control path.
-    /// Setting them assigns only what changed, so a command that leaves a
-    /// value alone does not redraw the views watching it.
-    private var appSettings: AppSettings {
+    /// The settings every tab shares, gathered for the control path and the
+    /// views. Setting them assigns only what changed, so a command that
+    /// leaves a value alone does not redraw the views watching it.
+    var sharedSettings: SharedSettings {
         get {
-            AppSettings(
-                surfaceTintStrength: surfaceTintStrength, tabTintStrength: tabTintStrength,
-                minimapVisibility: minimapVisibility, minimapHeight: minimapHeight
+            SharedSettings(
+                app: AppSettings(
+                    surfaceTintStrength: surfaceTintStrength, tabTintStrength: tabTintStrength,
+                    minimapVisibility: minimapVisibility, minimapHeight: minimapHeight
+                ),
+                repos: repoSettingOverrides
             )
         }
         set {
-            if surfaceTintStrength != newValue.surfaceTintStrength {
-                surfaceTintStrength = newValue.surfaceTintStrength
+            let app = newValue.app
+            if surfaceTintStrength != app.surfaceTintStrength {
+                surfaceTintStrength = app.surfaceTintStrength
             }
-            if tabTintStrength != newValue.tabTintStrength {
-                tabTintStrength = newValue.tabTintStrength
+            if tabTintStrength != app.tabTintStrength { tabTintStrength = app.tabTintStrength }
+            if minimapVisibility != app.minimapVisibility {
+                minimapVisibility = app.minimapVisibility
             }
-            if minimapVisibility != newValue.minimapVisibility {
-                minimapVisibility = newValue.minimapVisibility
-            }
-            if minimapHeight != newValue.minimapHeight {
-                minimapHeight = newValue.minimapHeight
-            }
+            if minimapHeight != app.minimapHeight { minimapHeight = app.minimapHeight }
+            if repoSettingOverrides != newValue.repos { repoSettingOverrides = newValue.repos }
         }
     }
 

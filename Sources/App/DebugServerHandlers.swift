@@ -134,7 +134,7 @@ extension DebugServer {
             "tab": tab.minimapVisibility?.text ?? NSNull(),
             "effective": (tab.minimapVisibility ?? global).text,
             "showing": tab.showsMinimap(global: global),
-            "height": appDelegate.minimapHeight
+            "height": tab.minimapHeight ?? appDelegate.minimapHeight
         ]
     }
 

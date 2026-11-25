@@ -62,11 +62,11 @@ import Testing
     @Test func infoResolvesAgainstTheAppSettingsPassedIn() {
         let (tab, surfaceID) = tab()
         var repoColorOverrides: [String: PaneTint] = [:]
-        var appSettings = AppSettings(minimapVisibility: .never)
+        var shared = SharedSettings(app: AppSettings(minimapVisibility: .never))
 
         let result = tab.applyControl(
             .info, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides,
-            appSettings: &appSettings, gitInfoProvider: { _ in nil }
+            shared: &shared, gitInfoProvider: { _ in nil }
         )
 
         guard case .read(let info) = result else {
@@ -79,14 +79,14 @@ import Testing
     @Test func anAppScopeCommandWritesBackToTheAppSettings() {
         let (tab, surfaceID) = tab()
         var repoColorOverrides: [String: PaneTint] = [:]
-        var appSettings = AppSettings()
+        var shared = SharedSettings()
 
         tab.applyControl(
-            .setMinimapHeight(60), surfaceID: surfaceID,
-            repoColorOverrides: &repoColorOverrides, appSettings: &appSettings
+            .setMinimapHeight(scope: .app, value: 60), surfaceID: surfaceID,
+            repoColorOverrides: &repoColorOverrides, shared: &shared
         )
 
-        #expect(appSettings.minimapHeight == 60)
+        #expect(shared.app.minimapHeight == 60)
     }
 
     @Test func nameWritesBackOntoTheTab() {

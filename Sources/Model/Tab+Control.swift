@@ -18,8 +18,8 @@ extension Tab {
         )
     }
 
-    /// Runs a control command for a caller that holds no app settings, so a
-    /// command at the app scope changes nothing it can see.
+    /// Runs a control command for a caller that holds no shared settings, so a
+    /// command at the repo or app scope changes nothing it can see.
     @discardableResult
     func applyControl(
         _ command: ControlCommand,
@@ -28,22 +28,22 @@ extension Tab {
         gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:),
         now: Date = Date()
     ) -> ControlResult {
-        var appSettings = AppSettings()
+        var shared = SharedSettings()
         return applyControl(
             command, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides,
-            appSettings: &appSettings, gitInfoProvider: gitInfoProvider, now: now
+            shared: &shared, gitInfoProvider: gitInfoProvider, now: now
         )
     }
 
     /// Run a control command against this tab and write the result back onto it.
-    /// Repo colors and the app settings are shared by every tab, so they
-    /// travel in and out.
+    /// Repo colors and the shared settings belong to every tab, so they travel
+    /// in and out.
     @discardableResult
     func applyControl(
         _ command: ControlCommand,
         surfaceID: UUID,
         repoColorOverrides: inout [String: PaneTint],
-        appSettings: inout AppSettings,
+        shared: inout SharedSettings,
         gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:),
         now: Date = Date()
     ) -> ControlResult {
@@ -52,7 +52,7 @@ extension Tab {
         }
         var state = ControlState(
             tabName: name,
-            displayName: tabInfo.displayName,
+            displayName: tabInfo.autoDisplayName,
             surfaceColorOverrides: surfaceColorOverrides,
             tabColorOverride: colorOverride,
             repoColorOverrides: repoColorOverrides,
@@ -61,7 +61,11 @@ extension Tab {
             activityWaitingFromControl: activityWaitingFromControl,
             surfaceResumeCommands: resumeCommands,
             tabMinimapVisibility: self.minimapVisibility,
-            app: appSettings
+            tabMinimapHeight: minimapHeight,
+            surfaceNames: surfaceNames,
+            surfaceSettings: surfaceSettings,
+            tabSettings: settings,
+            shared: shared
         )
         let result = ControlService.apply(
             command, target: target, to: &state,
@@ -75,8 +79,12 @@ extension Tab {
         activityWaitingFromControl = state.activityWaitingFromControl
         resumeCommands = state.surfaceResumeCommands
         self.minimapVisibility = state.tabMinimapVisibility
+        minimapHeight = state.tabMinimapHeight
+        surfaceNames = state.surfaceNames
+        surfaceSettings = state.surfaceSettings
+        settings = state.tabSettings
         repoColorOverrides = state.repoColorOverrides
-        appSettings = state.app
+        shared = state.shared
         return result
     }
 }

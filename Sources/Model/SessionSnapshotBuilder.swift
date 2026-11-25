@@ -35,7 +35,8 @@ enum SessionSnapshotBuilder {
         repoColorOverrides: [String: PaneTint],
         environment: SessionEnvironment,
         minimap: MinimapSettings = MinimapSettings(),
-        tabTintStrength: Double = TabTintStrength.default
+        tabTintStrength: Double = TabTintStrength.default,
+        repoSettingOverrides: [String: SettingOverrides] = [:]
     ) -> SessionSnapshot {
         SessionSnapshot(
             surfaceTintEnabled: surfaceTint.enabled,
@@ -53,7 +54,8 @@ enum SessionSnapshotBuilder {
                 )
             },
             keyWindowID: keyWindowID,
-            repoColorOverrides: repoColorOverrides
+            repoColorOverrides: repoColorOverrides,
+            repoSettingOverrides: repoSettingOverrides
         )
     }
 
@@ -64,6 +66,8 @@ enum SessionSnapshotBuilder {
         var dirs: [UUID: String] = [:]
         var colors: [UUID: PaneTint] = [:]
         var resumeCommands: [UUID: String] = [:]
+        var settings: [UUID: SettingOverrides] = [:]
+        var names: [UUID: String] = [:]
         for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
             if let pwd = environment.directory(leaf.surfaceID) {
                 dirs[leaf.id] = pwd
@@ -74,6 +78,8 @@ enum SessionSnapshotBuilder {
             if let command = tab.resumeCommands[leaf.surfaceID] {
                 resumeCommands[leaf.id] = command
             }
+            settings[leaf.id] = tab.surfaceSettings[leaf.surfaceID]
+            names[leaf.id] = tab.surfaceNames[leaf.surfaceID]
         }
         return TabSnapshot(
             tabID: tab.id,
@@ -85,7 +91,11 @@ enum SessionSnapshotBuilder {
             leafColorOverrides: colors,
             leafResumeCommands: resumeCommands,
             colorOverride: tab.colorOverride,
-            minimapVisibility: tab.minimapVisibility
+            minimapVisibility: tab.minimapVisibility,
+            minimapHeight: tab.minimapHeight,
+            settingOverrides: tab.settings,
+            leafSettingOverrides: settings,
+            leafNames: names
         )
     }
 }

@@ -15,6 +15,8 @@ struct SessionSnapshot: Codable {
     var windows: [WindowSnapshot] = []
     var keyWindowID: UUID?
     var repoColorOverrides: [String: PaneTint] = [:]
+    /// Strength overrides per repo, keyed by repo identity like the colors.
+    var repoSettingOverrides: [String: SettingOverrides] = [:]
     /// Read only when `windows` is empty, which is what a session that ended by
     /// closing every window looks like.
     var lastClosedWindow: ClosedWindow?
@@ -28,6 +30,7 @@ struct SessionSnapshot: Codable {
         windows: [WindowSnapshot] = [],
         keyWindowID: UUID? = nil,
         repoColorOverrides: [String: PaneTint] = [:],
+        repoSettingOverrides: [String: SettingOverrides] = [:],
         lastClosedWindow: ClosedWindow? = nil
     ) {
         self.surfaceTintEnabled = surfaceTintEnabled
@@ -38,6 +41,7 @@ struct SessionSnapshot: Codable {
         self.windows = windows
         self.keyWindowID = keyWindowID
         self.repoColorOverrides = repoColorOverrides
+        self.repoSettingOverrides = repoSettingOverrides
         self.lastClosedWindow = lastClosedWindow
     }
 
@@ -69,6 +73,8 @@ struct SessionSnapshot: Codable {
             ?? TabTintStrength.default
         repoColorOverrides = try container.decodeIfPresent(
             [String: PaneTint].self, forKey: .repoColorOverrides) ?? [:]
+        repoSettingOverrides = (try? container.decodeIfPresent(
+            [String: SettingOverrides].self, forKey: .repoSettingOverrides)) ?? nil ?? [:]
         lastClosedWindow = try container.decodeIfPresent(
             ClosedWindow.self, forKey: .lastClosedWindow)
 
@@ -175,6 +181,14 @@ struct TabSnapshot: Codable {
     var colorOverride: PaneTint?
     /// Tab-level minimap visibility override, if set.
     var minimapVisibility: MinimapVisibility?
+    /// Tab-level minimap height override, if set.
+    var minimapHeight: Double?
+    /// Tab-level strength overrides.
+    var settingOverrides = SettingOverrides()
+    /// Per-surface strength overrides, keyed by leaf ID like the colors.
+    var leafSettingOverrides: [UUID: SettingOverrides] = [:]
+    /// Per-surface name, keyed by leaf ID.
+    var leafNames: [UUID: String] = [:]
 }
 
 extension TabSnapshot {
@@ -201,5 +215,13 @@ extension TabSnapshot {
         colorOverride = try container.decodeIfPresent(PaneTint.self, forKey: .colorOverride)
         minimapVisibility = (try? container.decodeIfPresent(
             MinimapVisibility.self, forKey: .minimapVisibility)) ?? nil
+        let height = (try? container.decodeIfPresent(Double.self, forKey: .minimapHeight)) ?? nil
+        minimapHeight = height.flatMap { MinimapHeight.range.contains($0) ? $0 : nil }
+        settingOverrides = (try? container.decodeIfPresent(
+            SettingOverrides.self, forKey: .settingOverrides)) ?? nil ?? SettingOverrides()
+        leafSettingOverrides = (try? container.decodeIfPresent(
+            [UUID: SettingOverrides].self, forKey: .leafSettingOverrides)) ?? nil ?? [:]
+        leafNames = (try? container.decodeIfPresent(
+            [UUID: String].self, forKey: .leafNames)) ?? nil ?? [:]
     }
 }

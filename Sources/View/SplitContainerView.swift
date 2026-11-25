@@ -12,7 +12,7 @@ struct SplitContainerView: View {
     var tabColorOverride: PaneTint?
     var surfaceColorOverrides: [UUID: PaneTint] = [:]
     var surfaceTintEnabled: Bool = true
-    var surfaceTintStrength: Double = SurfaceTintStrength.default
+    var surfaceTintStrengths: [UUID: Double] = [:]
     var onRatioChange: ((UUID, CGFloat) -> Void)?
 
     // Tweak this to control how much unfocused panes are dimmed.
@@ -39,7 +39,7 @@ struct SplitContainerView: View {
                     surfaceTintEnabled
                         ? Rectangle()
                             .fill(surfaceTintGradient(for: leaf.surfaceID))
-                            .opacity(surfaceTintStrength)
+                            .opacity(surfaceTintStrengths[leaf.surfaceID] ?? SurfaceTintStrength.default)
                             .allowsHitTesting(false)
                         : nil
                 )
@@ -107,7 +107,7 @@ struct SplitContainerView: View {
             tabColorOverride: tabColorOverride,
             surfaceColorOverrides: surfaceColorOverrides,
             surfaceTintEnabled: surfaceTintEnabled,
-            surfaceTintStrength: surfaceTintStrength,
+            surfaceTintStrengths: surfaceTintStrengths,
             onRatioChange: onRatioChange
         )
     }
@@ -124,7 +124,7 @@ private struct BranchWrapper: View {
     var tabColorOverride: PaneTint?
     var surfaceColorOverrides: [UUID: PaneTint] = [:]
     var surfaceTintEnabled: Bool = true
-    var surfaceTintStrength: Double = SurfaceTintStrength.default
+    var surfaceTintStrengths: [UUID: Double] = [:]
     var onRatioChange: ((UUID, CGFloat) -> Void)?
 
     @State private var ratio: CGFloat
@@ -139,7 +139,7 @@ private struct BranchWrapper: View {
         tabColorOverride: PaneTint? = nil,
         surfaceColorOverrides: [UUID: PaneTint] = [:],
         surfaceTintEnabled: Bool = true,
-        surfaceTintStrength: Double = SurfaceTintStrength.default,
+        surfaceTintStrengths: [UUID: Double] = [:],
         onRatioChange: ((UUID, CGFloat) -> Void)? = nil
     ) {
         self.branch = branch
@@ -151,7 +151,7 @@ private struct BranchWrapper: View {
         self.tabColorOverride = tabColorOverride
         self.surfaceColorOverrides = surfaceColorOverrides
         self.surfaceTintEnabled = surfaceTintEnabled
-        self.surfaceTintStrength = surfaceTintStrength
+        self.surfaceTintStrengths = surfaceTintStrengths
         self.onRatioChange = onRatioChange
         self._ratio = State(initialValue: branch.ratio)
     }
@@ -171,7 +171,7 @@ private struct BranchWrapper: View {
                 tabColorOverride: tabColorOverride,
                 surfaceColorOverrides: surfaceColorOverrides,
                 surfaceTintEnabled: surfaceTintEnabled,
-                surfaceTintStrength: surfaceTintStrength,
+                surfaceTintStrengths: surfaceTintStrengths,
                 onRatioChange: onRatioChange
             )
         } second: {
@@ -185,7 +185,7 @@ private struct BranchWrapper: View {
                 tabColorOverride: tabColorOverride,
                 surfaceColorOverrides: surfaceColorOverrides,
                 surfaceTintEnabled: surfaceTintEnabled,
-                surfaceTintStrength: surfaceTintStrength,
+                surfaceTintStrengths: surfaceTintStrengths,
                 onRatioChange: onRatioChange
             )
         }

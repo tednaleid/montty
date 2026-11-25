@@ -40,9 +40,59 @@ final class Tab: Identifiable {
     var colorOverride: PaneTint?
     /// Tab-level minimap visibility. Beats the app-wide value when set.
     var minimapVisibility: MinimapVisibility?
+    /// Tab-level minimap height in points. Beats the app value when set.
+    var minimapHeight: Double?
+    /// Per-surface name, keyed by surfaceID. The tab shows its focused
+    /// surface's name ahead of its own.
+    var surfaceNames: [UUID: String] = [:]
+    /// Per-surface strength overrides, keyed by surfaceID. Beat the tab's.
+    var surfaceSettings: [UUID: SettingOverrides] = [:]
+    /// Tab-level strength overrides. Beat the repo's and the app's.
+    var settings = SettingOverrides()
 
     var displayName: String {
-        name.isEmpty ? autoName : name
+        let shown = focusedSurfaceID.flatMap { surfaceNames[$0] } ?? name
+        return shown.isEmpty ? autoName : shown
+    }
+
+    /// A strength as `surfaceID` resolves it: its own value, then this tab's,
+    /// then its repo's, then the app's. The repo is only looked up when some
+    /// repo has an override.
+    func strength(
+        _ setting: StrengthSetting,
+        for surfaceID: UUID?,
+        shared: SharedSettings,
+        gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:)
+    ) -> Double {
+        var repo: SettingOverrides?
+        if !shared.repos.isEmpty, let surfaceID,
+           let info = effectiveSurfaceDirectories[surfaceID].flatMap(gitInfoProvider) {
+            repo = shared.repos[TabColor.repoIdentity(for: info)]
+        }
+        return setting.resolve(
+            surface: surfaceID.flatMap { surfaceSettings[$0] },
+            tab: settings, repo: repo, app: shared.app
+        )
+    }
+
+    /// The surface tint strength of every surface in this tab.
+    func surfaceTintStrengths(
+        shared: SharedSettings,
+        gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:)
+    ) -> [UUID: Double] {
+        Dictionary(uniqueKeysWithValues: allSurfaceIDs.map { surfaceID in
+            (surfaceID, strength(.surfaceTint, for: surfaceID, shared: shared,
+                                 gitInfoProvider: gitInfoProvider))
+        })
+    }
+
+    /// The strength of the wash behind this tab in the sidebar, which follows
+    /// the focused surface as the tab's color does.
+    func tabTintStrength(
+        shared: SharedSettings,
+        gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:)
+    ) -> Double {
+        strength(.tabTint, for: focusedSurfaceID, shared: shared, gitInfoProvider: gitInfoProvider)
     }
 
     /// Per-surface effective directory: Claude's reported cwd if active, else the shell pwd.
@@ -86,7 +136,8 @@ final class Tab: Identifiable {
             surfaceDirectories: effectiveSurfaceDirectories,
             surfaceTitles: surfaceTitles,
             activityStates: activityStates,
-            surfaceToMonttyID: surfaceToMonttyID
+            surfaceToMonttyID: surfaceToMonttyID,
+            surfaceNames: surfaceNames
         ))
     }
 
@@ -133,9 +184,9 @@ final class Tab: Identifiable {
     }
 
     /// Point each leaf at the surface created for it. Leaves not named in
-    /// `bindings` keep the surface they already have. A monttyID or resume
-    /// command already recorded for the leaf's placeholder surface carries
-    /// over to the new id; a monttyID already recorded under the new id (the
+    /// `bindings` keep the surface they already have. A monttyID, resume
+    /// command, name, or strength override already recorded for the leaf's
+    /// placeholder surface carries over to the new id; a monttyID already recorded under the new id (the
     /// shell may have registered it before this call) is left untouched.
     func bindSurfaces(_ bindings: [UUID: UUID]) {
         splitRoot = SplitTree.mapLeaves(node: splitRoot) { leaf in
@@ -145,6 +196,12 @@ final class Tab: Identifiable {
             }
             if let command = resumeCommands.removeValue(forKey: leaf.surfaceID) {
                 resumeCommands[surfaceID] = command
+            }
+            if let name = surfaceNames.removeValue(forKey: leaf.surfaceID) {
+                surfaceNames[surfaceID] = name
+            }
+            if let overrides = surfaceSettings.removeValue(forKey: leaf.surfaceID) {
+                surfaceSettings[surfaceID] = overrides
             }
             return SurfaceLeaf(id: leaf.id, surfaceID: surfaceID)
         }

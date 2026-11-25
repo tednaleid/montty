@@ -102,16 +102,16 @@ struct ControlRequest: Equatable {
         switch prop {
         case "color":
             return try colorCommand(root: root, value: value, isNull: isNull)
-        case "name":
-            return try nameCommand(value: value, isNull: isNull)
+        case "name", "surfaceName":
+            return try nameCommand(prop: prop, value: value, isNull: isNull)
         case "status":
             return try statusCommand(value: value, isNull: isNull)
-        case "tintStrength":
-            return try tintStrengthCommand(value: value)
+        case "surfaceTintStrength", "tabTintStrength":
+            return try strengthCommand(root: root, value: value, isNull: isNull)
         case "resumeCommand":
             return try resumeCommand(value: value, isNull: isNull)
-        case "minimapVisibility", "tabMinimapVisibility", "minimapHeight", "tabTintStrength":
-            return try sidebarCommand(prop: prop, value: value, isNull: isNull)
+        case "minimapVisibility", "tabMinimapVisibility", "minimapHeight":
+            return try minimapCommand(root: root, value: value, isNull: isNull)
         default:
             throw DecodeFailure.malformed
         }
@@ -132,13 +132,16 @@ struct ControlRequest: Equatable {
         return .setColor(scope: scope, tint: PaneTint(stops: stops))
     }
 
-    private static func nameCommand(value: Any?, isNull: Bool) throws -> ControlCommand {
-        if isNull { return .clearName }
+    private static func nameCommand(
+        prop: String, value: Any?, isNull: Bool
+    ) throws -> ControlCommand {
+        let ofSurface = prop == "surfaceName"
+        if isNull { return ofSurface ? .setSurfaceName(nil) : .clearName }
         guard let name = value as? String else { throw DecodeFailure.malformed }
         guard name.count <= ControlWire.maxNameCharacters else {
             throw DecodeFailure.nameTooLong
         }
-        return .setName(name)
+        return ofSurface ? .setSurfaceName(name) : .setName(name)
     }
 
     private static func statusCommand(value: Any?, isNull: Bool) throws -> ControlCommand {
@@ -159,26 +162,32 @@ struct ControlRequest: Equatable {
         return .setResumeCommand(command)
     }
 
-    private static func tintStrengthCommand(value: Any?) throws -> ControlCommand {
-        guard let strength = value as? Double else { throw DecodeFailure.malformed }
-        return .setTintStrength(strength)
+    private static func strengthCommand(
+        root: [String: Any], value: Any?, isNull: Bool
+    ) throws -> ControlCommand {
+        guard let setting = StrengthSetting(rawValue: root["prop"] as? String ?? ""),
+              let scope = SettingScope(rawValue: root["scope"] as? String ?? "") else {
+            throw DecodeFailure.malformed
+        }
+        if isNull { return .setStrength(setting, scope: scope, value: nil) }
+        guard let strength = value as? Double, setting.range.contains(strength) else {
+            throw DecodeFailure.malformed
+        }
+        return .setStrength(setting, scope: scope, value: strength)
     }
 
-    private static func sidebarCommand(
-        prop: String, value: Any?, isNull: Bool
+    private static func minimapCommand(
+        root: [String: Any], value: Any?, isNull: Bool
     ) throws -> ControlCommand {
-        if prop == "tabTintStrength" {
-            guard let strength = value as? Double,
-                  TabTintStrength.range.contains(strength) else {
-                throw DecodeFailure.malformed
-            }
-            return .setTabTintStrength(strength)
-        }
+        let prop = root["prop"] as? String
         if prop == "minimapHeight" {
+            let scope = SettingScope(rawValue: root["scope"] as? String ?? "")
+            guard let scope, scope == .tab || scope == .app else { throw DecodeFailure.malformed }
+            if isNull { return .setMinimapHeight(scope: scope, value: nil) }
             guard let height = value as? Double, MinimapHeight.range.contains(height) else {
                 throw DecodeFailure.malformed
             }
-            return .setMinimapHeight(height)
+            return .setMinimapHeight(scope: scope, value: height)
         }
         if isNull, prop == "tabMinimapVisibility" { return .setTabMinimapVisibility(nil) }
         guard let text = value as? String,
@@ -189,17 +198,20 @@ struct ControlRequest: Equatable {
             ? .setMinimapVisibility(visibility) : .setTabMinimapVisibility(visibility)
     }
 
-    /// The `prop` and `value` a minimap or tab tint command travels under.
-    private var sidebarFields: [String: Any] {
+    /// The fields a scoped setting, minimap, or surface name command travels
+    /// under.
+    private var settingFields: [String: Any] {
         switch command {
+        case .setStrength(let setting, let scope, let value):
+            return ["prop": setting.rawValue, "scope": scope.rawValue, "value": value ?? NSNull()]
+        case .setSurfaceName(let name):
+            return ["prop": "surfaceName", "value": name ?? NSNull()]
         case .setMinimapVisibility(let visibility):
             return ["prop": "minimapVisibility", "value": visibility.text]
         case .setTabMinimapVisibility(let visibility):
             return ["prop": "tabMinimapVisibility", "value": visibility?.text ?? NSNull()]
-        case .setMinimapHeight(let height):
-            return ["prop": "minimapHeight", "value": height]
-        case .setTabTintStrength(let strength):
-            return ["prop": "tabTintStrength", "value": strength]
+        case .setMinimapHeight(let scope, let height):
+            return ["prop": "minimapHeight", "scope": scope.rawValue, "value": height ?? NSNull()]
         default:
             return [:]
         }
@@ -232,18 +244,14 @@ struct ControlRequest: Equatable {
             root["cmd"] = "set"
             root["prop"] = "status"
             root["value"] = status.map(\.wireName) ?? NSNull()
-        case .setTintStrength(let strength):
-            root["cmd"] = "set"
-            root["prop"] = "tintStrength"
-            root["value"] = strength
         case .setResumeCommand(let command):
             root["cmd"] = "set"
             root["prop"] = "resumeCommand"
             root["value"] = command ?? NSNull()
         case .setMinimapVisibility, .setTabMinimapVisibility, .setMinimapHeight,
-             .setTabTintStrength:
+             .setStrength, .setSurfaceName:
             root["cmd"] = "set"
-            root.merge(sidebarFields) { _, field in field }
+            root.merge(settingFields) { _, field in field }
         }
         return try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
     }

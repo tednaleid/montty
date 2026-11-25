@@ -13,15 +13,16 @@ import Testing
         effective: PaneTint? = nil,
         status: String? = nil,
         resumeCommand: String? = nil,
-        tabMinimap: String? = nil
+        tabMinimap: String? = nil,
+        surfaceName: String? = nil
     ) throws -> [String: Any] {
         let info = ControlInfo(
             surfaceID: "M1", leafID: "L1", tabID: "T1",
-            tabName: tabName, tabNameIsOverride: false,
+            tabName: tabName, tabNameIsOverride: false, surfaceName: surfaceName,
             scopes: scopes, effective: effective.map(TintPayload.init),
             git: nil, status: status, resumeCommand: resumeCommand,
             settings: ControlInfo.Settings(
-                surfaceTintStrength: .init(app: 0.2, effective: 0.2),
+                surfaceTintStrength: .init(repo: 0.3, app: 0.2, effective: 0.3),
                 tabTintStrength: .init(app: 0.12, effective: 0.12),
                 minimap: .init(tab: tabMinimap, app: "split", effective: tabMinimap ?? "split"),
                 minimapHeight: .init(app: 90, effective: 90)
@@ -53,6 +54,19 @@ import Testing
 
     @Test func nameIsTheNameTheTabShows() throws {
         #expect(text(.name, .tab, try reply(tabName: "MR 123")) == "MR 123")
+    }
+
+    @Test func aSurfaceNameIsItsOwnNameOrElseTheTabs() throws {
+        let named = try reply(tabName: "MR 123", surfaceName: "logs")
+        #expect(text(.name, .surface, named) == "logs")
+        #expect(text(.name, .tab, named) == "MR 123")
+        #expect(text(.name, .surface, try reply(tabName: "MR 123")) == "MR 123")
+    }
+
+    @Test func aStrengthAtANarrowScopeFallsBackToTheNextScopeThatHasOne() throws {
+        #expect(text(.surfaceTintStrength, .surface, try reply()) == "0.3")
+        #expect(text(.surfaceTintStrength, .tab, try reply()) == "0.3")
+        #expect(text(.surfaceTintStrength, .repo, try reply()) == "0.3")
     }
 
     @Test func statusIsTheStateOrNothing() throws {

@@ -12,7 +12,8 @@ enum SettingReadout {
         case .color:
             return color(at: read.scope, info: info)
         case .name:
-            return info["tab_name"] as? String
+            let own = read.scope == .surface ? info["surface_name"] as? String : nil
+            return own ?? info["tab_name"] as? String
         case .status:
             return info["status"] as? String
         case .resumeCommand:

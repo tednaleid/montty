@@ -38,12 +38,106 @@ struct SettingRead: Equatable {
     let scope: SettingScope
 }
 
+/// The two strengths, which every scope can hold. The raw value is the name
+/// each travels under on the control socket.
+enum StrengthSetting: String, CaseIterable {
+    case surfaceTint = "surfaceTintStrength"
+    case tabTint = "tabTintStrength"
+
+    var range: ClosedRange<Double> {
+        switch self {
+        case .surfaceTint: return SurfaceTintStrength.range
+        case .tabTint: return TabTintStrength.range
+        }
+    }
+
+    var `default`: Double {
+        switch self {
+        case .surfaceTint: return SurfaceTintStrength.default
+        case .tabTint: return TabTintStrength.default
+        }
+    }
+
+    /// The value for a surface: the first one found at the surface, its tab,
+    /// its repo, then the app.
+    func resolve(
+        surface: SettingOverrides?, tab: SettingOverrides, repo: SettingOverrides?, app: AppSettings
+    ) -> Double {
+        surface?[self] ?? tab[self] ?? repo?[self] ?? app[self]
+    }
+}
+
 /// The settings held at the app scope.
 struct AppSettings: Equatable {
     var surfaceTintStrength = SurfaceTintStrength.default
     var tabTintStrength = TabTintStrength.default
     var minimapVisibility = MinimapVisibility.always
     var minimapHeight = MinimapHeight.default
+
+    subscript(setting: StrengthSetting) -> Double {
+        get {
+            switch setting {
+            case .surfaceTint: return surfaceTintStrength
+            case .tabTint: return tabTintStrength
+            }
+        }
+        set {
+            switch setting {
+            case .surfaceTint: surfaceTintStrength = newValue
+            case .tabTint: tabTintStrength = newValue
+            }
+        }
+    }
+}
+
+/// The strengths set at one surface, tab, or repo. A nil value follows the
+/// next wider scope.
+struct SettingOverrides: Equatable, Codable {
+    var surfaceTintStrength: Double?
+    var tabTintStrength: Double?
+
+    init(surfaceTintStrength: Double? = nil, tabTintStrength: Double? = nil) {
+        self.surfaceTintStrength = surfaceTintStrength
+        self.tabTintStrength = tabTintStrength
+    }
+
+    /// A value this montty cannot use, such as one outside the range, is
+    /// dropped rather than failing the session it was read from.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        func strength(_ key: CodingKeys, _ setting: StrengthSetting) -> Double? {
+            let value = (try? container.decodeIfPresent(Double.self, forKey: key)) ?? nil
+            return value.flatMap { setting.range.contains($0) ? $0 : nil }
+        }
+        surfaceTintStrength = strength(.surfaceTintStrength, .surfaceTint)
+        tabTintStrength = strength(.tabTintStrength, .tabTint)
+    }
+
+    var isEmpty: Bool {
+        surfaceTintStrength == nil && tabTintStrength == nil
+    }
+
+    subscript(setting: StrengthSetting) -> Double? {
+        get {
+            switch setting {
+            case .surfaceTint: return surfaceTintStrength
+            case .tabTint: return tabTintStrength
+            }
+        }
+        set {
+            switch setting {
+            case .surfaceTint: surfaceTintStrength = newValue
+            case .tabTint: tabTintStrength = newValue
+            }
+        }
+    }
+}
+
+/// The settings every tab shares: the app's values and each repo's
+/// overrides, keyed by repo identity.
+struct SharedSettings: Equatable {
+    var app = AppSettings()
+    var repos: [String: SettingOverrides] = [:]
 }
 
 /// Opacity of the surface tint overlay.
@@ -87,8 +181,12 @@ enum ControlCommand: Equatable {
     case clearName
     /// nil clears the entry, matching a hook session-end.
     case setStatus(ActivityStatus.State?)
-    /// The surface tint strength at the app scope.
-    case setTintStrength(Double)
+    /// A strength at one scope. nil removes the value there, and at the app
+    /// scope returns it to the default.
+    case setStrength(StrengthSetting, scope: SettingScope, value: Double?)
+    /// The calling surface's name, which its tab shows while that surface has
+    /// focus. nil removes it.
+    case setSurfaceName(String?)
     /// What the calling surface types at its prompt on the next restore. nil
     /// clears it.
     case setResumeCommand(String?)
@@ -97,10 +195,9 @@ enum ControlCommand: Equatable {
     /// The calling surface's tab. nil clears the override, so the tab follows
     /// the app value again.
     case setTabMinimapVisibility(MinimapVisibility?)
-    /// The minimap height at the app scope, in points.
-    case setMinimapHeight(Double)
-    /// The tab tint strength at the app scope.
-    case setTabTintStrength(Double)
+    /// The minimap height in points, at the tab or app scope. nil removes the
+    /// tab's value, and at the app scope returns it to the default.
+    case setMinimapHeight(scope: SettingScope, value: Double?)
     case info
 }
 
@@ -172,6 +269,8 @@ struct ControlInfo: Codable, Equatable {
     let tabID: String
     let tabName: String
     let tabNameIsOverride: Bool
+    /// The calling surface's own name, absent when it has none.
+    let surfaceName: String?
     let scopes: Scopes
     let effective: TintPayload?
     let git: Git?

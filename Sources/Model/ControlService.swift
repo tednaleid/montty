@@ -28,8 +28,40 @@ struct ControlState: Equatable {
     var activityWaitingFromControl: [String: Date]
     var surfaceResumeCommands: [UUID: String]
     var tabMinimapVisibility: MinimapVisibility?
-    /// The settings held at the app scope, shared by every tab.
-    var app = AppSettings()
+    var tabMinimapHeight: Double?
+    /// Per-surface name, keyed by surfaceID. The tab shows the focused
+    /// surface's name ahead of its own.
+    var surfaceNames: [UUID: String] = [:]
+    var surfaceSettings: [UUID: SettingOverrides] = [:]
+    var tabSettings = SettingOverrides()
+    /// The app's values and each repo's overrides, shared by every tab.
+    var shared = SharedSettings()
+}
+
+extension ControlState {
+    /// Sets a strength at one scope. A nil value removes the override there,
+    /// and an entry left with no overrides is removed with it. At the app
+    /// scope nil returns the strength to its default.
+    mutating func setStrength(
+        _ setting: StrengthSetting, _ value: Double?, at scope: SettingScope,
+        surfaceID: UUID, repoIdentity: String?
+    ) {
+        switch scope {
+        case .surface:
+            var overrides = surfaceSettings[surfaceID] ?? SettingOverrides()
+            overrides[setting] = value
+            surfaceSettings[surfaceID] = overrides.isEmpty ? nil : overrides
+        case .tab:
+            tabSettings[setting] = value
+        case .repo:
+            guard let repoIdentity else { return }
+            var overrides = shared.repos[repoIdentity] ?? SettingOverrides()
+            overrides[setting] = value
+            shared.repos[repoIdentity] = overrides.isEmpty ? nil : overrides
+        case .app:
+            shared.app[setting] = value ?? setting.default
+        }
+    }
 }
 
 enum ControlService {
@@ -49,12 +81,8 @@ enum ControlService {
             return setColor(scope, nil, target: target, to: &state,
                             gitInfoProvider: gitInfoProvider)
 
-        case .setName(let name):
-            state.tabName = name
-            return .applied
-
-        case .clearName:
-            state.tabName = ""
+        case .setName, .clearName, .setSurfaceName:
+            setName(command, target: target, to: &state)
             return .applied
 
         case .setStatus(let status):
@@ -65,12 +93,18 @@ enum ControlService {
             state.surfaceResumeCommands[target.surfaceID] = command
             return .applied
 
-        case .setTabMinimapVisibility(let visibility):
-            state.tabMinimapVisibility = visibility
+        case .setMinimapVisibility, .setTabMinimapVisibility, .setMinimapHeight:
+            setMinimap(command, to: &state)
             return .applied
 
-        case .setTintStrength, .setMinimapVisibility, .setMinimapHeight, .setTabTintStrength:
-            setAppSetting(command, to: &state.app)
+        case .setStrength(let setting, let scope, let value):
+            // Repo scope needs a git identity, so it is the only scope that
+            // can be rejected.
+            let identity = scope == .repo
+                ? repoIdentity(target: target, gitInfoProvider: gitInfoProvider) : nil
+            guard scope != .repo || identity != nil else { return .rejected(.notInRepo) }
+            state.setStrength(
+                setting, value, at: scope, surfaceID: target.surfaceID, repoIdentity: identity)
             return .applied
 
         case .info:
@@ -79,12 +113,30 @@ enum ControlService {
         }
     }
 
-    private static func setAppSetting(_ command: ControlCommand, to app: inout AppSettings) {
+    private static func setName(
+        _ command: ControlCommand, target: SurfaceRef, to state: inout ControlState
+    ) {
         switch command {
-        case .setTintStrength(let strength): app.surfaceTintStrength = strength
-        case .setTabTintStrength(let strength): app.tabTintStrength = strength
-        case .setMinimapVisibility(let visibility): app.minimapVisibility = visibility
-        case .setMinimapHeight(let height): app.minimapHeight = height
+        case .setName(let name): state.tabName = name
+        case .clearName: state.tabName = ""
+        case .setSurfaceName(let name):
+            state.surfaceNames[target.surfaceID] = (name ?? "").isEmpty ? nil : name
+        default: break
+        }
+    }
+
+    /// The minimap height has only a tab and an app scope, so any other scope
+    /// leaves the state alone.
+    private static func setMinimap(_ command: ControlCommand, to state: inout ControlState) {
+        switch command {
+        case .setMinimapVisibility(let visibility):
+            state.shared.app.minimapVisibility = visibility
+        case .setTabMinimapVisibility(let visibility):
+            state.tabMinimapVisibility = visibility
+        case .setMinimapHeight(.tab, let height):
+            state.tabMinimapHeight = height
+        case .setMinimapHeight(.app, let height):
+            state.shared.app.minimapHeight = height ?? MinimapHeight.default
         default: break
         }
     }
@@ -177,6 +229,7 @@ enum ControlService {
             tabID: target.tabID.uuidString,
             tabName: state.tabName.isEmpty ? state.displayName : state.tabName,
             tabNameIsOverride: !state.tabName.isEmpty,
+            surfaceName: state.surfaceNames[target.surfaceID],
             scopes: ControlInfo.Scopes(
                 surface: state.surfaceColorOverrides[target.surfaceID].map(TintPayload.init),
                 tab: state.tabColorOverride.map(TintPayload.init),
@@ -193,22 +246,36 @@ enum ControlService {
             },
             status: state.activityStates[target.monttyID].map(\.wireName),
             resumeCommand: state.surfaceResumeCommands[target.surfaceID],
-            settings: settings(state: state)
+            settings: settings(target: target, state: state, repoIdentity: identity)
         )
     }
 
-    private static func settings(state: ControlState) -> ControlInfo.Settings {
-        let app = state.app
+    private static func settings(
+        target: SurfaceRef, state: ControlState, repoIdentity: String?
+    ) -> ControlInfo.Settings {
+        let app = state.shared.app
+        let surface = state.surfaceSettings[target.surfaceID]
+        let repo = repoIdentity.flatMap { state.shared.repos[$0] }
+        func strength(_ setting: StrengthSetting) -> ControlInfo.Scoped<Double> {
+            .init(
+                surface: surface?[setting], tab: state.tabSettings[setting],
+                repo: repo?[setting], app: app[setting],
+                effective: setting.resolve(
+                    surface: surface, tab: state.tabSettings, repo: repo, app: app)
+            )
+        }
         return ControlInfo.Settings(
-            surfaceTintStrength: .init(
-                app: app.surfaceTintStrength, effective: app.surfaceTintStrength),
-            tabTintStrength: .init(app: app.tabTintStrength, effective: app.tabTintStrength),
+            surfaceTintStrength: strength(.surfaceTint),
+            tabTintStrength: strength(.tabTint),
             minimap: .init(
                 tab: state.tabMinimapVisibility?.text,
                 app: app.minimapVisibility.text,
                 effective: (state.tabMinimapVisibility ?? app.minimapVisibility).text
             ),
-            minimapHeight: .init(app: app.minimapHeight, effective: app.minimapHeight)
+            minimapHeight: .init(
+                tab: state.tabMinimapHeight, app: app.minimapHeight,
+                effective: state.tabMinimapHeight ?? app.minimapHeight
+            )
         )
     }
 
