@@ -44,7 +44,6 @@ final class TabDragSourceView: NSView, NSDraggingSource {
 
     /// How far the mouse travels with the button down before it is a drag.
     private static let dragThreshold: CGFloat = 4
-    private static let escapeKey: CGKeyCode = 53
 
     /// Never the target of a click: the SwiftUI row in front keeps every
     /// gesture it has.
@@ -120,21 +119,21 @@ final class TabDragSourceView: NSView, NSDraggingSource {
         context == .withinApplication ? .move : []
     }
 
-    /// A drag released over one of this app's windows that nothing accepted
-    /// slides back to its row. One released anywhere else is leaving the
-    /// window, so it does not.
+    /// A drag released over its own window that nothing accepted slides back
+    /// to its row. One released anywhere else is leaving the window, so it
+    /// does not.
     func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) {
-        session.animatesToStartingPositionsOnCancelOrFail = NSApp.windows.contains {
-            $0.isVisible && $0.frame.contains(screenPoint)
-        }
+        session.animatesToStartingPositionsOnCancelOrFail =
+            window?.frame.contains(screenPoint) ?? true
     }
 
     /// AppKit ends a drag the same way for Escape as for a release over
-    /// nothing, so Escape still being down is what tells them apart.
+    /// nothing. A release lets the mouse button up and Escape does not, so
+    /// the button still being down is what tells them apart.
     func draggingSession(
         _ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation
     ) {
-        let cancelled = CGEventSource.keyState(.combinedSessionState, key: Self.escapeKey)
+        let cancelled = NSEvent.pressedMouseButtons & 1 != 0
         onEnd?(tabID, cancelled ? nil : screenPoint)
     }
 }

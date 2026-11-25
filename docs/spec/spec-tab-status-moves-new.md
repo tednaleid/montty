@@ -73,6 +73,11 @@ reorder) or another one.
 - The drag carries the tab id under a type declared for montty
   (`com.montty.app.tab`), so no other app accepts it.
 
+Releasing the drag anywhere else over another window, such as on its
+surfaces, moves the tab there too, placed after that window's active tab.
+This is what makes a window with a narrow or covered sidebar a target. Only
+the frontmost window at the cursor counts.
+
 `CLAUDE.md` and the README stop saying tabs never move between windows.
 
 ## Tear off
@@ -98,6 +103,10 @@ badge clicks) are unchanged. A press while a name is being edited does not
 start a drag. AppKit reports where the drag was released, and the tear-off
 decision is made from that point and the window frames. Whether a drop target
 accepted the drag is not used.
+
+Escape cancels the drag and the tab stays where it was. AppKit ends a
+cancelled drag the same way as one released over nothing; the mouse button
+still being down is what marks it as cancelled.
 
 A spike of this passed every gesture check by hand. SwiftUI's own drag was
 ruled out because it does not report a release over nothing, which the fork

@@ -6,8 +6,8 @@ import AppKit
 extension AppDelegate {
     /// The drag of `tabID` ended with the mouse at `point`, in screen
     /// coordinates, or was cancelled when `point` is nil. The use case decides
-    /// whether that tears the tab off; a release over a window needs nothing
-    /// from here, since a drop on a sidebar moves the tab through `moveTab`.
+    /// whether that tears the tab off, moves it to the window it was released
+    /// over, or leaves it.
     func tabDragEnded(_ tabID: UUID, releasedAt point: CGPoint?) {
         draggingTabID = nil
         guard let point, let source = registry.locate(tabID: tabID) else { return }
@@ -19,12 +19,17 @@ extension AppDelegate {
             && controller.window.isVisible {
             frames[id] = WindowFrame(controller.window.frame)
         }
+        // The frontmost window of any app at the point, so a montty window
+        // hidden behind another app's is not what the tab was dropped on.
+        let number = NSWindow.windowNumber(at: point, belowWindowWithWindowNumber: 0)
+        let under = controllers.first { $0.value.window.windowNumber == number }?.key
         apply(useCases.tabDragEnded(
             id: tabID, releasedAt: point, windowFrames: frames,
-            screens: NSScreen.screens.map(\.visibleFrame)
+            screens: NSScreen.screens.map(\.visibleFrame), windowUnderCursor: under
         ))
         syncSurfaceFocus()
         controllers[source.id]?.syncTitle()
+        if let under { controllers[under]?.syncTitle() }
     }
 
     /// Moves `tabID` into a window of its own, placed as Cmd-N would place one.

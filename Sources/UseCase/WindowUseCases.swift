@@ -221,19 +221,34 @@ final class WindowUseCases {
     /// A tab drag was released at `point`, in screen coordinates. Released over
     /// empty space it tears the tab off into a window of its own, sized like the
     /// one it left and opened with its title bar under the cursor. Released over
-    /// any window it is not a tear-off: that was a drop on a sidebar, or a drag
-    /// that went nowhere.
+    /// another window it moves there, after that window's active tab, wherever
+    /// in the window it was released. Released over its own window it stays.
     ///
-    /// `windowFrames` is every open window's on-screen frame and `screens` the
-    /// visible area of each display, which only the shell can read. The new
-    /// window is kept on the display the cursor is on. A window's only tab is
-    /// never torn off, since the new window would just replace the one it left.
+    /// A sidebar the tab is dropped on places it too, through `moveTab`, and
+    /// the two may arrive in either order. Both name the same window, and the
+    /// sidebar's index is the more specific, so it is right for it to win when
+    /// it comes second and harmless when it came first.
+    ///
+    /// `windowFrames` is every open window's on-screen frame, `screens` the
+    /// visible area of each display, and `windowUnderCursor` the frontmost
+    /// window at the point, which only the shell can read. The new window is
+    /// kept on the display the cursor is on. A window's only tab is never torn
+    /// off, since the new window would just replace the one it left.
     func tabDragEnded(
         id tabID: UUID,
         releasedAt point: CGPoint,
         windowFrames: [UUID: WindowFrame],
-        screens: [CGRect]
+        screens: [CGRect],
+        windowUnderCursor: UUID? = nil
     ) -> WindowOutcome {
+        if let target = windowUnderCursor.flatMap(registry.window(id:)),
+           let home = registry.locate(tabID: tabID), home.id != target.id {
+            let store = target.tabStore
+            let active = store.tabs.firstIndex { $0.id == store.activeTabID }
+            return moveTab(
+                id: tabID, toWindow: target.id, at: active.map { $0 + 1 } ?? store.tabs.count
+            )
+        }
         guard !windowFrames.values.contains(where: { $0.rect.contains(point) }),
               let source = registry.locate(tabID: tabID),
               source.tabStore.tabs.count > 1,

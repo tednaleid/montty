@@ -248,4 +248,63 @@ import Testing
         #expect(useCases.moveTabToNewWindow(id: UUID()) == WindowOutcome())
         #expect(useCases.registry.windows.count == 1)
     }
+
+    /// A second window with three tabs, the middle one active.
+    private func addOtherWindow(to useCases: WindowUseCases) -> WindowModel {
+        let other = useCases.registry.add(WindowModel(
+            sidebarWidth: 260, frame: WindowFrame(x: 1400, y: 100, width: 400, height: 800)
+        ))
+        for position in 0..<3 {
+            other.tabStore.append(tab: Tab(position: position, surfaceID: UUID()))
+        }
+        other.tabStore.activeTabID = other.tabStore.tabs[1].id
+        return other
+    }
+
+    @Test func releasingOverAnotherWindowMovesTheTabAfterItsActiveTab() {
+        let (useCases, source) = makeUseCases(tabCount: 2)
+        let other = addOtherWindow(to: useCases)
+        let moved = source.tabStore.tabs[0]
+
+        let outcome = useCases.tabDragEnded(
+            id: moved.id, releasedAt: CGPoint(x: 1600, y: 500),
+            windowFrames: frames(source), screens: [screen], windowUnderCursor: other.id
+        )
+
+        #expect(useCases.registry.windows.count == 2)
+        #expect(other.tabStore.tabs.map(\.id).firstIndex(of: moved.id) == 2)
+        #expect(other.tabStore.tabs.count == 4)
+        #expect(other.tabStore.activeTabID == moved.id)
+        #expect(source.tabStore.tabs.count == 1)
+        #expect(outcome.raiseWindow == other.id)
+        #expect(outcome.createWindows.isEmpty)
+        #expect(outcome.save == true)
+    }
+
+    @Test func releasingAWindowsOnlyTabOverAnotherWindowMovesItAndClosesTheEmptyWindow() {
+        let (useCases, source) = makeUseCases(tabCount: 1)
+        let other = addOtherWindow(to: useCases)
+        let moved = source.tabStore.tabs[0]
+
+        let outcome = useCases.tabDragEnded(
+            id: moved.id, releasedAt: CGPoint(x: 1600, y: 500),
+            windowFrames: frames(source), screens: [screen], windowUnderCursor: other.id
+        )
+
+        #expect(other.tabStore.tabs.contains { $0.id == moved.id })
+        #expect(outcome.closeWindows == [source.id])
+    }
+
+    @Test func releasingOverTheTabsOwnWindowChangesNothing() {
+        let (useCases, source) = makeUseCases(tabCount: 2)
+        let moved = source.tabStore.tabs[0]
+
+        let outcome = useCases.tabDragEnded(
+            id: moved.id, releasedAt: CGPoint(x: 600, y: 500),
+            windowFrames: frames(source), screens: [screen], windowUnderCursor: source.id
+        )
+
+        #expect(outcome == WindowOutcome())
+        #expect(source.tabStore.tabs.map(\.id).first == moved.id)
+    }
 }
