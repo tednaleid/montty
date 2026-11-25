@@ -90,6 +90,18 @@ No keyboard shortcuts.
   tab, which focuses the surface that was last focused there, or the first
   surface in tree order when none is recorded.
 
+### Row tint
+
+Every row is washed with the tint gradient of its tab's focused surface. A row
+with its minimap hidden gets a stronger wash, because it has no minimap
+rectangle to carry the color. A row with its minimap showing gets a weaker one,
+so the surfaces drawn on top still stand out.
+
+| row | active tab | other tabs |
+|---|---|---|
+| minimap hidden | 0.40 | 0.20 |
+| minimap showing | 0.15 | 0.12 |
+
 ### Changes over time
 
 When a condition starts or stops holding, the row changes height at once. There
