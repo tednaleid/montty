@@ -32,31 +32,37 @@ struct TabRow: View {
                 .frame(width: 4)
 
             VStack(alignment: .leading, spacing: 3) {
-                // Tab name (editable on double-tap)
-                if isEditing {
-                    TextField("Tab name", text: $editName, onCommit: {
-                        tab.name = editName
-                        editingTabID = nil
-                    })
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 21, weight: .bold))
-                    .focused($textFieldFocused)
-                    .onAppear {
-                        editName = tab.name
-                        // Delay focus slightly so the view is in the hierarchy
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            textFieldFocused = true
-                        }
-                    }
-                    .onExitCommand { editingTabID = nil }
-                } else {
-                    Text(info.displayName)
+                HStack(spacing: 4) {
+                    // Tab name (editable on double-tap)
+                    if isEditing {
+                        TextField("Tab name", text: $editName, onCommit: {
+                            tab.name = editName
+                            editingTabID = nil
+                        })
+                        .textFieldStyle(.plain)
                         .font(.system(size: 21, weight: .bold))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .onTapGesture(count: 2) {
-                            editingTabID = tab.id
+                        .focused($textFieldFocused)
+                        .onAppear {
+                            editName = tab.name
+                            // Delay focus slightly so the view is in the hierarchy
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                textFieldFocused = true
+                            }
                         }
+                        .onExitCommand { editingTabID = nil }
+                    } else {
+                        Text(info.displayName)
+                            .font(.system(size: 21, weight: .bold))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .onTapGesture(count: 2) {
+                                editingTabID = tab.id
+                            }
+                    }
+                    if let status = rowStatus {
+                        Spacer(minLength: 4)
+                        ActivityIndicatorView(state: status, fontSize: 18)
+                    }
                 }
 
                 // Git info line
@@ -136,6 +142,14 @@ struct TabRow: View {
         guard !showsMinimap, !isActive else { return nil }
         return SplitTree.allLeaves(node: tab.splitRoot)
             .lazy.compactMap { jumpLabels[$0.id] }.first
+    }
+
+    /// The tab status, drawn on the name line of a row with a hidden minimap,
+    /// whose surfaces have nowhere else to show theirs. It gives way to a jump
+    /// label, which is drawn in the same place.
+    private var rowStatus: ActivityStatus.State? {
+        guard !showsMinimap, hiddenMinimapJumpLabel == nil else { return nil }
+        return info.activity
     }
 
     private var paneTint: PaneTint {

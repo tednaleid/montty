@@ -84,8 +84,8 @@ No keyboard shortcuts.
 
 ### What a hidden minimap takes with it
 
-- The row shows no activity status. A user who wants it adds the status
-  condition.
+- The row loses the per-surface activity statuses. It shows the tab status in
+  their place; see [spec-tab-status-moves-new.md](spec-tab-status-moves-new.md).
 - There is no click target for a specific surface. Clicking the row selects the
   tab, which focuses the surface that was last focused there, or the first
   surface in tree order when none is recorded.

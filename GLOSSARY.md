@@ -19,6 +19,17 @@ What the program in a surface reports it is doing: working, waiting on the
 user, or idle. A surface with no report has no activity status.
 _Avoid_: Claude indicator, status effect
 
+**Tab Status**:
+The one activity status that stands for a whole tab: the most urgent among its
+surfaces, with waiting ahead of idle and idle ahead of working. It does not
+follow focus. A tab whose surfaces have no activity status has no tab status.
+_Avoid_: Tab activity, summary status
+
+**Tear Off**:
+Dragging a tab out of every window to open it in a window of its own, with its
+surfaces still running.
+_Avoid_: Detach, pop out
+
 **Minimap**:
 The scaled drawing of a tab's surface layout shown in that tab's sidebar row,
 one rectangle per surface.

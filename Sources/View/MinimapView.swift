@@ -102,6 +102,8 @@ struct MinimapView: View {
 /// Animated indicator for activity state on a minimap pane.
 struct ActivityIndicatorView: View {
     let state: ActivityStatus.State
+    /// The glyph size; the frames scale with it.
+    var fontSize: CGFloat = 24
 
     // Cycle through star characters when working, with per-character scale
     // factors so each symbol appears roughly the same visual size as "*".
@@ -123,20 +125,20 @@ struct ActivityIndicatorView: View {
             case .working:
                 let entry = Self.thinkingChars[charIndex % Self.thinkingChars.count]
                 Text(entry.char)
-                    .frame(width: 24, height: 24)
+                    .frame(width: fontSize, height: fontSize)
                     .scaleEffect(entry.scale)
                     .onReceive(timer) { _ in
                         charIndex = (charIndex + 1) % Self.thinkingChars.count
                     }
             case .waiting:
                 Text("*?")
-                    .frame(width: 48, height: 24)
+                    .frame(width: fontSize * 2, height: fontSize)
             case .idle:
                 Text("*")
-                    .frame(width: 24, height: 24)
+                    .frame(width: fontSize, height: fontSize)
             }
         }
-        .font(.system(size: 24, design: .monospaced))
+        .font(.system(size: fontSize, design: .monospaced))
         .foregroundStyle(.orange)
     }
 }
