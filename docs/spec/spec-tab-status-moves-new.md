@@ -160,10 +160,11 @@ session does not run the command again.
   `openTab` make every decision and return a `WindowOutcome`.
   `TabDropTarget` works out gaps and landing indexes. `Sources/App` supplies
   window frames, screens and the release point, and applies outcomes.
-- `SurfacePlan` gains the fixed line to type and run. The kept commands live
-  with the app's other per-surface state, keyed by surface id, and are removed
-  when handed over or when the surface closes.
-- `ControlCommand.newTab` and a `launch` request on the control socket.
+- `SurfacePlan.runsLaunch` says a new surface types the launch line.
+  `WindowUseCases` keeps each command by montty surface id until
+  `takeLaunch` hands it over.
+- `ControlCommand.newTab` and `takeLaunch`, the second sent as a `launch`
+  request on the control socket and answered with the command.
 - Debug server: `POST /move-tab` and `POST /tear-off`, with
   `just inspect-move-tab` and `just inspect-tear-off`.
 

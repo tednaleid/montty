@@ -198,12 +198,20 @@ enum ControlCommand: Equatable {
     /// The minimap height in points, at the tab or app scope. nil removes the
     /// tab's value, and at the app scope returns it to the default.
     case setMinimapHeight(scope: SettingScope, value: Double?)
+    /// Opens a tab in the window of the surface that asked. It touches no
+    /// tab's state, so `AppDelegate` handles it before a command reaches
+    /// `ControlService`.
+    case newTab(NewTab)
+    /// Hands over, once, the command kept for the calling surface by the
+    /// `newTab` that opened it. Handled by `AppDelegate` as `newTab` is.
+    case takeLaunch
     case info
 }
 
 enum ControlError: String, Codable, Equatable {
     case unknownSurface = "unknown surface"
     case notInRepo = "surface is not inside a git repository"
+    case noLaunch = "no command is waiting for this surface"
 }
 
 /// Tints are reported as explicit arrays rather than the compact
@@ -282,5 +290,7 @@ struct ControlInfo: Codable, Equatable {
 enum ControlResult: Equatable {
     case applied
     case read(ControlInfo)
+    /// The command a `takeLaunch` handed over, the program first.
+    case launch([String])
     case rejected(ControlError)
 }

@@ -58,6 +58,7 @@ The rest are verbs:
 
 ```
 montty info
+montty tab new [--dir <path>] [--name <text>] [--focus] [-- <command> ...]
 montty hook <event>
 montty install-hooks claude          montty uninstall-hooks claude
 montty --version                     montty -v
@@ -114,6 +115,45 @@ montty surface name --reset
 Every command targets the surface it runs in, which resolves no matter which
 window holds it. There is no window scope.
 
+## Opening tabs
+
+```
+montty tab new [--dir <path>] [--name <text>] [--focus] [-- <command> [<argument>...]]
+```
+
+`montty tab new` opens a tab in the window of the surface that ran it, so a
+script or an agent can start more work without anyone driving the GUI.
+
+| option | effect |
+|---|---|
+| `--dir <path>` | where the tab's shell starts; relative to where you ran the command, `~` allowed. Default: the directory of the surface that ran it. Exit 64 if it is not a directory |
+| `--name <text>` | the tab's name (256 characters at most) |
+| `--focus` | select the new tab. Without it the tab opens in the background and you stay where you are |
+| `-- <command> ...` | a command for the new shell to run, with its arguments |
+
+The tab goes at the end of the window's tabs. It is an ordinary surface in an
+ordinary login shell, so a Claude Code session started in it reports its own
+status through the hooks.
+
+```bash
+montty tab new --name review --dir ~/work/montty -- claude "review the last commit for bugs"
+montty tab new --focus -- claude "$(cat brief.md)"
+montty tab new -- htop
+```
+
+An argument can hold anything except a NUL byte: several lines, quotes,
+`$(...)`, a leading `-`. It is never typed into the new shell and never placed
+in its environment. The only line typed there is `"$MONTTY_BIN" launch`, which
+asks montty for the command kept for that surface and replaces itself with it.
+When the command exits, the shell prompt is back. The program and its arguments
+are capped at 100,000 characters in total.
+
+`montty launch` hands a command over once. Run by hand, or a second time, it
+exits 1 with `no command is waiting for this surface`. The shell's history
+holds the `launch` line, not the command.
+
+Restoring a session does not run the command again.
+
 ## Examples
 
 ```bash
@@ -128,10 +168,10 @@ montty info | jq -r .git.branch
 | exit | meaning |
 |---|---|
 | 0 | ok |
-| 1 | montty rejected the request (unknown surface, not in a repo, tab name over 256 characters, invalid resume command, a settings file that is not a JSON object) |
+| 1 | montty rejected the request (unknown surface, not in a repo, tab name over 256 characters, invalid resume command, a new-tab prompt that is too long or holds a NUL byte, a settings file that is not a JSON object) |
 | 2 | not running inside a montty pane |
 | 3 | montty is not reachable: not running, or busy and refusing connections |
-| 64 | usage error: unknown scope, setting, or verb, a setting at a scope that does not accept it, a bad value, extra arguments, request over 1 MiB |
+| 64 | usage error: unknown scope, setting, or verb, a setting at a scope that does not accept it, a bad value, extra arguments, a `--dir` that is not a directory, request over 1 MiB |
 
 ## Claude Code hooks
 

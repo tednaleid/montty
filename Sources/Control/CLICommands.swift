@@ -120,9 +120,71 @@ enum CLI {
             """,
             subcommands: [
                 SurfaceScope.self, TabScope.self, RepoScope.self, AppScope.self,
-                Info.self, Hook.self, InstallHooks.self, UninstallHooks.self
+                Info.self, Hook.self, InstallHooks.self, UninstallHooks.self, Launch.self
             ]
         )
+    }
+
+    /// `montty tab new [--dir <path>] [--name <text>] [--focus] [-- <command> ...]`.
+    struct TabNew: ParsableCommand, InvocationCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "new",
+            abstract: "Open a tab in this window, optionally running a command in it.",
+            discussion: """
+            The tab opens after this window's other tabs and stays in the
+            background unless --focus is given. Everything after -- is a
+            command for the new shell to run. Its arguments arrive exactly as
+            given, whatever they contain:
+
+              montty tab new --name review -- claude "look at the failing tests"
+            """
+        )
+
+        @Option(
+            name: .customLong("dir"),
+            help: "Where the new shell starts. Defaults to this surface's directory."
+        )
+        var directory: String?
+
+        @Option(help: "The new tab's name.")
+        var name: String?
+
+        @Flag(help: "Make the new tab the active one.")
+        var focus = false
+
+        @Argument(parsing: .postTerminator, help: "A command to run in the new tab, after --.")
+        var command: [String] = []
+
+        func validate() throws {
+            _ = try invocation()
+        }
+
+        func invocation() throws -> ParsedInvocation {
+            guard NewTab.isValidCommand(command) else {
+                throw ValidationError(
+                    "the command needs a program to run, at most "
+                        + "\(NewTab.maxCommandCharacters) characters, and no NUL bytes"
+                )
+            }
+            if let name, name.count > ControlWire.maxNameCharacters {
+                throw ValidationError("a name is at most \(ControlWire.maxNameCharacters) characters")
+            }
+            return .control(.newTab(
+                NewTab(directory: directory, name: name, command: command, focus: focus)
+            ))
+        }
+    }
+
+    /// Typed by montty in a tab opened with a command, so it is left out of
+    /// help.
+    struct Launch: ParsableCommand, InvocationCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "launch",
+            abstract: "Run the command montty kept for this surface.",
+            shouldDisplay: false
+        )
+
+        func invocation() -> ParsedInvocation { .control(.takeLaunch) }
     }
 
     struct SurfaceScope: ParsableCommand {
@@ -143,8 +205,9 @@ enum CLI {
     struct TabScope: ParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: SettingScope.tab.rawValue,
-            abstract: "Settings for the tab this command runs in.",
+            abstract: "Settings for the tab this command runs in, and opening a new one.",
             subcommands: [
+                TabNew.self,
                 Setting<ColorSetting, AtTab>.self,
                 Setting<NameSetting, AtTab>.self,
                 Setting<SurfaceTintStrengthSetting, AtTab>.self,

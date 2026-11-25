@@ -22,6 +22,9 @@ surface the command runs in. `app` is the whole app, across all windows.
 
 Verbs: `info`, `hook`, `install-hooks`, `uninstall-hooks`. They are unchanged.
 
+A scope may also have verbs of its own. `montty tab new` is the first; see
+[spec-tab-status-moves-new.md](spec-tab-status-moves-new.md).
+
 A setting's name says what is drawn and never changes with the scope. A name
 may contain a scope-sounding word (`surface-tint-strength`,
 `tab-tint-strength`); it names the thing styled, not whose value is set.

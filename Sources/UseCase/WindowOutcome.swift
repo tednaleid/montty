@@ -43,6 +43,9 @@ struct SurfacePlan: Equatable {
     /// Typed at the new surface's prompt without pressing Enter. Only a
     /// restore sets it.
     let resumeCommand: String?
+    /// The new surface types and runs `NewTab.launchLine`, which fetches the
+    /// command kept for it. Only a tab opened with a command sets it.
+    var runsLaunch = false
 }
 
 /// App-wide settings a restore recovered. They live on the shell, so they cross

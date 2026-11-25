@@ -165,6 +165,11 @@ enum HookServer {
                 "resume command must be 1 to \(ResumeCommand.maxCharacters) characters "
                     + "with no control characters"
             )
+        } catch ControlRequest.DecodeFailure.invalidNewTab {
+            response = .failure(
+                "new tab needs an absolute directory and a command of at most "
+                    + "\(NewTab.maxCommandCharacters) characters with no NUL bytes"
+            )
         } catch {
             response = .failure("malformed request")
         }
@@ -198,6 +203,7 @@ enum HookServer {
             ) {
             case .applied: response = .ok
             case .read(let info): response = .info(info)
+            case .launch(let command): response = .launch(command)
             case .rejected(let error): response = .failure(error.rawValue)
             }
         }

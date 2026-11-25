@@ -31,6 +31,8 @@ enum ControlCLI {
             runRead(read, surface: surface, socketPath: socketPath)
         case .hook(let event, let hooksVersion):
             runHook(event: event, hooksVersion: hooksVersion, surface: surface, socketPath: socketPath)
+        case .control(.takeLaunch):
+            runLaunch(surface: surface, socketPath: socketPath)
         case .control(let command):
             runControl(command: command, surface: surface, socketPath: socketPath)
         }
@@ -169,7 +171,28 @@ enum ControlCLI {
     /// `surface_id`, and the matching decode strategy restores that as
     /// `surfaceId`, which no longer matches the property.
     private static func requestInfo(surface: String, socketPath: String) -> [String: Any] {
-        let request = ControlRequest(surface: surface, command: .info)
+        request(.info, surface: surface, socketPath: socketPath)
+    }
+
+    /// Replaces this process with the command montty kept for this surface,
+    /// so the command runs in the shell that typed `montty launch` and the
+    /// prompt comes back when it exits.
+    private static func runLaunch(surface: String, socketPath: String) -> Never {
+        let reply = request(.takeLaunch, surface: surface, socketPath: socketPath)
+        guard let command = reply["command"] as? [String], let program = command.first else {
+            fail(ControlError.noLaunch.rawValue, .rejected)
+        }
+        var arguments: [UnsafeMutablePointer<CChar>?] = command.map { strdup($0) } + [nil]
+        execvp(program, &arguments)
+        fail("could not run \(program): \(String(cString: strerror(errno)))", .rejected)
+    }
+
+    /// Sends a command and returns its reply as a raw dictionary, exiting
+    /// when montty cannot be reached or rejects it.
+    private static func request(
+        _ command: ControlCommand, surface: String, socketPath: String
+    ) -> [String: Any] {
+        let request = ControlRequest(surface: surface, command: command)
         guard let payload = try? request.encoded() else {
             fail("could not encode the request", .usage)
         }
@@ -189,8 +212,24 @@ enum ControlCLI {
         return parsed
     }
 
+    /// A `--dir` is relative to where the caller ran this, which the app cannot
+    /// know, so it is made absolute here, and refused if nothing is there.
+    private static func resolvingDirectory(of command: ControlCommand) -> ControlCommand {
+        guard case .newTab(let spec) = command, spec.directory != nil else { return command }
+        let resolved = spec.resolvingDirectory(
+            cwd: FileManager.default.currentDirectoryPath, home: NSHomeDirectory()
+        )
+        var isDirectory: ObjCBool = false
+        guard let path = resolved.directory,
+              FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            fail("not a directory: \(spec.directory ?? "")", .usage)
+        }
+        return .newTab(resolved)
+    }
+
     private static func runControl(command: ControlCommand, surface: String, socketPath: String) -> Never {
-        let request = ControlRequest(surface: surface, command: command)
+        let request = ControlRequest(surface: surface, command: resolvingDirectory(of: command))
         guard let payload = try? request.encoded() else {
             fail("could not encode the request", .usage)
         }

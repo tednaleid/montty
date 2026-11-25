@@ -447,6 +447,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// CLI, the context menu, and the Claude hooks -- comes through here.
     @discardableResult
     func applyControl(_ command: ControlCommand, to tab: Tab, surfaceID: UUID) -> ControlResult {
+        // Opening a tab and handing over its command change no tab's state:
+        // the use cases own the new tab and the command kept for it.
+        if case .newTab(let spec) = command {
+            guard let monttyID = tab.surfaceToMonttyID[surfaceID] else {
+                return .rejected(.unknownSurface)
+            }
+            apply(useCases.openTab(spec, fromMonttyID: monttyID))
+            return .applied
+        }
+        if case .takeLaunch = command {
+            let launch = tab.surfaceToMonttyID[surfaceID].flatMap(useCases.takeLaunch(monttyID:))
+            return launch.map { .launch($0) } ?? .rejected(.noLaunch)
+        }
         var shared = sharedSettings
         let result = tab.applyControl(
             command, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides,

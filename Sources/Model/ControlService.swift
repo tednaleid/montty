@@ -106,6 +106,12 @@ enum ControlService {
                 setting, value, at: scope, surfaceID: target.surfaceID, repoIdentity: identity)
             return .applied
 
+        case .newTab, .takeLaunch:
+            // These open a tab and hand over its command rather than changing
+            // a tab. AppDelegate.applyControl handles them before a command
+            // reaches here; this case keeps the switch exhaustive.
+            return .applied
+
         case .info:
             return .read(info(target: target, state: state,
                               gitInfoProvider: gitInfoProvider))

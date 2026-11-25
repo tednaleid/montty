@@ -20,6 +20,10 @@ final class WindowUseCases {
     /// missing whatever the remaining steps put in place.
     private(set) var isRestored = false
 
+    /// The command each surface opened by `openTab` is to run, keyed by its
+    /// montty surface id, until that surface's `montty launch` takes it.
+    private var pendingLaunches: [String: [String]] = [:]
+
     /// Where the last window to close stood, held for the save that follows it.
     /// Only ever set with nothing left open, which is the only session it is
     /// ever written into.
@@ -168,6 +172,50 @@ final class WindowUseCases {
         outcome.raiseWindow = destination.id
         outcome.save = true
         return outcome
+    }
+
+    /// Open a tab in the window of the pane `monttyID` names, on that pane's
+    /// behalf: at the end of the window's tabs, in the background unless
+    /// `spec.focus`, starting in `spec.directory` or else wherever that pane is.
+    /// The tab joins the model now; the outcome names the surface to create.
+    ///
+    /// A pane the registry does not know changes nothing, so a request from a
+    /// pane that has since closed opens no tab in whichever window is in front.
+    func openTab(_ spec: NewTab, fromMonttyID monttyID: String) -> WindowOutcome {
+        guard let origin = registry.locate(monttyID: monttyID) else { return WindowOutcome() }
+        let window = origin.window
+
+        let tab = Tab(name: spec.name ?? "", position: window.tabStore.tabs.count)
+        // `Tab.init` seeds one leaf with a placeholder surface id. Take that
+        // leaf's id: `surfacesCreated` remaps it to the id Ghostty mints.
+        guard let leaf = SplitTree.allLeaves(node: tab.splitRoot).first else {
+            return WindowOutcome()
+        }
+        window.tabStore.append(tab: tab)
+        if spec.focus { window.tabStore.activeTabID = tab.id }
+
+        let monttyID = UUID().uuidString
+        if !spec.command.isEmpty { pendingLaunches[monttyID] = spec.command }
+
+        var outcome = WindowOutcome()
+        outcome.createSurfaces = [
+            SurfacePlan(
+                leafID: leaf.id,
+                windowID: window.id,
+                tabID: tab.id,
+                monttyID: monttyID,
+                workingDirectory: spec.directory ?? origin.tab.surfaceDirectories[origin.surfaceID],
+                resumeCommand: nil,
+                runsLaunch: !spec.command.isEmpty
+            )
+        ]
+        return outcome
+    }
+
+    /// Hands over the command kept for the surface `monttyID` names, once. A
+    /// second ask, or one from a surface opened without a command, gets nil.
+    func takeLaunch(monttyID: String) -> [String]? {
+        pendingLaunches.removeValue(forKey: monttyID)
     }
 
     /// A tab drag was released at `point`, in screen coordinates. Released over

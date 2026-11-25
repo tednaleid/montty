@@ -58,6 +58,9 @@ struct ControlRequest: Equatable {
         /// A resume command that is empty, past `ResumeCommand.maxCharacters`,
         /// or holds a control character that would act on its own when typed.
         case invalidResumeCommand
+        /// A new-tab request whose directory is not absolute or whose command
+        /// cannot be run.
+        case invalidNewTab
         /// No `cmd` field: a hook event from the shell wrapper, which the
         /// legacy ClaudeHookMessage path still owns.
         case legacyHook
@@ -81,6 +84,10 @@ struct ControlRequest: Equatable {
         switch cmd {
         case "info":
             return ControlRequest(surface: surface, command: .info)
+        case "new-tab":
+            return ControlRequest(surface: surface, command: .newTab(try newTabCommand(root)))
+        case "launch":
+            return ControlRequest(surface: surface, command: .takeLaunch)
         case "set":
             return ControlRequest(
                 surface: surface,
@@ -89,6 +96,24 @@ struct ControlRequest: Equatable {
         default:
             throw DecodeFailure.malformed
         }
+    }
+
+    private static func newTabCommand(_ root: [String: Any]) throws -> NewTab {
+        var spec = NewTab()
+        if let directory = root["dir"] as? String {
+            guard NewTab.isValidDirectory(directory) else { throw DecodeFailure.invalidNewTab }
+            spec.directory = directory
+        }
+        if let name = root["name"] as? String {
+            guard name.count <= ControlWire.maxNameCharacters else { throw DecodeFailure.nameTooLong }
+            spec.name = name
+        }
+        if let command = root["command"] as? [String] {
+            guard NewTab.isValidCommand(command) else { throw DecodeFailure.invalidNewTab }
+            spec.command = command
+        }
+        spec.focus = root["focus"] as? Bool ?? false
+        return spec
     }
 
     private static func setCommand(_ root: [String: Any]) throws -> ControlCommand {
@@ -252,6 +277,14 @@ struct ControlRequest: Equatable {
              .setStrength, .setSurfaceName:
             root["cmd"] = "set"
             root.merge(settingFields) { _, field in field }
+        case .newTab(let spec):
+            root["cmd"] = "new-tab"
+            root["dir"] = spec.directory
+            root["name"] = spec.name
+            root["command"] = spec.command
+            root["focus"] = spec.focus
+        case .takeLaunch:
+            root["cmd"] = "launch"
         }
         return try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
     }
@@ -262,9 +295,14 @@ enum ControlResponse {
     case ok
     case failure(String)
     case info(ControlInfo)
+    case launch([String])
 
     func encoded() throws -> Data {
         switch self {
+        case .launch(let command):
+            return try JSONSerialization.data(
+                withJSONObject: ["ok": true, "command": command], options: [.sortedKeys]
+            )
         case .ok:
             return try JSONSerialization.data(
                 withJSONObject: ["ok": true], options: [.sortedKeys]
