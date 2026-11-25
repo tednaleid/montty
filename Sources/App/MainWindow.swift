@@ -20,7 +20,9 @@ struct MainWindow: View {
                     onNewTab: { appDelegate.createTab(in: window) },
                     onCloseTab: { appDelegate.closeTab(id: $0) },
                     onMoveTab: { appDelegate.moveTab(id: $0, to: window, at: $1) },
-                    onDragTab: { appDelegate.tabDragBegan($0) },
+                    onDragTab: { appDelegate.draggingTabID = $0 },
+                    onDragTabEnded: { appDelegate.tabDragEnded($0, releasedAt: $1) },
+                    onMoveTabToNewWindow: { appDelegate.moveTabToNewWindow(id: $0) },
                     draggingTabID: { appDelegate.draggingTabID },
                     onControl: { tab, command in
                         guard let surfaceID = tab.focusedSurfaceID else { return }

@@ -11,6 +11,11 @@ struct TabSidebar: View {
     let onMoveTab: (UUID, Int) -> Bool
     /// A drag of this tab began, in this window or another.
     let onDragTab: (UUID) -> Void
+    /// The drag of this tab ended at this point in screen coordinates, or was
+    /// cancelled when the point is nil.
+    let onDragTabEnded: (UUID, CGPoint?) -> Void
+    /// Asks for this tab to move into a window of its own.
+    let onMoveTabToNewWindow: (UUID) -> Void
     /// The tab most recently dragged, which a window other than its own cannot
     /// otherwise learn while the drag is still over it.
     let draggingTabID: () -> UUID?
@@ -92,13 +97,12 @@ struct TabSidebar: View {
         .onTapGesture {
             tabStore.activeTabID = tab.id
         }
-        .onDrag {
-            onDragTab(tab.id)
-            return TabDragPayload.provider(for: tab.id)
-        } preview: {
-            Text(tab.tabInfo.displayName)
-                .padding(4)
-        }
+        .background(TabDragSource(
+            tabID: tab.id,
+            title: tab.tabInfo.displayName,
+            onBegin: onDragTab,
+            onEnd: onDragTabEnded
+        ))
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
             rowHeights[tab.id] = height
         }
@@ -132,6 +136,9 @@ struct TabSidebar: View {
             onControl: { command in
                 onControl(tab, command)
             },
+            // A window's only tab has no other window to leave behind.
+            onMoveToNewWindow: tabStore.tabs.count > 1
+                ? { onMoveTabToNewWindow(tab.id) } : nil,
             onClose: {
                 onCloseTab(tab.id)
             }

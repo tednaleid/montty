@@ -16,7 +16,7 @@ A macOS terminal app built on [GhosttyKit](https://github.com/ghostty-org/ghostt
 - Git branch and directory info in tab sidebar
 - Claude Code status indicators (working, waiting, idle) on minimap panes (see [Claude Code hooks](#claude-code-hooks))
 - Standard Ghostty theming from `~/.config/ghostty/config`
-- Multiple windows from one process, opened with `Cmd-N`, each owning its own tabs, which you can drag from one window's sidebar to another
+- Multiple windows from one process, opened with `Cmd-N`, each owning its own tabs, which you can drag from one window's sidebar to another, or out of every window to give a tab a window of its own
 - The `montty` CLI for setting colors, names, tint strengths, minimaps, and activity status from a shell or a script, for one surface, one tab, one repo, or the whole app (see [docs/montty-cli.md](docs/montty-cli.md))
 - Colors resolving surface, then tab, then repo, then the automatic git signature, with repo colors shared across every tab in a repo
 - Gradient tints of up to three stops, with a worktree's gradient carrying its parent repo's colors on the leading edge and its own color on the trailing edge
@@ -31,7 +31,7 @@ Minimaps can be hidden to fit more tabs in the sidebar, everywhere or per tab, o
 
 ![Montty hidden minimaps screenshot](docs/screenshot-compact.png)
 
-`Cmd-N` opens another window from the same process. Each window keeps its own tabs and splits; drag a tab onto another window's sidebar to move it there:
+`Cmd-N` opens another window from the same process. Each window keeps its own tabs and splits; drag a tab onto another window's sidebar to move it there, or out onto empty space to open it in a new window:
 
 ![Montty two windows screenshot](docs/screenshot-windows.png)
 

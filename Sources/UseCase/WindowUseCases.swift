@@ -201,6 +201,28 @@ final class WindowUseCases {
             width: size.width, height: size.height
         ).clamped(toVisible: display.map { [$0] } ?? [])
 
+        return openWindow(holding: tab, from: source, frame: frame, cascadeFrom: nil)
+    }
+
+    /// Move a tab into a window of its own without a drag. The new window is
+    /// placed as a new window is, offset from the one the tab left. A window's
+    /// only tab stays where it is, as it does for a tear-off.
+    func moveTabToNewWindow(id tabID: UUID) -> WindowOutcome {
+        guard let source = registry.locate(tabID: tabID),
+              source.tabStore.tabs.count > 1,
+              let tab = source.tabStore.detach(id: tabID) else { return WindowOutcome() }
+        return openWindow(holding: tab, from: source, frame: nil, cascadeFrom: source.id)
+    }
+
+    /// Registers a window whose one tab is `tab`, already detached from
+    /// `source`, and names the AppKit work to show it. The tab brings its
+    /// surfaces, so none are created.
+    private func openWindow(
+        holding tab: Tab,
+        from source: WindowModel,
+        frame: WindowFrame?,
+        cascadeFrom: UUID?
+    ) -> WindowOutcome {
         let window = registry.add(WindowModel(
             sidebarWidth: source.sidebarWidth,
             frame: frame ?? WindowFrame(x: 0, y: 0, width: 0, height: 0)
@@ -210,7 +232,9 @@ final class WindowUseCases {
         registry.keyWindowID = window.id
 
         var outcome = WindowOutcome()
-        outcome.createWindows = [WindowPlan(windowID: window.id, frame: frame, cascadeFrom: nil)]
+        outcome.createWindows = [
+            WindowPlan(windowID: window.id, frame: frame, cascadeFrom: cascadeFrom)
+        ]
         outcome.raiseWindow = window.id
         outcome.save = true
         return outcome

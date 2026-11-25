@@ -210,4 +210,42 @@ import Testing
 
         #expect(Set(outcome.destroySurfaces).isDisjoint(with: Set(moved.allSurfaceIDs)))
     }
+
+    @Test func movingATabToANewWindowOpensOneCascadedFromItsOwn() {
+        let (useCases, source) = makeUseCases(tabCount: 2)
+        let moved = source.tabStore.tabs[0]
+
+        let outcome = useCases.moveTabToNewWindow(id: moved.id)
+
+        #expect(useCases.registry.windows.count == 2)
+        let created = useCases.registry.windows[1]
+        #expect(created.tabStore.tabs.map(\.id) == [moved.id])
+        #expect(created.tabStore.activeTabID == moved.id)
+        #expect(created.sidebarWidth == 260)
+        #expect(source.tabStore.tabs.count == 1)
+        #expect(useCases.registry.keyWindowID == created.id)
+        #expect(outcome.createWindows == [
+            WindowPlan(windowID: created.id, frame: nil, cascadeFrom: source.id)
+        ])
+        #expect(outcome.createSurfaces.isEmpty)
+        #expect(outcome.raiseWindow == created.id)
+        #expect(outcome.save == true)
+    }
+
+    @Test func aWindowsOnlyTabDoesNotMoveToANewWindow() {
+        let (useCases, source) = makeUseCases(tabCount: 1)
+
+        let outcome = useCases.moveTabToNewWindow(id: source.tabStore.tabs[0].id)
+
+        #expect(useCases.registry.windows.count == 1)
+        #expect(source.tabStore.tabs.count == 1)
+        #expect(outcome == WindowOutcome())
+    }
+
+    @Test func movingAnUnknownTabToANewWindowChangesNothing() {
+        let (useCases, _) = makeUseCases(tabCount: 2)
+
+        #expect(useCases.moveTabToNewWindow(id: UUID()) == WindowOutcome())
+        #expect(useCases.registry.windows.count == 1)
+    }
 }

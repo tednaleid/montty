@@ -1,6 +1,7 @@
-// ABOUTME: What a dragged sidebar tab carries: its id, under a type only this process can see,
+// ABOUTME: What a dragged sidebar tab carries: its id, under a type only montty declares,
 // ABOUTME: so no other app accepts the drag and a release over empty space is a tear-off.
 
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -11,16 +12,14 @@ extension UTType {
 }
 
 enum TabDragPayload {
-    /// A provider for dragging `tabID`, visible to no other process.
-    static func provider(for tabID: UUID) -> NSItemProvider {
-        let provider = NSItemProvider()
-        provider.registerDataRepresentation(
-            forTypeIdentifier: UTType.monttyTab.identifier, visibility: .ownProcess
-        ) { completion in
-            completion(Data(tabID.uuidString.utf8), nil)
-            return nil
-        }
-        return provider
+    /// What a dragging session of `tabID` puts on the pasteboard.
+    static func pasteboardItem(for tabID: UUID) -> NSPasteboardItem {
+        let item = NSPasteboardItem()
+        item.setData(
+            Data(tabID.uuidString.utf8),
+            forType: NSPasteboard.PasteboardType(UTType.monttyTab.identifier)
+        )
+        return item
     }
 
     /// The tab id a dropped provider carries, or nil when it carries none.

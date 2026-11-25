@@ -65,8 +65,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// which tab it is to leave the insertion line out where a drop would do
     /// nothing. May outlive a cancelled drag, so a drop never trusts it.
     var draggingTabID: UUID?
-    /// Polls for the release of the tab drag in flight. See `tabDragBegan`.
-    var tabDragTimer: Timer?
 
     /// Combine subscriptions for surface property observation. Not private,
     /// for the same reason `surfaces` isn't.

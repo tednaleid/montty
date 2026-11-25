@@ -7,6 +7,8 @@ struct TabContextMenu: View {
     var repoColorOverrides: [String: PaneTint] = [:]
     let onRename: () -> Void
     let onControl: (ControlCommand) -> Void
+    /// nil when the tab cannot move to a window of its own.
+    var onMoveToNewWindow: (() -> Void)?
     let onClose: () -> Void
 
     /// The focused surface's directory, if any. Prefers Claude-reported cwd
@@ -128,6 +130,8 @@ struct TabContextMenu: View {
 
         Divider()
 
+        Button("Move Tab to New Window") { onMoveToNewWindow?() }
+            .disabled(onMoveToNewWindow == nil)
         Button("Close Tab") { onClose() }
     }
 }
