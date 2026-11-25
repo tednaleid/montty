@@ -8,6 +8,35 @@ struct JumpTarget: Equatable {
     let leafID: UUID
 }
 
+extension JumpTarget {
+    /// Every target jump mode labels in one window, in label priority order:
+    /// the active tab's surfaces, then the other tabs as given. The active
+    /// tab's focused surface is left out, since focus is already there. A
+    /// non-active tab whose minimap is hidden has nowhere to draw a label per
+    /// surface, so it contributes its focused surface alone.
+    static func collect(
+        tabs: [Tab], activeTabID: UUID?, showsMinimap: (Tab) -> Bool
+    ) -> [JumpTarget] {
+        var targets: [JumpTarget] = []
+        if let activeTab = tabs.first(where: { $0.id == activeTabID }) {
+            for leaf in SplitTree.allLeaves(node: activeTab.splitRoot)
+            where leaf.id != activeTab.focusedLeafID {
+                targets.append(JumpTarget(tabID: activeTab.id, leafID: leaf.id))
+            }
+        }
+        for tab in tabs where tab.id != activeTabID {
+            if showsMinimap(tab) {
+                for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
+                    targets.append(JumpTarget(tabID: tab.id, leafID: leaf.id))
+                }
+            } else if let leafID = tab.focusedOrFirstLeafID {
+                targets.append(JumpTarget(tabID: tab.id, leafID: leafID))
+            }
+        }
+        return targets
+    }
+}
+
 /// State for the surface jump overlay (ace-jump/easy-motion).
 struct JumpState: Equatable {
     /// Map from label string ("a", "ab") to jump target.

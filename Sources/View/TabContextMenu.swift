@@ -1,5 +1,5 @@
-// ABOUTME: Right-click menu for a tab row: rename, close, and the surface, tab, and repo
-// ABOUTME: color override submenus.
+// ABOUTME: Right-click menu for a tab row: rename, close, the surface, tab, and repo
+// ABOUTME: color override submenus, and the tab's minimap visibility.
 import SwiftUI
 
 struct TabContextMenu: View {
@@ -45,6 +45,35 @@ struct TabContextMenu: View {
         guard let override else { return fallback }
         guard !override.isGradient, case .named = override.primary else { return nil }
         return override.primary
+    }
+
+    /// A menu item that shows a checkmark. The menu closes on every pick, so
+    /// the binding only ever reports a tap.
+    private func checkable(
+        _ title: String, checked: Bool, pick: MinimapVisibility?
+    ) -> some View {
+        Toggle(title, isOn: Binding(
+            get: { checked },
+            set: { _ in onControl(.setTabMinimapVisibility(pick)) }
+        ))
+    }
+
+    @ViewBuilder
+    private var minimapMenu: some View {
+        let override = tab.minimapVisibility
+        Menu("Minimap") {
+            checkable("Use Default", checked: override == nil, pick: nil)
+            checkable("Always", checked: override == .always, pick: .always)
+            checkable("Never", checked: override == .never, pick: .never)
+            Divider()
+            ForEach(MinimapCondition.allCases, id: \.self) { condition in
+                checkable(
+                    condition.menuTitle,
+                    checked: override?.includes(condition) ?? false,
+                    pick: (override ?? .never).toggling(condition)
+                )
+            }
+        }
     }
 
     var body: some View {
@@ -94,6 +123,8 @@ struct TabContextMenu: View {
                 )
             }
         }
+
+        minimapMenu
 
         Divider()
 

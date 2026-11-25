@@ -19,6 +19,12 @@ struct SurfaceTintSettings: Equatable {
     let strength: Double
 }
 
+/// The app-wide minimap settings, bundled for the same reason.
+struct MinimapSettings: Equatable {
+    var visibility: MinimapVisibility = .always
+    var height: Double = MinimapHeight.default
+}
+
 enum SessionSnapshotBuilder {
     /// One snapshot per open window, in the shape `SessionStore` writes to
     /// disk.
@@ -27,11 +33,14 @@ enum SessionSnapshotBuilder {
         keyWindowID: UUID?,
         surfaceTint: SurfaceTintSettings,
         repoColorOverrides: [String: PaneTint],
-        environment: SessionEnvironment
+        environment: SessionEnvironment,
+        minimap: MinimapSettings = MinimapSettings()
     ) -> SessionSnapshot {
         SessionSnapshot(
             surfaceTintEnabled: surfaceTint.enabled,
             surfaceTintStrength: surfaceTint.strength,
+            minimapVisibility: minimap.visibility,
+            minimapHeight: minimap.height,
             windows: windows.map { window in
                 WindowSnapshot(
                     windowID: window.id,
@@ -73,7 +82,8 @@ enum SessionSnapshotBuilder {
             leafDirectories: dirs,
             leafColorOverrides: colors,
             leafResumeCommands: resumeCommands,
-            colorOverride: tab.colorOverride
+            colorOverride: tab.colorOverride,
+            minimapVisibility: tab.minimapVisibility
         )
     }
 }

@@ -7,6 +7,7 @@ struct MinimapView: View {
     let tabColor: Color
     var tabColorOverride: PaneTint?
     let isActiveTab: Bool
+    var height = MinimapHeight.default
     var jumpLabels: [UUID: String] = [:]
     var surfaceDirectories: [UUID: String] = [:]
     var repoColorOverrides: [String: PaneTint] = [:]
@@ -41,7 +42,7 @@ struct MinimapView: View {
                 }
             }
         }
-        .frame(height: 90)
+        .frame(height: height)
     }
 
     private func paneFrame(_ rect: MinimapRect, in size: CGSize) -> CGRect {

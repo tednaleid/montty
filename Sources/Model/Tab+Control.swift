@@ -20,11 +20,13 @@ extension Tab {
 
     /// Run a control command against this tab and write the result back onto it.
     /// Repo colors are app-wide rather than per-tab, so they travel in and out.
+    /// The app-wide minimap visibility travels in only, for `info` to report.
     @discardableResult
     func applyControl(
         _ command: ControlCommand,
         surfaceID: UUID,
         repoColorOverrides: inout [String: PaneTint],
+        minimapVisibility: MinimapVisibility = .always,
         gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:),
         now: Date = Date()
     ) -> ControlResult {
@@ -40,7 +42,9 @@ extension Tab {
             activityStates: activityStates,
             activityWaitingSince: activityWaitingSince,
             activityWaitingFromControl: activityWaitingFromControl,
-            surfaceResumeCommands: resumeCommands
+            surfaceResumeCommands: resumeCommands,
+            tabMinimapVisibility: self.minimapVisibility,
+            minimapVisibility: minimapVisibility
         )
         let result = ControlService.apply(
             command, target: target, to: &state,
@@ -53,6 +57,7 @@ extension Tab {
         activityWaitingSince = state.activityWaitingSince
         activityWaitingFromControl = state.activityWaitingFromControl
         resumeCommands = state.surfaceResumeCommands
+        self.minimapVisibility = state.tabMinimapVisibility
         repoColorOverrides = state.repoColorOverrides
         return result
     }

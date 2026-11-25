@@ -14,6 +14,8 @@ extension AppDelegate {
             surfaceTintEnabled = settings.surfaceTintEnabled
             surfaceTintStrength = settings.surfaceTintStrength
             repoColorOverrides = settings.repoColorOverrides
+            minimapVisibility = settings.minimap.visibility
+            minimapHeight = settings.minimap.height
         }
         for plan in outcome.createWindows {
             makeWindow(plan)

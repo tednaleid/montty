@@ -40,6 +40,8 @@ enum ControlArgs {
         case badColor(String)
         case tooManyStops
         case badTintStrength(String)
+        case badMinimapVisibility(String)
+        case badMinimapHeight(String)
         case unexpectedArgument(String)
         case unknownAgent(String)
     }
@@ -59,6 +61,9 @@ enum ControlArgs {
           montty hook <event>
           montty install-hooks claude      montty uninstall-hooks claude
           montty tint-strength <value>     montty tint-strength --reset
+          montty tab minimap <when>        montty tab minimap --reset
+          montty minimap <when>            montty minimap --reset
+          montty minimap-height <points>   montty minimap-height --reset
           montty info
           montty --version                 montty -v
           montty --help                    montty -h
@@ -69,6 +74,14 @@ enum ControlArgs {
 
         <value> for tint-strength is between \(SurfaceTintStrength.range.lowerBound) and \
         \(SurfaceTintStrength.range.upperBound); the default is \(SurfaceTintStrength.default).
+
+        <when> is always, never, or a comma-separated list of split (the tab
+        has more than one surface) and status (a surface has an activity
+        status). `montty minimap` sets every tab; `montty tab minimap`
+        overrides it for this tab.
+
+        <points> for minimap-height is between \(Int(MinimapHeight.range.lowerBound)) and \
+        \(Int(MinimapHeight.range.upperBound)); the default is \(Int(MinimapHeight.default)).
 
         palette names:
         \(colorNameList)
@@ -124,9 +137,14 @@ enum ControlArgs {
         }
         guard arguments.count >= 2 else { return .failure(.missingValue("property")) }
         if arguments.count > 3 { return .failure(.unexpectedArgument(arguments[3])) }
-        let property = arguments[1]
-        let value = arguments.count >= 3 ? arguments[2] : nil
+        return parseProperty(
+            arguments[1], of: scope, value: arguments.count >= 3 ? arguments[2] : nil
+        )
+    }
 
+    private static func parseProperty(
+        _ property: String, of scope: ControlScope, value: String?
+    ) -> Result<ParsedInvocation, UsageError> {
         switch (scope, property) {
         case (_, "color"):
             return parseColor(scope: scope, value: value)
@@ -136,6 +154,8 @@ enum ControlArgs {
             return parseStatus(value)
         case (.surface, "resume-command"):
             return parseResumeCommand(value)
+        case (.tab, "minimap"):
+            return parseTabMinimap(value)
         default:
             return .failure(.unknownProperty(property))
         }
@@ -160,12 +180,23 @@ enum ControlArgs {
         case "install-hooks", "uninstall-hooks":
             return parseHookSettings(first, arguments: arguments)
         case "tint-strength":
-            guard arguments.count >= 2 else { return .failure(.missingValue("tint-strength")) }
-            guard arguments.count <= 2 else { return .failure(.unexpectedArgument(arguments[2])) }
-            return parseTintStrength(arguments[1])
+            return appWide(arguments, parse: parseTintStrength)
+        case "minimap":
+            return appWide(arguments, parse: parseMinimap)
+        case "minimap-height":
+            return appWide(arguments, parse: parseMinimapHeight)
         default:
             return nil
         }
+    }
+
+    /// An app-wide setting takes exactly one value after its keyword.
+    private static func appWide(
+        _ arguments: [String], parse: (String) -> Result<ParsedInvocation, UsageError>
+    ) -> Result<ParsedInvocation, UsageError> {
+        guard arguments.count >= 2 else { return .failure(.missingValue(arguments[0])) }
+        guard arguments.count <= 2 else { return .failure(.unexpectedArgument(arguments[2])) }
+        return parse(arguments[1])
     }
 
     /// Hook entries are written by whichever montty installed them, which can
@@ -198,6 +229,33 @@ enum ControlArgs {
             return .failure(.badTintStrength(value))
         }
         return .success(.control(.setTintStrength(strength)))
+    }
+
+    private static func parseMinimap(_ value: String) -> Result<ParsedInvocation, UsageError> {
+        if value == "--reset" { return .success(.control(.setMinimapVisibility(.always))) }
+        guard let visibility = MinimapVisibility.parse(value) else {
+            return .failure(.badMinimapVisibility(value))
+        }
+        return .success(.control(.setMinimapVisibility(visibility)))
+    }
+
+    private static func parseTabMinimap(_ value: String?) -> Result<ParsedInvocation, UsageError> {
+        guard let value else { return .failure(.missingValue("minimap")) }
+        if value == "--reset" { return .success(.control(.setTabMinimapVisibility(nil))) }
+        guard let visibility = MinimapVisibility.parse(value) else {
+            return .failure(.badMinimapVisibility(value))
+        }
+        return .success(.control(.setTabMinimapVisibility(visibility)))
+    }
+
+    private static func parseMinimapHeight(_ value: String) -> Result<ParsedInvocation, UsageError> {
+        if value == "--reset" {
+            return .success(.control(.setMinimapHeight(MinimapHeight.default)))
+        }
+        guard let height = Double(value), MinimapHeight.range.contains(height) else {
+            return .failure(.badMinimapHeight(value))
+        }
+        return .success(.control(.setMinimapHeight(height)))
     }
 
     /// Every invocation has a fixed arity. An argument past it means the caller

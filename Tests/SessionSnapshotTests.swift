@@ -233,6 +233,63 @@ struct SessionSnapshotTests {
         #expect(decoded.windows[0].tabs[0].leafResumeCommands[leafID] == "claude --resume abc")
     }
 
+    private func sessionWithOneTab(minimapVisibility: MinimapVisibility?) -> SessionSnapshot {
+        let leafID = UUID()
+        return SessionSnapshot(
+            minimapVisibility: .when([.split, .status]),
+            minimapHeight: 60,
+            windows: [WindowSnapshot(
+                windowID: UUID(), frame: WindowFrame(x: 0, y: 0, width: 800, height: 600),
+                sidebarWidth: 200, activeTabID: nil,
+                tabs: [TabSnapshot(
+                    tabID: UUID(), name: "", position: 0, focusedLeafID: leafID,
+                    splitLayout: .leaf(SurfaceLeaf(id: leafID)), leafDirectories: [:],
+                    minimapVisibility: minimapVisibility
+                )]
+            )]
+        )
+    }
+
+    @Test func roundTripsMinimapSettings() throws {
+        let data = try JSONEncoder().encode(sessionWithOneTab(minimapVisibility: .never))
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: data)
+
+        #expect(decoded.minimapVisibility == .when([.split, .status]))
+        #expect(decoded.minimapHeight == 60)
+        #expect(decoded.windows[0].tabs[0].minimapVisibility == .never)
+    }
+
+    @Test func aTabWithoutAMinimapOverrideRoundTripsAsNone() throws {
+        let data = try JSONEncoder().encode(sessionWithOneTab(minimapVisibility: nil))
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: data)
+
+        #expect(decoded.windows[0].tabs[0].minimapVisibility == nil)
+    }
+
+    @Test func aSessionWithoutMinimapSettingsDecodesToTheDefaults() throws {
+        let decoded = try JSONDecoder().decode(
+            SessionSnapshot.self, from: Data(#"{"version":4,"windows":[]}"#.utf8)
+        )
+
+        #expect(decoded.minimapVisibility == .always)
+        #expect(decoded.minimapHeight == MinimapHeight.default)
+    }
+
+    @Test func minimapSettingsThisVersionCannotReadFallBackToTheDefaults() throws {
+        let json = #"{"version":4,"windows":[],"minimapVisibility":"zoomed","minimapHeight":9000}"#
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: Data(json.utf8))
+
+        #expect(decoded.minimapVisibility == .always)
+        #expect(decoded.minimapHeight == MinimapHeight.default)
+    }
+
+    @Test func aMinimapHeightThatIsNotANumberFallsBackToTheDefault() throws {
+        let json = #"{"version":4,"windows":[],"minimapHeight":"90"}"#
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: Data(json.utf8))
+
+        #expect(decoded.minimapHeight == MinimapHeight.default)
+    }
+
     @Test func decodesAV2TabMissingLeafColorOverrides() throws {
         let tabID = UUID()
         let leafID = UUID()

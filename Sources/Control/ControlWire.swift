@@ -110,6 +110,8 @@ struct ControlRequest: Equatable {
             return try tintStrengthCommand(value: value)
         case "resumeCommand":
             return try resumeCommand(value: value, isNull: isNull)
+        case "minimapVisibility", "tabMinimapVisibility", "minimapHeight":
+            return try minimapCommand(prop: prop, value: value, isNull: isNull)
         default:
             throw DecodeFailure.malformed
         }
@@ -162,6 +164,38 @@ struct ControlRequest: Equatable {
         return .setTintStrength(strength)
     }
 
+    private static func minimapCommand(
+        prop: String, value: Any?, isNull: Bool
+    ) throws -> ControlCommand {
+        if prop == "minimapHeight" {
+            guard let height = value as? Double, MinimapHeight.range.contains(height) else {
+                throw DecodeFailure.malformed
+            }
+            return .setMinimapHeight(height)
+        }
+        if isNull, prop == "tabMinimapVisibility" { return .setTabMinimapVisibility(nil) }
+        guard let text = value as? String,
+              let visibility = MinimapVisibility.parse(text) else {
+            throw DecodeFailure.malformed
+        }
+        return prop == "minimapVisibility"
+            ? .setMinimapVisibility(visibility) : .setTabMinimapVisibility(visibility)
+    }
+
+    /// The `prop` and `value` a minimap command travels under.
+    private var minimapFields: [String: Any] {
+        switch command {
+        case .setMinimapVisibility(let visibility):
+            return ["prop": "minimapVisibility", "value": visibility.text]
+        case .setTabMinimapVisibility(let visibility):
+            return ["prop": "tabMinimapVisibility", "value": visibility?.text ?? NSNull()]
+        case .setMinimapHeight(let height):
+            return ["prop": "minimapHeight", "value": height]
+        default:
+            return [:]
+        }
+    }
+
     func encoded() throws -> Data {
         var root: [String: Any] = ["v": ControlWire.version, "surface": surface]
         switch command {
@@ -197,6 +231,9 @@ struct ControlRequest: Equatable {
             root["cmd"] = "set"
             root["prop"] = "resumeCommand"
             root["value"] = command ?? NSNull()
+        case .setMinimapVisibility, .setTabMinimapVisibility, .setMinimapHeight:
+            root["cmd"] = "set"
+            root.merge(minimapFields) { _, field in field }
         }
         return try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
     }

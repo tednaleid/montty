@@ -38,6 +38,8 @@ final class Tab: Identifiable {
     var resumeCommands: [UUID: String] = [:]
     /// Tab-level color override. Beats repo/worktree colors for all surfaces in this tab.
     var colorOverride: PaneTint?
+    /// Tab-level minimap visibility. Beats the app-wide value when set.
+    var minimapVisibility: MinimapVisibility?
 
     var displayName: String {
         name.isEmpty ? autoName : name
@@ -108,6 +110,26 @@ final class Tab: Identifiable {
     /// All surface IDs in this tab's split tree.
     var allSurfaceIDs: [UUID] {
         SplitTree.allLeaves(node: splitRoot).map(\.surfaceID)
+    }
+
+    /// Whether this tab's row shows its minimap, given the app-wide visibility.
+    /// Only a status on a surface still in the split tree counts, which is the
+    /// set the minimap would draw.
+    func showsMinimap(global: MinimapVisibility) -> Bool {
+        let surfaceIDs = allSurfaceIDs
+        let hasStatus = surfaceIDs.contains { surfaceID in
+            surfaceToMonttyID[surfaceID].flatMap { activityStates[$0] } != nil
+        }
+        return (minimapVisibility ?? global).shows(
+            surfaceCount: surfaceIDs.count, hasStatus: hasStatus
+        )
+    }
+
+    /// The leaf a jump or a row click lands on: the focused one, or the first
+    /// in tree order when none is recorded.
+    var focusedOrFirstLeafID: UUID? {
+        let leaves = SplitTree.allLeaves(node: splitRoot)
+        return leaves.first { $0.id == focusedLeafID }?.id ?? leaves.first?.id
     }
 
     /// Point each leaf at the surface created for it. Leaves not named in

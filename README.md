@@ -12,6 +12,7 @@ A macOS terminal app built on [GhosttyKit](https://github.com/ghostty-org/ghostt
 - Session restore (tabs, splits, names, colors, focus state survive restart)
 - Claude Code sessions come back after a relaunch: each surface that was running one has `claude --resume <id>` typed at its prompt, ready to run (see [Claude Code hooks](#claude-code-hooks))
 - Click any minimap pane to jump directly to that surface
+- Minimaps that can be hidden to fit more tabs, everywhere or per tab, or shown only for tabs that are split or have an activity status, at a height you choose (see [docs/montty-cli.md](docs/montty-cli.md#minimap))
 - Git branch and directory info in tab sidebar
 - Claude Code status indicators (working, waiting, idle) on minimap panes (see [Claude Code hooks](#claude-code-hooks))
 - Standard Ghostty theming from `~/.config/ghostty/config`

@@ -116,6 +116,7 @@ extension DebugServer {
                         entry["window_id"] = window.id.uuidString
                         entry["window_is_key"] = window.id == appDelegate.registry.keyWindowID
                         entry["window_frame"] = windowFrame
+                        entry["minimap"] = minimapEntry(tab: tab, appDelegate: appDelegate)
                         addSurfaceViewData(leaf: leaf, appDelegate: appDelegate, entry: &entry)
                         results.append(entry)
                     }
@@ -123,6 +124,18 @@ extension DebugServer {
             }
             sendJSONArray(results, connection: connection)
         }
+    }
+
+    /// The tab's minimap visibility: its own override, what it resolves to
+    /// against the app-wide value, and whether its row is showing a minimap.
+    private static func minimapEntry(tab: Tab, appDelegate: AppDelegate) -> [String: Any] {
+        let global = appDelegate.minimapVisibility
+        return [
+            "tab": tab.minimapVisibility?.text ?? NSNull(),
+            "effective": (tab.minimapVisibility ?? global).text,
+            "showing": tab.showsMinimap(global: global),
+            "height": appDelegate.minimapHeight
+        ]
     }
 
     private static func surfaceEntry(

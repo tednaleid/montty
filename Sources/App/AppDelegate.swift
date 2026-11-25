@@ -25,6 +25,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     @Published var surfaceTintEnabled = true
     /// Opacity of the surface tint overlay.
     @Published var surfaceTintStrength = SurfaceTintStrength.default
+    /// Whether tab rows show their minimap, unless a tab overrides it.
+    @Published var minimapVisibility = MinimapVisibility.always
+    /// Height in points of a shown minimap.
+    @Published var minimapHeight = MinimapHeight.default
     /// Per-repo/worktree color overrides, keyed by repo identity string.
     @Published var repoColorOverrides: [String: PaneTint] = [:]
     /// ANSI palette colors from the Ghostty config (14 colors, reordered).
@@ -336,25 +340,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
         // window's leaves get labeled -- labeling every window's leaves would
         // make the label set larger and its labels longer for no gain.
         guard let tabStore = registry.keyWindow?.tabStore else { return }
-        // Collect all surfaces: active tab first, then other tabs by position
-        var targets: [JumpTarget] = []
-        let activeID = tabStore.activeTabID
-
-        // Active tab surfaces first (skip the currently focused surface)
-        if let activeTab = tabStore.activeTab {
-            for leaf in SplitTree.allLeaves(node: activeTab.splitRoot)
-                where leaf.id != activeTab.focusedLeafID {
-                targets.append(JumpTarget(tabID: activeTab.id, leafID: leaf.id))
-            }
-        }
-
-        // Other tabs by position
-        for tab in tabStore.tabs where tab.id != activeID {
-            for leaf in SplitTree.allLeaves(node: tab.splitRoot) {
-                targets.append(JumpTarget(tabID: tab.id, leafID: leaf.id))
-            }
-        }
-
+        let targets = JumpTarget.collect(
+            tabs: tabStore.tabs,
+            activeTabID: tabStore.activeTabID,
+            showsMinimap: { $0.showsMinimap(global: self.minimapVisibility) }
+        )
         guard !targets.isEmpty else { return }
 
         jumpState = JumpLabels.assign(targets: targets)
@@ -466,16 +456,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// CLI, the context menu, and the Claude hooks -- comes through here.
     @discardableResult
     func applyControl(_ command: ControlCommand, to tab: Tab, surfaceID: UUID) -> ControlResult {
-        // Tint strength is app-wide, not part of any tab's state, so it never
-        // reaches Tab.applyControl -- the caller only needed a valid surface
+        // App-wide settings are not part of any tab's state, so they never
+        // reach Tab.applyControl -- the caller only needed a valid surface
         // to prove the command came from inside a running montty.
-        if case .setTintStrength(let strength) = command {
+        switch command {
+        case .setTintStrength(let strength):
             surfaceTintStrength = strength
             return .applied
+        case .setMinimapVisibility(let visibility):
+            minimapVisibility = visibility
+            return .applied
+        case .setMinimapHeight(let height):
+            minimapHeight = height
+            return .applied
+        default:
+            return tab.applyControl(
+                command, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides,
+                minimapVisibility: minimapVisibility
+            )
         }
-        return tab.applyControl(
-            command, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides
-        )
     }
 
     // MARK: - Menu actions

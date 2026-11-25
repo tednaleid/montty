@@ -27,6 +27,10 @@ struct ControlState: Equatable {
     var activityWaitingSince: [String: Date]
     var activityWaitingFromControl: [String: Date]
     var surfaceResumeCommands: [UUID: String]
+    var tabMinimapVisibility: MinimapVisibility?
+    /// The app-wide value, read to report what the tab resolves to. No command
+    /// that reaches a tab changes it.
+    var minimapVisibility: MinimapVisibility = .always
 }
 
 enum ControlService {
@@ -62,10 +66,14 @@ enum ControlService {
             state.surfaceResumeCommands[target.surfaceID] = command
             return .applied
 
-        case .setTintStrength:
+        case .setTabMinimapVisibility(let visibility):
+            state.tabMinimapVisibility = visibility
+            return .applied
+
+        case .setTintStrength, .setMinimapVisibility, .setMinimapHeight:
             // App-wide, not part of any tab's ControlState. AppDelegate.applyControl
-            // handles it before a command ever reaches here; this case exists only
-            // so this switch stays exhaustive over ControlCommand.
+            // handles these before a command ever reaches here; this case exists
+            // only so this switch stays exhaustive over ControlCommand.
             return .applied
 
         case .info:
@@ -177,7 +185,11 @@ enum ControlService {
                 )
             },
             status: state.activityStates[target.monttyID].map(\.wireName),
-            resumeCommand: state.surfaceResumeCommands[target.surfaceID]
+            resumeCommand: state.surfaceResumeCommands[target.surfaceID],
+            minimap: ControlInfo.Minimap(
+                tab: state.tabMinimapVisibility?.text,
+                effective: (state.tabMinimapVisibility ?? state.minimapVisibility).text
+            )
         )
     }
 

@@ -180,6 +180,9 @@ enum MenuBuilder {
         addItem(to: menu, title: "Toggle Surface Tint", key: "", mods: []) {
             ctx.appDelegate.surfaceTintEnabled.toggle()
         }
+        let minimapsItem = NSMenuItem(title: "Minimaps", action: nil, keyEquivalent: "")
+        minimapsItem.submenu = MinimapsMenu(appDelegate: ctx.appDelegate)
+        menu.addItem(minimapsItem)
 
         let item = NSMenuItem()
         item.submenu = menu
@@ -298,6 +301,54 @@ enum MenuBuilder {
 
         default:
             return nil
+        }
+    }
+}
+
+/// The app-wide minimap visibility: Always, Never, and one checkable item per
+/// condition. Checkmarks are set each time the menu opens.
+private class MinimapsMenu: NSMenu, NSMenuDelegate {
+    private weak var appDelegate: AppDelegate?
+    private var checks: [(item: NSMenuItem, isChecked: (MinimapVisibility) -> Bool)] = []
+
+    init(appDelegate: AppDelegate) {
+        self.appDelegate = appDelegate
+        super.init(title: "Minimaps")
+        delegate = self
+
+        add("Always", isChecked: { $0 == .always }, pick: { _ in .always })
+        add("Never", isChecked: { $0 == .never }, pick: { _ in .never })
+        addItem(.separator())
+        for condition in MinimapCondition.allCases {
+            add(
+                condition.menuTitle,
+                isChecked: { $0.includes(condition) },
+                pick: { $0.toggling(condition) }
+            )
+        }
+    }
+
+    required init(coder: NSCoder) {
+        fatalError("init(coder:) not implemented")
+    }
+
+    private func add(
+        _ title: String,
+        isChecked: @escaping (MinimapVisibility) -> Bool,
+        pick: @escaping (MinimapVisibility) -> MinimapVisibility
+    ) {
+        let item = ClosureMenuItem(title: title, keyEquivalent: "") { [weak self] in
+            guard let appDelegate = self?.appDelegate else { return }
+            appDelegate.minimapVisibility = pick(appDelegate.minimapVisibility)
+        }
+        addItem(item)
+        checks.append((item, isChecked))
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard let visibility = appDelegate?.minimapVisibility else { return }
+        for check in checks {
+            check.item.state = check.isChecked(visibility) ? .on : .off
         }
     }
 }

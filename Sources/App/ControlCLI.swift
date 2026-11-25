@@ -82,12 +82,27 @@ enum ControlCLI {
         case .missingValue(let value): return "\(value) needs a value"
         case .badColor(let value): return "not a color: \"\(value)\" (use a palette name or #rrggbb)"
         case .tooManyStops: return "at most \(PaneTint.maxStops) comma-separated stops"
-        case .badTintStrength(let value):
-            return "not a number between \(SurfaceTintStrength.range.lowerBound) and "
-                + "\(SurfaceTintStrength.range.upperBound): \"\(value)\""
+        case .badTintStrength, .badMinimapVisibility, .badMinimapHeight:
+            return badSettingDetail(error)
         case .unexpectedArgument(let value):
             return "unexpected argument \"\(value)\"; quote a value that contains spaces"
         case .unknownAgent(let value): return "unknown agent \"\(value)\" (supported: claude)"
+        }
+    }
+
+    /// The detail for a value an app-wide or minimap setting cannot take.
+    private static func badSettingDetail(_ error: ControlArgs.UsageError) -> String {
+        switch error {
+        case .badTintStrength(let value):
+            return "not a number between \(SurfaceTintStrength.range.lowerBound) and "
+                + "\(SurfaceTintStrength.range.upperBound): \"\(value)\""
+        case .badMinimapVisibility(let value):
+            return "not always, never, or a list of split and status: \"\(value)\""
+        case .badMinimapHeight(let value):
+            return "not a number between \(Int(MinimapHeight.range.lowerBound)) and "
+                + "\(Int(MinimapHeight.range.upperBound)): \"\(value)\""
+        default:
+            return "bad value"
         }
     }
 

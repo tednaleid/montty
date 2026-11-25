@@ -27,6 +27,41 @@ import Testing
         ))
     }
 
+    @Test func parsesTheAppWideMinimapVisibility() {
+        #expect(command(["minimap", "always"]) == .setMinimapVisibility(.always))
+        #expect(command(["minimap", "never"]) == .setMinimapVisibility(.never))
+        #expect(command(["minimap", "status,split"])
+            == .setMinimapVisibility(.when([.split, .status])))
+        #expect(command(["minimap", "--reset"]) == .setMinimapVisibility(.always))
+    }
+
+    @Test func parsesTheTabMinimapVisibility() {
+        #expect(command(["tab", "minimap", "split"])
+            == .setTabMinimapVisibility(.when([.split])))
+        #expect(command(["tab", "minimap", "--reset"]) == .setTabMinimapVisibility(nil))
+    }
+
+    @Test func rejectsABadMinimapVisibility() {
+        #expect(failure(["minimap", "sometimes"]) == .badMinimapVisibility("sometimes"))
+        #expect(failure(["minimap", "always,split"]) == .badMinimapVisibility("always,split"))
+        #expect(failure(["tab", "minimap", ""]) == .badMinimapVisibility(""))
+        #expect(failure(["minimap"]) == .missingValue("minimap"))
+        #expect(failure(["tab", "minimap"]) == .missingValue("minimap"))
+        #expect(failure(["minimap", "split", "status"]) == .unexpectedArgument("status"))
+        #expect(failure(["surface", "minimap", "never"]) == .unknownProperty("minimap"))
+    }
+
+    @Test func parsesTheMinimapHeightWithinItsRange() {
+        #expect(command(["minimap-height", "40"]) == .setMinimapHeight(40))
+        #expect(command(["minimap-height", "200"]) == .setMinimapHeight(200))
+        #expect(command(["minimap-height", "--reset"])
+            == .setMinimapHeight(MinimapHeight.default))
+        #expect(failure(["minimap-height", "39"]) == .badMinimapHeight("39"))
+        #expect(failure(["minimap-height", "201"]) == .badMinimapHeight("201"))
+        #expect(failure(["minimap-height", "tall"]) == .badMinimapHeight("tall"))
+        #expect(failure(["minimap-height"]) == .missingValue("minimap-height"))
+    }
+
     @Test func parsesTwoAndThreeStopGradients() {
         #expect(command(["surface", "color", "neutralBright,green"]) == .setColor(
             scope: .surface,

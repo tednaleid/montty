@@ -306,6 +306,41 @@ import Testing
         #expect(info.effective?.stops == ["magenta"])
     }
 
+    private func minimapInfo(_ subject: ControlState) -> ControlInfo.Minimap? {
+        var subject = subject
+        guard case .read(let info) = ControlService.apply(
+            .info, target: ref(), to: &subject, gitInfoProvider: git
+        ) else { return nil }
+        return info.minimap
+    }
+
+    @Test func setsAndClearsTheTabMinimapVisibility() {
+        var subject = state()
+        let set = ControlService.apply(
+            .setTabMinimapVisibility(.never), target: ref(), to: &subject, gitInfoProvider: git
+        )
+        #expect(set == .applied)
+        #expect(subject.tabMinimapVisibility == .never)
+
+        _ = ControlService.apply(
+            .setTabMinimapVisibility(nil), target: ref(), to: &subject, gitInfoProvider: git
+        )
+        #expect(subject.tabMinimapVisibility == nil)
+    }
+
+    @Test func infoReportsTheAppWideMinimapVisibilityWhenTheTabHasNoOverride() {
+        var subject = state()
+        subject.minimapVisibility = .when([.split])
+        #expect(minimapInfo(subject) == ControlInfo.Minimap(tab: nil, effective: "split"))
+    }
+
+    @Test func infoReportsTheTabMinimapOverrideAsEffective() {
+        var subject = state()
+        subject.minimapVisibility = .when([.split])
+        subject.tabMinimapVisibility = .never
+        #expect(minimapInfo(subject) == ControlInfo.Minimap(tab: "never", effective: "never"))
+    }
+
     @Test func infoReportsTheOverriddenNameWhenOneIsSet() {
         var subject = state()
         subject.tabName = "MR !123"

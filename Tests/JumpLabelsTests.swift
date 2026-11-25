@@ -153,3 +153,81 @@ import Testing
         #expect(targetAC == nil)
     }
 }
+
+@Suite struct JumpTargetCollectionTests {
+    /// A tab with `surfaces` surfaces, focused on the first in tree order.
+    private func tab(surfaces: Int) -> Tab {
+        let tab = Tab()
+        for _ in 1..<surfaces {
+            let leaves = SplitTree.allLeaves(node: tab.splitRoot)
+            tab.splitRoot = SplitTree.split(
+                node: tab.splitRoot, leafID: leaves[leaves.count - 1].id, direction: .right
+            )
+        }
+        return tab
+    }
+
+    private func leafIDs(_ tab: Tab) -> [UUID] {
+        SplitTree.allLeaves(node: tab.splitRoot).map(\.id)
+    }
+
+    @Test func aTabShowingItsMinimapYieldsEverySurface() {
+        let active = tab(surfaces: 1)
+        let other = tab(surfaces: 3)
+
+        let targets = JumpTarget.collect(
+            tabs: [active, other], activeTabID: active.id, showsMinimap: { _ in true }
+        )
+
+        #expect(targets == leafIDs(other).map { JumpTarget(tabID: other.id, leafID: $0) })
+    }
+
+    @Test func aTabHidingItsMinimapYieldsOnlyItsFocusedSurface() {
+        let active = tab(surfaces: 1)
+        let hidden = tab(surfaces: 3)
+        hidden.focusedLeafID = leafIDs(hidden)[1]
+
+        let targets = JumpTarget.collect(
+            tabs: [active, hidden], activeTabID: active.id, showsMinimap: { _ in false }
+        )
+
+        #expect(targets == [JumpTarget(tabID: hidden.id, leafID: leafIDs(hidden)[1])])
+    }
+
+    @Test func aHiddenTabWithNoRecordedFocusYieldsItsFirstSurface() {
+        let active = tab(surfaces: 1)
+        let hidden = tab(surfaces: 3)
+        hidden.focusedLeafID = nil
+
+        let targets = JumpTarget.collect(
+            tabs: [active, hidden], activeTabID: active.id, showsMinimap: { _ in false }
+        )
+
+        #expect(targets == [JumpTarget(tabID: hidden.id, leafID: leafIDs(hidden)[0])])
+    }
+
+    @Test func theActiveTabYieldsItsUnfocusedSurfacesEvenWithItsMinimapHidden() {
+        let active = tab(surfaces: 3)
+
+        let targets = JumpTarget.collect(
+            tabs: [active], activeTabID: active.id, showsMinimap: { _ in false }
+        )
+
+        #expect(targets == leafIDs(active).dropFirst().map {
+            JumpTarget(tabID: active.id, leafID: $0)
+        })
+    }
+
+    @Test func theActiveTabComesFirstThenTheOthersInOrder() {
+        let before = tab(surfaces: 1)
+        let active = tab(surfaces: 2)
+        let after = tab(surfaces: 2)
+
+        let targets = JumpTarget.collect(
+            tabs: [before, active, after], activeTabID: active.id,
+            showsMinimap: { $0.id != after.id }
+        )
+
+        #expect(targets.map(\.tabID) == [active.id, before.id, after.id])
+    }
+}

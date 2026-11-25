@@ -193,7 +193,10 @@ final class WindowUseCases {
             outcome.applySettings = SettingsUpdate(
                 surfaceTintEnabled: snapshot.surfaceTintEnabled,
                 surfaceTintStrength: snapshot.surfaceTintStrength,
-                repoColorOverrides: snapshot.repoColorOverrides
+                repoColorOverrides: snapshot.repoColorOverrides,
+                minimap: MinimapSettings(
+                    visibility: snapshot.minimapVisibility, height: snapshot.minimapHeight
+                )
             )
         }
 
@@ -234,6 +237,7 @@ final class WindowUseCases {
         tab.splitRoot = savedTab.splitLayout
         tab.focusedLeafID = savedTab.focusedLeafID
         tab.colorOverride = savedTab.colorOverride
+        tab.minimapVisibility = savedTab.minimapVisibility
         window.tabStore.append(tab: tab)
 
         return SplitTree.allLeaves(node: tab.splitRoot).map { leaf in
@@ -260,7 +264,8 @@ final class WindowUseCases {
         surfaceTintStrength: Double,
         repoColorOverrides: [String: PaneTint],
         frames: [UUID: WindowFrame],
-        directories: [UUID: String]
+        directories: [UUID: String],
+        minimap: MinimapSettings = MinimapSettings()
     ) -> SessionSnapshot {
         var snapshot = SessionSnapshotBuilder.snapshot(
             windows: registry.windows,
@@ -272,7 +277,8 @@ final class WindowUseCases {
             environment: SessionEnvironment(
                 frame: { frames[$0.id] ?? $0.frame },
                 directory: { directories[$0] }
-            )
+            ),
+            minimap: minimap
         )
         snapshot.lastClosedWindow = lastClosedWindow
         return snapshot

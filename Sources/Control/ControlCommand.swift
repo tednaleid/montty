@@ -32,6 +32,13 @@ enum ControlCommand: Equatable {
     /// What the calling surface types at its prompt on the next restore. nil
     /// clears it.
     case setResumeCommand(String?)
+    /// App-wide, like the tint strength.
+    case setMinimapVisibility(MinimapVisibility)
+    /// The calling surface's tab. nil clears the override, so the tab follows
+    /// the app-wide value again.
+    case setTabMinimapVisibility(MinimapVisibility?)
+    /// App-wide, in points.
+    case setMinimapHeight(Double)
     case info
 }
 
@@ -69,6 +76,13 @@ struct ControlInfo: Codable, Equatable {
         let repoPath: String
     }
 
+    /// Both in the CLI text form. `tab` is the tab's override, absent when it
+    /// follows the app-wide value.
+    struct Minimap: Codable, Equatable {
+        let tab: String?
+        let effective: String
+    }
+
     let surfaceID: String
     let leafID: String
     let tabID: String
@@ -79,6 +93,7 @@ struct ControlInfo: Codable, Equatable {
     let git: Git?
     let status: String?
     let resumeCommand: String?
+    let minimap: Minimap
 }
 
 enum ControlResult: Equatable {

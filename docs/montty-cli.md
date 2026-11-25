@@ -34,6 +34,9 @@ montty repo    color <spec>          montty repo    color --reset
 montty tab     name  <text>          montty tab     name  --reset
 montty surface status <working|waiting|idle|clear>
 montty surface resume-command <cmd>  montty surface resume-command --reset
+montty tab     minimap <when>        montty tab     minimap --reset
+montty minimap <when>                montty minimap --reset
+montty minimap-height <points>       montty minimap-height --reset
 montty info
 montty hook <event>
 montty install-hooks claude          montty uninstall-hooks claude
@@ -85,7 +88,7 @@ montty info | jq -r .git.branch
 | 1 | montty rejected the request (unknown surface, not in a repo, tab name over 256 characters, invalid resume command, a settings file that is not a JSON object) |
 | 2 | not running inside a montty pane |
 | 3 | montty is not reachable: not running, or busy and refusing connections |
-| 64 | usage error: unknown verb or property, bad color spec, extra arguments, request over 1 MiB |
+| 64 | usage error: unknown verb or property, bad color spec, bad minimap value or height, extra arguments, request over 1 MiB |
 
 ## Claude Code hooks
 
@@ -162,6 +165,43 @@ montty clears it.
 Every `waiting`, however it was set, returns to `idle` after 60 seconds so a
 pane cannot stay marked forever. `working` and `idle` persist until something
 changes them.
+
+## Minimap
+
+A tab row shows its minimap according to a minimap visibility, `<when>`:
+
+| value | the row shows its minimap |
+|---|---|
+| `always` | always (the default) |
+| `never` | never |
+| `split` | while the tab has more than one surface |
+| `status` | while any surface in the tab has an activity status, `idle` included |
+| `split,status` | while either holds |
+
+`montty minimap` sets it for every tab in every window, and `--reset` returns
+it to `always`. `montty tab minimap` overrides it for the tab the command runs
+in, and `--reset` removes the override so the tab follows the app-wide value
+again. The same choices are in View > Minimaps and in the tab's right-click
+menu.
+
+```bash
+montty minimap split,status
+montty tab minimap never
+montty info | jq .minimap
+```
+
+`montty info` reports `minimap.effective`, what the tab resolves to, and
+`minimap.tab`, the tab's override, which is absent when it has none.
+
+A row with a hidden minimap shows no activity status and has no rectangle to
+click for a specific surface. Clicking the row selects the tab and focuses the
+surface that last had focus there. In jump mode, a tab that is not the active
+one and has a hidden minimap gets a single label, drawn at the right edge of
+its row, that jumps to that same surface.
+
+`montty minimap-height` sets how tall a shown minimap is, in points, for every
+tab: 40 to 200, default 90. The activity indicator and jump labels stay the
+same size at every height.
 
 ## Resume command
 

@@ -417,6 +417,43 @@ import Testing
         #expect(Set(snapshot.windows.map(\.windowID)) == Set(windows.map(\.id)))
     }
 
+    @Test func aSnapshotCarriesTheMinimapSettingsAndEachTabsOverride() {
+        let (useCases, windows) = makeUseCases(windowSurfaceCounts: [1])
+        windows[0].tabStore.tabs[0].minimapVisibility = .never
+
+        let snapshot = useCases.snapshot(
+            surfaceTintEnabled: true,
+            surfaceTintStrength: SurfaceTintStrength.default,
+            repoColorOverrides: [:],
+            frames: [:],
+            directories: [:],
+            minimap: MinimapSettings(visibility: .when([.status]), height: 120)
+        )
+
+        #expect(snapshot.minimapVisibility == .when([.status]))
+        #expect(snapshot.minimapHeight == 120)
+        #expect(snapshot.windows[0].tabs[0].minimapVisibility == .never)
+    }
+
+    @Test func restoringRecoversTheMinimapSettingsAndEachTabsOverride() {
+        let (source, windows) = makeUseCases(windowSurfaceCounts: [1])
+        windows[0].tabStore.tabs[0].minimapVisibility = .when([.split])
+        let saved = source.snapshot(
+            surfaceTintEnabled: true,
+            surfaceTintStrength: SurfaceTintStrength.default,
+            repoColorOverrides: [:],
+            frames: [:],
+            directories: [:],
+            minimap: MinimapSettings(visibility: .never, height: 60)
+        )
+
+        let useCases = WindowUseCases()
+        let outcome = useCases.restore(saved)
+
+        #expect(outcome.applySettings?.minimap == MinimapSettings(visibility: .never, height: 60))
+        #expect(useCases.registry.windows[0].tabStore.tabs[0].minimapVisibility == .when([.split]))
+    }
+
     /// The two values only the shell can answer -- a window's live on-screen
     /// frame and a surface's live working directory -- must reach the
     /// snapshot through the closures `snapshot` builds. A window the shell

@@ -42,6 +42,39 @@ import Testing
         #expect(tab.surfaceColorOverrides[surfaceID] == nil)
     }
 
+    @Test func minimapVisibilityWritesBackOntoTheTab() {
+        let (tab, surfaceID) = tab()
+        var repoColorOverrides: [String: PaneTint] = [:]
+
+        tab.applyControl(
+            .setTabMinimapVisibility(.when([.status])),
+            surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides
+        )
+        #expect(tab.minimapVisibility == .when([.status]))
+
+        tab.applyControl(
+            .setTabMinimapVisibility(nil),
+            surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides
+        )
+        #expect(tab.minimapVisibility == nil)
+    }
+
+    @Test func infoResolvesAgainstTheAppWideMinimapVisibilityPassedIn() {
+        let (tab, surfaceID) = tab()
+        var repoColorOverrides: [String: PaneTint] = [:]
+
+        let result = tab.applyControl(
+            .info, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides,
+            minimapVisibility: .never, gitInfoProvider: { _ in nil }
+        )
+
+        guard case .read(let info) = result else {
+            Issue.record("expected a read result")
+            return
+        }
+        #expect(info.minimap == ControlInfo.Minimap(tab: nil, effective: "never"))
+    }
+
     @Test func nameWritesBackOntoTheTab() {
         let (tab, surfaceID) = tab()
         var repoColorOverrides: [String: PaneTint] = [:]

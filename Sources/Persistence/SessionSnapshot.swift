@@ -9,6 +9,8 @@ struct SessionSnapshot: Codable {
     var version: Int = Self.currentVersion
     var surfaceTintEnabled: Bool = true
     var surfaceTintStrength: Double = SurfaceTintStrength.default
+    var minimapVisibility: MinimapVisibility = .always
+    var minimapHeight: Double = MinimapHeight.default
     var windows: [WindowSnapshot] = []
     var keyWindowID: UUID?
     var repoColorOverrides: [String: PaneTint] = [:]
@@ -19,6 +21,8 @@ struct SessionSnapshot: Codable {
     init(
         surfaceTintEnabled: Bool = true,
         surfaceTintStrength: Double = SurfaceTintStrength.default,
+        minimapVisibility: MinimapVisibility = .always,
+        minimapHeight: Double = MinimapHeight.default,
         windows: [WindowSnapshot] = [],
         keyWindowID: UUID? = nil,
         repoColorOverrides: [String: PaneTint] = [:],
@@ -26,6 +30,8 @@ struct SessionSnapshot: Codable {
     ) {
         self.surfaceTintEnabled = surfaceTintEnabled
         self.surfaceTintStrength = surfaceTintStrength
+        self.minimapVisibility = minimapVisibility
+        self.minimapHeight = minimapHeight
         self.windows = windows
         self.keyWindowID = keyWindowID
         self.repoColorOverrides = repoColorOverrides
@@ -48,6 +54,13 @@ struct SessionSnapshot: Codable {
             Bool.self, forKey: .surfaceTintEnabled) ?? true
         surfaceTintStrength = try container.decodeIfPresent(
             Double.self, forKey: .surfaceTintStrength) ?? SurfaceTintStrength.default
+        // A value this montty cannot read, such as a condition a later one
+        // added, falls back to the default rather than failing the session.
+        minimapVisibility = (try? container.decodeIfPresent(
+            MinimapVisibility.self, forKey: .minimapVisibility)) ?? .always
+        let height = (try? container.decodeIfPresent(Double.self, forKey: .minimapHeight)) ?? nil
+        minimapHeight = height.flatMap { MinimapHeight.range.contains($0) ? $0 : nil }
+            ?? MinimapHeight.default
         repoColorOverrides = try container.decodeIfPresent(
             [String: PaneTint].self, forKey: .repoColorOverrides) ?? [:]
         lastClosedWindow = try container.decodeIfPresent(
@@ -154,6 +167,8 @@ struct TabSnapshot: Codable {
     var leafResumeCommands: [UUID: String] = [:]
     /// Tab-level color override, if set.
     var colorOverride: PaneTint?
+    /// Tab-level minimap visibility override, if set.
+    var minimapVisibility: MinimapVisibility?
 }
 
 extension TabSnapshot {
@@ -178,5 +193,7 @@ extension TabSnapshot {
             [UUID: String].self, forKey: .leafResumeCommands
         ) ?? [:]
         colorOverride = try container.decodeIfPresent(PaneTint.self, forKey: .colorOverride)
+        minimapVisibility = (try? container.decodeIfPresent(
+            MinimapVisibility.self, forKey: .minimapVisibility)) ?? nil
     }
 }

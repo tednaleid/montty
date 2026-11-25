@@ -7,6 +7,8 @@ struct TabRow: View {
     let isActive: Bool
     var repoColorOverrides: [String: PaneTint] = [:]
     @Binding var editingTabID: UUID?
+    var showsMinimap = true
+    var minimapHeight = MinimapHeight.default
     var jumpLabels: [UUID: String] = [:]
     var onPaneTap: ((UUID) -> Void)?
 
@@ -79,25 +81,33 @@ struct TabRow: View {
                         .truncationMode(.middle)
                 }
 
-                // Minimap (always shown)
-                MinimapView(
-                    minimap: info.minimap,
-                    tabColor: tabColor,
-                    tabColorOverride: tab.colorOverride,
-                    isActiveTab: isActive,
-                    jumpLabels: jumpLabels,
-                    surfaceDirectories: tab.effectiveSurfaceDirectories,
-                    repoColorOverrides: repoColorOverrides,
-                    surfaceColorOverrides: tab.surfaceColorOverrides,
-                    onPaneTap: onPaneTap
-                )
-                .padding(.top, 2)
+                if showsMinimap {
+                    MinimapView(
+                        minimap: info.minimap,
+                        tabColor: tabColor,
+                        tabColorOverride: tab.colorOverride,
+                        isActiveTab: isActive,
+                        height: minimapHeight,
+                        jumpLabels: jumpLabels,
+                        surfaceDirectories: tab.effectiveSurfaceDirectories,
+                        repoColorOverrides: repoColorOverrides,
+                        surfaceColorOverrides: tab.surfaceColorOverrides,
+                        onPaneTap: onPaneTap
+                    )
+                    .padding(.top, 2)
+                }
             }
             .padding(.horizontal, 8)
             .padding(.top, 6)
             .padding(.bottom, 10)
 
             Spacer(minLength: 0)
+        }
+        .overlay(alignment: .trailing) {
+            if let label = hiddenMinimapJumpLabel {
+                JumpBadge(label: label, color: tabColor, large: false)
+                    .padding(.trailing, 8)
+            }
         }
         .opacity(isActive ? 1.0 : 0.9)
         .background(
@@ -117,6 +127,15 @@ struct TabRow: View {
                 .padding(.trailing, -24)
             }
         }
+    }
+
+    /// The jump label to draw over the row itself, which a tab with a hidden
+    /// minimap needs because it has no minimap rectangle to carry one. The
+    /// active tab's labels are on its surfaces, so its row draws none.
+    private var hiddenMinimapJumpLabel: String? {
+        guard !showsMinimap, !isActive else { return nil }
+        return SplitTree.allLeaves(node: tab.splitRoot)
+            .lazy.compactMap { jumpLabels[$0.id] }.first
     }
 
     private var paneTint: PaneTint {

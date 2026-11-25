@@ -201,13 +201,39 @@ import Testing
         #expect(parsed?["error"] as? String == "unknown surface")
     }
 
+    @Test(arguments: [
+        ControlCommand.setMinimapVisibility(.when([.split, .status])),
+        .setMinimapVisibility(.never),
+        .setTabMinimapVisibility(.always),
+        .setTabMinimapVisibility(nil),
+        .setMinimapHeight(120)
+    ])
+    func minimapCommandsRoundTrip(command: ControlCommand) throws {
+        let request = ControlRequest(surface: "M1", command: command)
+        #expect(try ControlRequest.decode(try request.encoded()) == request)
+    }
+
+    @Test(arguments: [
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"minimapVisibility","value":"sometimes"}"#,
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"minimapVisibility","value":null}"#,
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"tabMinimapVisibility","value":7}"#,
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"minimapHeight","value":500}"#,
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"minimapHeight","value":"tall"}"#
+    ])
+    func aBadMinimapValueIsMalformed(payload: String) {
+        #expect(throws: ControlRequest.DecodeFailure.malformed) {
+            try ControlRequest.decode(Data(payload.utf8))
+        }
+    }
+
     @Test func infoResponseCarriesOkAlongsideSnakeCasedFields() throws {
         let info = ControlInfo(
             surfaceID: "M1", leafID: "L1", tabID: "T1",
             tabName: "montty/", tabNameIsOverride: false,
             scopes: ControlInfo.Scopes(surface: nil, tab: nil, repo: nil),
             effective: TintPayload(PaneTint(stops: [.named(.green)])),
-            git: nil, status: nil, resumeCommand: "claude --resume abc"
+            git: nil, status: nil, resumeCommand: "claude --resume abc",
+            minimap: ControlInfo.Minimap(tab: "split", effective: "split")
         )
         let data = try ControlResponse.info(info).encoded()
         let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -215,6 +241,7 @@ import Testing
         #expect(parsed?["surface_id"] as? String == "M1")
         #expect(parsed?["tab_name_is_override"] as? Bool == false)
         #expect(parsed?["resume_command"] as? String == "claude --resume abc")
+        #expect(parsed?["minimap"] as? [String: String] == ["tab": "split", "effective": "split"])
     }
 
     @Test func aPingIsRecognizedWithoutDecodingAsARequest() throws {
