@@ -136,3 +136,32 @@ import Testing
         #expect(!subject.showsMinimap(global: .when([.status])))
     }
 }
+
+@Suite struct TabTintStrengthTests {
+    private func opacity(_ base: Double, active: Bool, minimap: Bool) -> Double {
+        TabTintStrength.opacity(base: base, isActive: active, showsMinimap: minimap)
+    }
+
+    private func isClose(_ value: Double, _ expected: Double) -> Bool {
+        abs(value - expected) < 0.0001
+    }
+
+    @Test func theDefaultGivesEachKindOfRowItsStrength() {
+        let base = TabTintStrength.default
+        #expect(isClose(opacity(base, active: false, minimap: true), 0.12))
+        #expect(isClose(opacity(base, active: true, minimap: true), 0.15))
+        #expect(isClose(opacity(base, active: false, minimap: false), 0.20))
+        #expect(isClose(opacity(base, active: true, minimap: false), 0.40))
+    }
+
+    @Test func zeroTurnsTheWashOff() {
+        #expect(opacity(0, active: true, minimap: false) == 0)
+        #expect(opacity(0, active: false, minimap: true) == 0)
+    }
+
+    @Test func theStrongestRowAtTheTopOfTheRangeIsFullyOpaqueAndNoMore() {
+        let top = TabTintStrength.range.upperBound
+        #expect(isClose(opacity(top, active: true, minimap: false), 1))
+        #expect(opacity(top, active: true, minimap: false) <= 1)
+    }
+}

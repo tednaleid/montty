@@ -59,20 +59,34 @@ import Testing
         #expect(tab.minimapVisibility == nil)
     }
 
-    @Test func infoResolvesAgainstTheAppWideMinimapVisibilityPassedIn() {
+    @Test func infoResolvesAgainstTheAppSettingsPassedIn() {
         let (tab, surfaceID) = tab()
         var repoColorOverrides: [String: PaneTint] = [:]
+        var appSettings = AppSettings(minimapVisibility: .never)
 
         let result = tab.applyControl(
             .info, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides,
-            minimapVisibility: .never, gitInfoProvider: { _ in nil }
+            appSettings: &appSettings, gitInfoProvider: { _ in nil }
         )
 
         guard case .read(let info) = result else {
             Issue.record("expected a read result")
             return
         }
-        #expect(info.minimap == ControlInfo.Minimap(tab: nil, effective: "never"))
+        #expect(info.settings.minimap == .init(app: "never", effective: "never"))
+    }
+
+    @Test func anAppScopeCommandWritesBackToTheAppSettings() {
+        let (tab, surfaceID) = tab()
+        var repoColorOverrides: [String: PaneTint] = [:]
+        var appSettings = AppSettings()
+
+        tab.applyControl(
+            .setMinimapHeight(60), surfaceID: surfaceID,
+            repoColorOverrides: &repoColorOverrides, appSettings: &appSettings
+        )
+
+        #expect(appSettings.minimapHeight == 60)
     }
 
     @Test func nameWritesBackOntoTheTab() {

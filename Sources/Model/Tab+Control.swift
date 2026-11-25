@@ -18,15 +18,32 @@ extension Tab {
         )
     }
 
-    /// Run a control command against this tab and write the result back onto it.
-    /// Repo colors are app-wide rather than per-tab, so they travel in and out.
-    /// The app-wide minimap visibility travels in only, for `info` to report.
+    /// Runs a control command for a caller that holds no app settings, so a
+    /// command at the app scope changes nothing it can see.
     @discardableResult
     func applyControl(
         _ command: ControlCommand,
         surfaceID: UUID,
         repoColorOverrides: inout [String: PaneTint],
-        minimapVisibility: MinimapVisibility = .always,
+        gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:),
+        now: Date = Date()
+    ) -> ControlResult {
+        var appSettings = AppSettings()
+        return applyControl(
+            command, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides,
+            appSettings: &appSettings, gitInfoProvider: gitInfoProvider, now: now
+        )
+    }
+
+    /// Run a control command against this tab and write the result back onto it.
+    /// Repo colors and the app settings are shared by every tab, so they
+    /// travel in and out.
+    @discardableResult
+    func applyControl(
+        _ command: ControlCommand,
+        surfaceID: UUID,
+        repoColorOverrides: inout [String: PaneTint],
+        appSettings: inout AppSettings,
         gitInfoProvider: (String) -> GitInfo? = GitInfo.from(path:),
         now: Date = Date()
     ) -> ControlResult {
@@ -44,7 +61,7 @@ extension Tab {
             activityWaitingFromControl: activityWaitingFromControl,
             surfaceResumeCommands: resumeCommands,
             tabMinimapVisibility: self.minimapVisibility,
-            minimapVisibility: minimapVisibility
+            app: appSettings
         )
         let result = ControlService.apply(
             command, target: target, to: &state,
@@ -59,6 +76,7 @@ extension Tab {
         resumeCommands = state.surfaceResumeCommands
         self.minimapVisibility = state.tabMinimapVisibility
         repoColorOverrides = state.repoColorOverrides
+        appSettings = state.app
         return result
     }
 }

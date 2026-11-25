@@ -196,7 +196,8 @@ final class WindowUseCases {
                 repoColorOverrides: snapshot.repoColorOverrides,
                 minimap: MinimapSettings(
                     visibility: snapshot.minimapVisibility, height: snapshot.minimapHeight
-                )
+                ),
+                tabTintStrength: snapshot.tabTintStrength
             )
         }
 
@@ -265,7 +266,8 @@ final class WindowUseCases {
         repoColorOverrides: [String: PaneTint],
         frames: [UUID: WindowFrame],
         directories: [UUID: String],
-        minimap: MinimapSettings = MinimapSettings()
+        minimap: MinimapSettings = MinimapSettings(),
+        tabTintStrength: Double = TabTintStrength.default
     ) -> SessionSnapshot {
         var snapshot = SessionSnapshotBuilder.snapshot(
             windows: registry.windows,
@@ -278,7 +280,8 @@ final class WindowUseCases {
                 frame: { frames[$0.id] ?? $0.frame },
                 directory: { directories[$0] }
             ),
-            minimap: minimap
+            minimap: minimap,
+            tabTintStrength: tabTintStrength
         )
         snapshot.lastClosedWindow = lastClosedWindow
         return snapshot

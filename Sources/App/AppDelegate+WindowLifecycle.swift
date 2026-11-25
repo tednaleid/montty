@@ -16,6 +16,7 @@ extension AppDelegate {
             repoColorOverrides = settings.repoColorOverrides
             minimapVisibility = settings.minimap.visibility
             minimapHeight = settings.minimap.height
+            tabTintStrength = settings.tabTintStrength
         }
         for plan in outcome.createWindows {
             makeWindow(plan)

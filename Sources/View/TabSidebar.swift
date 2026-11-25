@@ -10,6 +10,7 @@ struct TabSidebar: View {
     var repoColorOverrides: [String: PaneTint] = [:]
     var minimapVisibility = MinimapVisibility.always
     var minimapHeight = MinimapHeight.default
+    var tabTintStrength = TabTintStrength.default
     var jumpLabels: [UUID: String] = [:]
     var onJumpToSurface: ((UUID, UUID) -> Void)?
 
@@ -28,6 +29,7 @@ struct TabSidebar: View {
                                 editingTabID: $editingTabID,
                                 showsMinimap: tab.showsMinimap(global: minimapVisibility),
                                 minimapHeight: minimapHeight,
+                                tabTintStrength: tabTintStrength,
                                 jumpLabels: jumpLabels,
                                 onPaneTap: { leafID in
                                     onJumpToSurface?(tab.id, leafID)

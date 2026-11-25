@@ -1,5 +1,5 @@
-// ABOUTME: Verifies the montty CLI grammar translates argv into
-// ABOUTME: ControlCommand values, or a specific UsageError for bad input.
+// ABOUTME: Verifies the montty CLI grammar translates argv into ControlCommand
+// ABOUTME: values and setting reads, and answers bad input and --help with text.
 
 import Foundation
 import Testing
@@ -10,10 +10,26 @@ import Testing
         return command
     }
 
-    private func failure(_ args: [String]) -> ControlArgs.UsageError? {
-        guard case .failure(let error) = ControlArgs.parse(args) else { return nil }
-        return error
+    private func read(_ args: [String]) -> SettingRead? {
+        guard case .success(.read(let read)) = ControlArgs.parse(args) else { return nil }
+        return read
     }
+
+    private func exit(_ args: [String]) -> ControlArgs.ParseExit? {
+        guard case .failure(let exit) = ControlArgs.parse(args) else { return nil }
+        return exit
+    }
+
+    private func isUsageError(_ args: [String]) -> Bool {
+        exit(args)?.exitCode == ExitCode.usage.rawValue
+    }
+
+    private func help(_ args: [String]) -> String? {
+        guard let exit = exit(args), exit.exitCode == ExitCode.ok.rawValue else { return nil }
+        return exit.message
+    }
+
+    // MARK: - Color
 
     @Test func parsesSingleColorForEachScope() {
         #expect(command(["surface", "color", "#1a7f37"]) == .setColor(
@@ -27,41 +43,6 @@ import Testing
         ))
     }
 
-    @Test func parsesTheAppWideMinimapVisibility() {
-        #expect(command(["minimap", "always"]) == .setMinimapVisibility(.always))
-        #expect(command(["minimap", "never"]) == .setMinimapVisibility(.never))
-        #expect(command(["minimap", "status,split"])
-            == .setMinimapVisibility(.when([.split, .status])))
-        #expect(command(["minimap", "--reset"]) == .setMinimapVisibility(.always))
-    }
-
-    @Test func parsesTheTabMinimapVisibility() {
-        #expect(command(["tab", "minimap", "split"])
-            == .setTabMinimapVisibility(.when([.split])))
-        #expect(command(["tab", "minimap", "--reset"]) == .setTabMinimapVisibility(nil))
-    }
-
-    @Test func rejectsABadMinimapVisibility() {
-        #expect(failure(["minimap", "sometimes"]) == .badMinimapVisibility("sometimes"))
-        #expect(failure(["minimap", "always,split"]) == .badMinimapVisibility("always,split"))
-        #expect(failure(["tab", "minimap", ""]) == .badMinimapVisibility(""))
-        #expect(failure(["minimap"]) == .missingValue("minimap"))
-        #expect(failure(["tab", "minimap"]) == .missingValue("minimap"))
-        #expect(failure(["minimap", "split", "status"]) == .unexpectedArgument("status"))
-        #expect(failure(["surface", "minimap", "never"]) == .unknownProperty("minimap"))
-    }
-
-    @Test func parsesTheMinimapHeightWithinItsRange() {
-        #expect(command(["minimap-height", "40"]) == .setMinimapHeight(40))
-        #expect(command(["minimap-height", "200"]) == .setMinimapHeight(200))
-        #expect(command(["minimap-height", "--reset"])
-            == .setMinimapHeight(MinimapHeight.default))
-        #expect(failure(["minimap-height", "39"]) == .badMinimapHeight("39"))
-        #expect(failure(["minimap-height", "201"]) == .badMinimapHeight("201"))
-        #expect(failure(["minimap-height", "tall"]) == .badMinimapHeight("tall"))
-        #expect(failure(["minimap-height"]) == .missingValue("minimap-height"))
-    }
-
     @Test func parsesTwoAndThreeStopGradients() {
         #expect(command(["surface", "color", "neutralBright,green"]) == .setColor(
             scope: .surface,
@@ -73,25 +54,22 @@ import Testing
         ))
     }
 
-    @Test func parsesResetForEachScope() {
+    @Test func parsesColorResetForEachScope() {
         #expect(command(["surface", "color", "--reset"]) == .clearColor(scope: .surface))
         #expect(command(["tab", "color", "--reset"]) == .clearColor(scope: .tab))
         #expect(command(["repo", "color", "--reset"]) == .clearColor(scope: .repo))
     }
 
-    @Test func parsesResumeCommandAndReset() {
-        #expect(
-            command(["surface", "resume-command", "nvim -S 'my session.vim'"])
-                == .setResumeCommand("nvim -S 'my session.vim'")
-        )
-        #expect(command(["surface", "resume-command", "--reset"]) == .setResumeCommand(nil))
+    @Test(arguments: [
+        ["tab", "color", "chartreuse"], ["tab", "color", "#fff"],
+        ["tab", "color", "red,green,blue,cyan"], ["tab", "color", ""],
+        ["app", "color", "green"]
+    ])
+    func rejectsABadColor(args: [String]) {
+        #expect(isUsageError(args))
     }
 
-    @Test func resumeCommandNeedsExactlyOneValueOnTheSurfaceScope() {
-        #expect(failure(["surface", "resume-command"]) == .missingValue("resume-command"))
-        #expect(failure(["surface", "resume-command", "nvim", "-S"]) == .unexpectedArgument("-S"))
-        #expect(failure(["tab", "resume-command", "nvim"]) == .unknownProperty("resume-command"))
-    }
+    // MARK: - Name, status, resume command
 
     @Test func parsesNameAndReset() {
         #expect(command(["tab", "name", "MR !123 fix auth"]) == .setName("MR !123 fix auth"))
@@ -103,31 +81,161 @@ import Testing
         #expect(command(["surface", "status", "waiting"]) == .setStatus(.waiting))
         #expect(command(["surface", "status", "idle"]) == .setStatus(.idle))
         #expect(command(["surface", "status", "clear"]) == .setStatus(nil))
+        #expect(command(["surface", "status", "--reset"]) == .setStatus(nil))
     }
+
+    @Test func parsesResumeCommandAndReset() {
+        #expect(
+            command(["surface", "resume-command", "nvim -S 'my session.vim'"])
+                == .setResumeCommand("nvim -S 'my session.vim'")
+        )
+        #expect(command(["surface", "resume-command", "--reset"]) == .setResumeCommand(nil))
+    }
+
+    // MARK: - Minimap and strengths
+
+    @Test func parsesTheAppMinimapVisibility() {
+        #expect(command(["app", "minimap", "always"]) == .setMinimapVisibility(.always))
+        #expect(command(["app", "minimap", "never"]) == .setMinimapVisibility(.never))
+        #expect(command(["app", "minimap", "status,split"])
+            == .setMinimapVisibility(.when([.split, .status])))
+        #expect(command(["app", "minimap", "--reset"]) == .setMinimapVisibility(.always))
+    }
+
+    @Test func parsesTheTabMinimapVisibility() {
+        #expect(command(["tab", "minimap", "split"])
+            == .setTabMinimapVisibility(.when([.split])))
+        #expect(command(["tab", "minimap", "--reset"]) == .setTabMinimapVisibility(nil))
+    }
+
+    @Test(arguments: [
+        ["app", "minimap", "sometimes"], ["app", "minimap", "always,split"],
+        ["tab", "minimap", ""], ["app", "minimap", "split", "status"]
+    ])
+    func rejectsABadMinimapVisibility(args: [String]) {
+        #expect(isUsageError(args))
+    }
+
+    @Test func parsesTheMinimapHeightWithinItsRange() {
+        #expect(command(["app", "minimap-height", "40"]) == .setMinimapHeight(40))
+        #expect(command(["app", "minimap-height", "200"]) == .setMinimapHeight(200))
+        #expect(command(["app", "minimap-height", "--reset"])
+            == .setMinimapHeight(MinimapHeight.default))
+        #expect(isUsageError(["app", "minimap-height", "39"]))
+        #expect(isUsageError(["app", "minimap-height", "201"]))
+        #expect(isUsageError(["app", "minimap-height", "tall"]))
+    }
+
+    @Test func parsesTheSurfaceTintStrengthWithinItsRange() {
+        #expect(command(["app", "surface-tint-strength", "0.2"]) == .setTintStrength(0.2))
+        #expect(command(["app", "surface-tint-strength", "0"]) == .setTintStrength(0))
+        #expect(command(["app", "surface-tint-strength", "0.5"]) == .setTintStrength(0.5))
+        #expect(command(["app", "surface-tint-strength", "--reset"])
+            == .setTintStrength(SurfaceTintStrength.default))
+    }
+
+    @Test(arguments: ["0.51", "1", "-0.1", "nope", "nan"])
+    func rejectsASurfaceTintStrengthOutsideItsRange(value: String) {
+        #expect(isUsageError(["app", "surface-tint-strength", value]))
+    }
+
+    @Test func parsesTheTabTintStrengthWithinItsRange() {
+        #expect(command(["app", "tab-tint-strength", "0"]) == .setTabTintStrength(0))
+        #expect(command(["app", "tab-tint-strength", "0.3"]) == .setTabTintStrength(0.3))
+        #expect(command(["app", "tab-tint-strength", "--reset"])
+            == .setTabTintStrength(TabTintStrength.default))
+        #expect(isUsageError(["app", "tab-tint-strength", "-0.1"]))
+        #expect(isUsageError(["app", "tab-tint-strength", "0.31"]))
+        #expect(isUsageError(["app", "tab-tint-strength", "strong"]))
+    }
+
+    // MARK: - The read form
+
+    @Test func aSettingWithNoValueReadsItBack() {
+        #expect(read(["surface", "color"]) == SettingRead(setting: .color, scope: .surface))
+        #expect(read(["tab", "color"]) == SettingRead(setting: .color, scope: .tab))
+        #expect(read(["repo", "color"]) == SettingRead(setting: .color, scope: .repo))
+        #expect(read(["tab", "name"]) == SettingRead(setting: .name, scope: .tab))
+        #expect(read(["surface", "status"]) == SettingRead(setting: .status, scope: .surface))
+        #expect(read(["surface", "resume-command"])
+            == SettingRead(setting: .resumeCommand, scope: .surface))
+        #expect(read(["tab", "minimap"]) == SettingRead(setting: .minimap, scope: .tab))
+        #expect(read(["app", "minimap"]) == SettingRead(setting: .minimap, scope: .app))
+        #expect(read(["app", "minimap-height"])
+            == SettingRead(setting: .minimapHeight, scope: .app))
+        #expect(read(["app", "surface-tint-strength"])
+            == SettingRead(setting: .surfaceTintStrength, scope: .app))
+        #expect(read(["app", "tab-tint-strength"])
+            == SettingRead(setting: .tabTintStrength, scope: .app))
+    }
+
+    @Test func aValueAndResetTogetherAreAUsageError() {
+        #expect(isUsageError(["tab", "name", "x", "--reset"]))
+        #expect(isUsageError(["app", "minimap", "never", "--reset"]))
+    }
+
+    // MARK: - Scopes
+
+    @Test(arguments: [
+        ["surface", "minimap", "never"], ["repo", "minimap", "never"],
+        ["surface", "name", "x"], ["tab", "status", "idle"],
+        ["tab", "resume-command", "nvim"], ["tab", "minimap-height", "60"],
+        ["tab", "surface-tint-strength", "0.2"], ["surface", "tab-tint-strength", "0.2"]
+    ])
+    func aSettingAtAScopeThatDoesNotAcceptItIsAUsageError(args: [String]) {
+        #expect(isUsageError(args))
+    }
+
+    @Test(arguments: [
+        ["tint-strength", "0.2"], ["minimap", "never"],
+        ["minimap-height", "60"], ["tab-tint-strength", "0.2"]
+    ])
+    func aSettingWithNoScopeIsAUsageError(args: [String]) {
+        #expect(isUsageError(args))
+    }
+
+    @Test(arguments: [
+        ["window", "color", "red"], ["tab", "opacity", "0.5"],
+        ["surface", "status", "thinking"], ["nope"],
+        ["tabb", "color", "green"], ["tab-color", "green"]
+    ])
+    func rejectsUnknownScopesSettingsAndStatuses(args: [String]) {
+        #expect(isUsageError(args))
+    }
+
+    @Test(arguments: [
+        ["tab", "name", "MR", "123", "fix", "auth"], ["tab", "name", "--reset", "extra"],
+        ["surface", "color", "green", "ignored"], ["info", "extra"],
+        ["--version", "extra"], ["app", "surface-tint-strength", "0.2", "extra"],
+        ["surface", "resume-command", "nvim", "-S"]
+    ])
+    func rejectsArgumentsBeyondACommandsArity(args: [String]) {
+        #expect(isUsageError(args))
+    }
+
+    // MARK: - Verbs
 
     @Test func parsesInfoAndVersion() {
         #expect(command(["info"]) == .info)
-        guard case .success(.version) = ControlArgs.parse(["--version"]) else {
-            Issue.record("expected version")
-            return
-        }
+        #expect(ControlArgs.parse(["--version"]) == .success(.version))
+        #expect(ControlArgs.parse(["-v"]) == .success(.version))
     }
 
     @Test func parsesHook() {
         #expect(
-            ControlArgs.parse(["hook", "pre-tool-use"]) == .success(.hook(event: "pre-tool-use", hooksVersion: nil))
+            ControlArgs.parse(["hook", "pre-tool-use"])
+                == .success(.hook(event: "pre-tool-use", hooksVersion: nil))
         )
-    }
-
-    @Test func parsesHookWithHooksVersion() {
         #expect(
             ControlArgs.parse(["hook", "session-start", "--hooks-version", "2"])
                 == .success(.hook(event: "session-start", hooksVersion: 2))
         )
+        #expect(isUsageError(["hook"]))
     }
 
     /// Hook entries are written by whichever montty installed them, which can
-    /// be newer than the one running, so `hook` skips arguments it does not know.
+    /// be newer than the one running, so `hook` skips arguments it does not
+    /// know. A hook must never print, so `--help` is one of those.
     @Test func hookIgnoresArgumentsItDoesNotKnow() {
         #expect(ControlArgs.parse(["hook", "stop", "extra"]) == .success(.hook(event: "stop", hooksVersion: nil)))
         #expect(
@@ -138,6 +246,7 @@ import Testing
             ControlArgs.parse(["hook", "stop", "--hooks-version", "two"])
                 == .success(.hook(event: "stop", hooksVersion: nil))
         )
+        #expect(ControlArgs.parse(["hook", "stop", "--help"]) == .success(.hook(event: "stop", hooksVersion: nil)))
     }
 
     @Test func parsesInstallAndUninstallHooks() {
@@ -146,93 +255,67 @@ import Testing
     }
 
     @Test func installHooksNeedsAKnownAgent() {
-        #expect(failure(["install-hooks"]) == .missingValue("install-hooks"))
-        #expect(failure(["uninstall-hooks"]) == .missingValue("uninstall-hooks"))
-        #expect(failure(["install-hooks", "codex"]) == .unknownAgent("codex"))
-        #expect(failure(["install-hooks", "claude", "extra"]) == .unexpectedArgument("extra"))
+        #expect(isUsageError(["install-hooks"]))
+        #expect(isUsageError(["uninstall-hooks"]))
+        #expect(isUsageError(["install-hooks", "codex"]))
+        #expect(isUsageError(["install-hooks", "claude", "extra"]))
     }
 
-    @Test func parsesTintStrengthAndReset() {
-        #expect(command(["tint-strength", "0.2"]) == .setTintStrength(0.2))
-        #expect(command(["tint-strength", "0"]) == .setTintStrength(0))
-        #expect(command(["tint-strength", "0.5"]) == .setTintStrength(0.5))
-        #expect(command(["tint-strength", "--reset"]) == .setTintStrength(SurfaceTintStrength.default))
-    }
+    // MARK: - Help and usage errors
 
-    @Test func rejectsTintStrengthOutsideItsRange() {
-        #expect(failure(["tint-strength", "0.51"]) == .badTintStrength("0.51"))
-        #expect(failure(["tint-strength", "1"]) == .badTintStrength("1"))
-        #expect(failure(["tint-strength", "-0.1"]) == .badTintStrength("-0.1"))
-        #expect(failure(["tint-strength", "nope"]) == .badTintStrength("nope"))
-        #expect(failure(["tint-strength", "nan"]) == .badTintStrength("nan"))
-    }
-
-    @Test func rejectsBadColorSpecs() {
-        #expect(failure(["tab", "color", "chartreuse"]) == .badColor("chartreuse"))
-        #expect(failure(["tab", "color", "#fff"]) == .badColor("#fff"))
-        #expect(failure(["tab", "color", "red,green,blue,cyan"]) == .tooManyStops)
-        #expect(failure(["tab", "color", ""]) == .badColor(""))
-    }
-
-    @Test func rejectsUnknownScopesVerbsAndStatuses() {
-        #expect(failure(["window", "color", "red"]) == .unknownScope("window"))
-        #expect(failure(["tab", "opacity", "0.5"]) == .unknownProperty("opacity"))
-        #expect(failure(["surface", "status", "thinking"]) == .unknownStatus("thinking"))
-        #expect(failure(["surface", "name", "x"]) == .unknownProperty("name"))
-        #expect(failure(["tab", "status", "idle"]) == .unknownProperty("status"))
-        #expect(failure([]) == .noArguments)
-    }
-
-    @Test func rejectsAMissingValue() {
-        #expect(failure(["tab", "name"]) == .missingValue("name"))
-    }
-
-    @Test func aColorWithNoValueReadsTheCurrentColorBack() {
-        #expect(ControlArgs.parse(["surface", "color"]) == .success(.showColor(.surface)))
-        #expect(ControlArgs.parse(["tab", "color"]) == .success(.showColor(.tab)))
-        #expect(ControlArgs.parse(["repo", "color"]) == .success(.showColor(.repo)))
-    }
-
-    @Test func rejectsScopeWithNoProperty() {
-        #expect(failure(["tab"]) == .missingValue("property"))
-        #expect(failure(["surface"]) == .missingValue("property"))
-        #expect(failure(["repo"]) == .missingValue("property"))
-    }
-
-    @Test func aMistypedVerbIsAUsageErrorRatherThanALaunch() {
-        #expect(failure(["nope"]) == .unknownScope("nope"))
-        #expect(failure(["tabb", "color", "green"]) == .unknownScope("tabb"))
-        #expect(failure(["tab-color", "green"]) == .unknownScope("tab-color"))
-    }
-
-    @Test func parsesHelpFlags() {
-        guard case .success(.help) = ControlArgs.parse(["--help"]),
-              case .success(.help) = ControlArgs.parse(["-h"]) else {
-            Issue.record("expected help")
-            return
+    @Test(arguments: [["--help"], ["-h"]])
+    func theOverviewListsEveryScopeAndVerbWithoutThePalette(args: [String]) throws {
+        let text = try #require(help(args))
+        for word in ["surface", "tab", "repo", "app", "info", "hook", "install-hooks", "uninstall-hooks"] {
+            #expect(text.contains(word), "missing \(word)")
         }
+        #expect(!text.contains("brightMagenta"))
     }
 
-    @Test func usageListsEveryPaletteNameWithItsAnsiSwatch() {
+    @Test func aScopesHelpListsTheSettingsItAccepts() throws {
+        let text = try #require(help(["tab", "--help"]))
+        for setting in ["color", "name", "minimap"] {
+            #expect(text.contains(setting), "missing \(setting)")
+        }
+        #expect(!text.contains("resume-command"))
+        #expect(!text.contains("brightMagenta"))
+    }
+
+    @Test func aScopeWithNoSettingPrintsThatScopesHelp() {
+        #expect(help(["tab"]) == help(["tab", "--help"]))
+        #expect(help(["app"]) == help(["app", "--help"]))
+    }
+
+    @Test func colorHelpListsEveryPaletteNameWithItsAnsiSwatch() throws {
+        let text = try #require(help(["tab", "color", "--help"]))
         for color in TabColor.allCases {
-            #expect(ControlArgs.usage.contains(color.rawValue))
-            #expect(ControlArgs.usage.contains("\u{1B}[\(color.ansiCode)m"))
+            #expect(text.contains(color.rawValue))
+            #expect(text.contains("\u{1B}[\(color.ansiCode)m"))
         }
     }
 
-    @Test func rejectsArgumentsBeyondAnInvocationsArity() {
-        #expect(failure(["tab", "name", "MR", "123", "fix", "auth"]) == .unexpectedArgument("123"))
-        #expect(failure(["tab", "name", "--reset", "extra"]) == .unexpectedArgument("extra"))
-        #expect(failure(["surface", "color", "green", "ignored"]) == .unexpectedArgument("ignored"))
-        #expect(failure(["info", "extra"]) == .unexpectedArgument("extra"))
-        #expect(failure(["--version", "extra"]) == .unexpectedArgument("extra"))
-        #expect(failure(["--help", "extra"]) == .unexpectedArgument("extra"))
-        #expect(failure(["tint-strength", "0.2", "extra"]) == .unexpectedArgument("extra"))
+    @Test func aSettingsHelpGivesItsRangeAndDefault() throws {
+        let text = try #require(help(["app", "surface-tint-strength", "--help"]))
+        #expect(text.contains("0.5"))
+        #expect(text.contains("0.12"))
+        #expect(!text.contains("brightMagenta"))
     }
 
-    @Test func rejectsTintStrengthWithNoValue() {
-        #expect(failure(["tint-strength"]) == .missingValue("tint-strength"))
+    @Test func aUsageErrorNamesTheCommandItRecognisedAndNotThePalette() throws {
+        let failure = try #require(exit(["app", "surface-tint-strength", "0.9"]))
+        #expect(failure.exitCode == ExitCode.usage.rawValue)
+        #expect(failure.message.contains("montty app surface-tint-strength"))
+        #expect(failure.message.contains("0.9"))
+        #expect(!failure.message.contains("brightMagenta"))
     }
+
+    @Test func aBadColorSaysWhichStopWasWrong() throws {
+        let failure = try #require(exit(["tab", "color", "red,chartreuse"]))
+        #expect(failure.message.contains("chartreuse"))
+        #expect(failure.message.contains("montty tab color"))
+    }
+
+    // MARK: - Launch or command
 
     @Test func classifiesLaunchArgumentsVersusCLIInvocations() {
         let cases: [(arguments: [String], isCLI: Bool)] = [

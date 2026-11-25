@@ -110,8 +110,8 @@ struct ControlRequest: Equatable {
             return try tintStrengthCommand(value: value)
         case "resumeCommand":
             return try resumeCommand(value: value, isNull: isNull)
-        case "minimapVisibility", "tabMinimapVisibility", "minimapHeight":
-            return try minimapCommand(prop: prop, value: value, isNull: isNull)
+        case "minimapVisibility", "tabMinimapVisibility", "minimapHeight", "tabTintStrength":
+            return try sidebarCommand(prop: prop, value: value, isNull: isNull)
         default:
             throw DecodeFailure.malformed
         }
@@ -164,9 +164,16 @@ struct ControlRequest: Equatable {
         return .setTintStrength(strength)
     }
 
-    private static func minimapCommand(
+    private static func sidebarCommand(
         prop: String, value: Any?, isNull: Bool
     ) throws -> ControlCommand {
+        if prop == "tabTintStrength" {
+            guard let strength = value as? Double,
+                  TabTintStrength.range.contains(strength) else {
+                throw DecodeFailure.malformed
+            }
+            return .setTabTintStrength(strength)
+        }
         if prop == "minimapHeight" {
             guard let height = value as? Double, MinimapHeight.range.contains(height) else {
                 throw DecodeFailure.malformed
@@ -182,8 +189,8 @@ struct ControlRequest: Equatable {
             ? .setMinimapVisibility(visibility) : .setTabMinimapVisibility(visibility)
     }
 
-    /// The `prop` and `value` a minimap command travels under.
-    private var minimapFields: [String: Any] {
+    /// The `prop` and `value` a minimap or tab tint command travels under.
+    private var sidebarFields: [String: Any] {
         switch command {
         case .setMinimapVisibility(let visibility):
             return ["prop": "minimapVisibility", "value": visibility.text]
@@ -191,6 +198,8 @@ struct ControlRequest: Equatable {
             return ["prop": "tabMinimapVisibility", "value": visibility?.text ?? NSNull()]
         case .setMinimapHeight(let height):
             return ["prop": "minimapHeight", "value": height]
+        case .setTabTintStrength(let strength):
+            return ["prop": "tabTintStrength", "value": strength]
         default:
             return [:]
         }
@@ -231,9 +240,10 @@ struct ControlRequest: Equatable {
             root["cmd"] = "set"
             root["prop"] = "resumeCommand"
             root["value"] = command ?? NSNull()
-        case .setMinimapVisibility, .setTabMinimapVisibility, .setMinimapHeight:
+        case .setMinimapVisibility, .setTabMinimapVisibility, .setMinimapHeight,
+             .setTabTintStrength:
             root["cmd"] = "set"
-            root.merge(minimapFields) { _, field in field }
+            root.merge(sidebarFields) { _, field in field }
         }
         return try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
     }

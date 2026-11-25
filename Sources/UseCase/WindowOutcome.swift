@@ -52,4 +52,5 @@ struct SettingsUpdate: Equatable {
     let surfaceTintStrength: Double
     let repoColorOverrides: [String: PaneTint]
     let minimap: MinimapSettings
+    let tabTintStrength: Double
 }

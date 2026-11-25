@@ -14,6 +14,11 @@ settings:
     SWIFT_OBJC_BRIDGING_HEADER: montty-Bridging-Header.h
     HEADER_SEARCH_PATHS: $(SRCROOT)
 
+packages:
+  ArgumentParser:
+    url: https://github.com/apple/swift-argument-parser
+    exactVersion: 1.8.2
+
 targets:
   montty:
     type: application
@@ -37,6 +42,7 @@ targets:
     dependencies:
       - framework: GhosttyKit.xcframework
         embed: false
+      - package: ArgumentParser
     postBuildScripts:
       - name: Bundle Shell Integration
         script: |
@@ -85,6 +91,8 @@ targets:
       - path: Sources/Persistence
       - path: Sources/UseCase
       - path: Sources/View/NSWindow+HitTest.swift
+    dependencies:
+      - package: ArgumentParser
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.montty.app.tests

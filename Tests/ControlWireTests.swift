@@ -206,7 +206,8 @@ import Testing
         .setMinimapVisibility(.never),
         .setTabMinimapVisibility(.always),
         .setTabMinimapVisibility(nil),
-        .setMinimapHeight(120)
+        .setMinimapHeight(120),
+        .setTabTintStrength(0.2)
     ])
     func minimapCommandsRoundTrip(command: ControlCommand) throws {
         let request = ControlRequest(surface: "M1", command: command)
@@ -218,7 +219,9 @@ import Testing
         #"{"cmd":"set","v":1,"surface":"M1","prop":"minimapVisibility","value":null}"#,
         #"{"cmd":"set","v":1,"surface":"M1","prop":"tabMinimapVisibility","value":7}"#,
         #"{"cmd":"set","v":1,"surface":"M1","prop":"minimapHeight","value":500}"#,
-        #"{"cmd":"set","v":1,"surface":"M1","prop":"minimapHeight","value":"tall"}"#
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"minimapHeight","value":"tall"}"#,
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"tabTintStrength","value":0.9}"#,
+        #"{"cmd":"set","v":1,"surface":"M1","prop":"tabTintStrength","value":"strong"}"#
     ])
     func aBadMinimapValueIsMalformed(payload: String) {
         #expect(throws: ControlRequest.DecodeFailure.malformed) {
@@ -233,7 +236,12 @@ import Testing
             scopes: ControlInfo.Scopes(surface: nil, tab: nil, repo: nil),
             effective: TintPayload(PaneTint(stops: [.named(.green)])),
             git: nil, status: nil, resumeCommand: "claude --resume abc",
-            minimap: ControlInfo.Minimap(tab: "split", effective: "split")
+            settings: ControlInfo.Settings(
+                surfaceTintStrength: .init(app: 0.12, effective: 0.12),
+                tabTintStrength: .init(app: 0.12, effective: 0.12),
+                minimap: .init(tab: "split", app: "always", effective: "split"),
+                minimapHeight: .init(app: 90, effective: 90)
+            )
         )
         let data = try ControlResponse.info(info).encoded()
         let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -241,7 +249,11 @@ import Testing
         #expect(parsed?["surface_id"] as? String == "M1")
         #expect(parsed?["tab_name_is_override"] as? Bool == false)
         #expect(parsed?["resume_command"] as? String == "claude --resume abc")
-        #expect(parsed?["minimap"] as? [String: String] == ["tab": "split", "effective": "split"])
+        let settings = parsed?["settings"] as? [String: Any]
+        #expect(settings?["minimap"] as? [String: String]
+            == ["tab": "split", "app": "always", "effective": "split"])
+        #expect((settings?["surface_tint_strength"] as? [String: Double])?["effective"] == 0.12)
+        #expect((settings?["minimap_height"] as? [String: Double])?["app"] == 90)
     }
 
     @Test func aPingIsRecognizedWithoutDecodingAsARequest() throws {

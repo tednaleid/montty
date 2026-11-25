@@ -28,9 +28,8 @@ struct ControlState: Equatable {
     var activityWaitingFromControl: [String: Date]
     var surfaceResumeCommands: [UUID: String]
     var tabMinimapVisibility: MinimapVisibility?
-    /// The app-wide value, read to report what the tab resolves to. No command
-    /// that reaches a tab changes it.
-    var minimapVisibility: MinimapVisibility = .always
+    /// The settings held at the app scope, shared by every tab.
+    var app = AppSettings()
 }
 
 enum ControlService {
@@ -70,15 +69,23 @@ enum ControlService {
             state.tabMinimapVisibility = visibility
             return .applied
 
-        case .setTintStrength, .setMinimapVisibility, .setMinimapHeight:
-            // App-wide, not part of any tab's ControlState. AppDelegate.applyControl
-            // handles these before a command ever reaches here; this case exists
-            // only so this switch stays exhaustive over ControlCommand.
+        case .setTintStrength, .setMinimapVisibility, .setMinimapHeight, .setTabTintStrength:
+            setAppSetting(command, to: &state.app)
             return .applied
 
         case .info:
             return .read(info(target: target, state: state,
                               gitInfoProvider: gitInfoProvider))
+        }
+    }
+
+    private static func setAppSetting(_ command: ControlCommand, to app: inout AppSettings) {
+        switch command {
+        case .setTintStrength(let strength): app.surfaceTintStrength = strength
+        case .setTabTintStrength(let strength): app.tabTintStrength = strength
+        case .setMinimapVisibility(let visibility): app.minimapVisibility = visibility
+        case .setMinimapHeight(let height): app.minimapHeight = height
+        default: break
         }
     }
 
@@ -186,10 +193,22 @@ enum ControlService {
             },
             status: state.activityStates[target.monttyID].map(\.wireName),
             resumeCommand: state.surfaceResumeCommands[target.surfaceID],
-            minimap: ControlInfo.Minimap(
+            settings: settings(state: state)
+        )
+    }
+
+    private static func settings(state: ControlState) -> ControlInfo.Settings {
+        let app = state.app
+        return ControlInfo.Settings(
+            surfaceTintStrength: .init(
+                app: app.surfaceTintStrength, effective: app.surfaceTintStrength),
+            tabTintStrength: .init(app: app.tabTintStrength, effective: app.tabTintStrength),
+            minimap: .init(
                 tab: state.tabMinimapVisibility?.text,
-                effective: (state.tabMinimapVisibility ?? state.minimapVisibility).text
-            )
+                app: app.minimapVisibility.text,
+                effective: (state.tabMinimapVisibility ?? app.minimapVisibility).text
+            ),
+            minimapHeight: .init(app: app.minimapHeight, effective: app.minimapHeight)
         )
     }
 

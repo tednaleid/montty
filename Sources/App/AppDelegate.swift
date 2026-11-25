@@ -29,6 +29,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     @Published var minimapVisibility = MinimapVisibility.always
     /// Height in points of a shown minimap.
     @Published var minimapHeight = MinimapHeight.default
+    /// Strength of the tint wash behind each tab row.
+    @Published var tabTintStrength = TabTintStrength.default
     /// Per-repo/worktree color overrides, keyed by repo identity string.
     @Published var repoColorOverrides: [String: PaneTint] = [:]
     /// ANSI palette colors from the Ghostty config (14 colors, reordered).
@@ -456,24 +458,38 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// CLI, the context menu, and the Claude hooks -- comes through here.
     @discardableResult
     func applyControl(_ command: ControlCommand, to tab: Tab, surfaceID: UUID) -> ControlResult {
-        // App-wide settings are not part of any tab's state, so they never
-        // reach Tab.applyControl -- the caller only needed a valid surface
-        // to prove the command came from inside a running montty.
-        switch command {
-        case .setTintStrength(let strength):
-            surfaceTintStrength = strength
-            return .applied
-        case .setMinimapVisibility(let visibility):
-            minimapVisibility = visibility
-            return .applied
-        case .setMinimapHeight(let height):
-            minimapHeight = height
-            return .applied
-        default:
-            return tab.applyControl(
-                command, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides,
-                minimapVisibility: minimapVisibility
+        var settings = appSettings
+        let result = tab.applyControl(
+            command, surfaceID: surfaceID, repoColorOverrides: &repoColorOverrides,
+            appSettings: &settings
+        )
+        appSettings = settings
+        return result
+    }
+
+    /// The settings held at the app scope, gathered for the control path.
+    /// Setting them assigns only what changed, so a command that leaves a
+    /// value alone does not redraw the views watching it.
+    private var appSettings: AppSettings {
+        get {
+            AppSettings(
+                surfaceTintStrength: surfaceTintStrength, tabTintStrength: tabTintStrength,
+                minimapVisibility: minimapVisibility, minimapHeight: minimapHeight
             )
+        }
+        set {
+            if surfaceTintStrength != newValue.surfaceTintStrength {
+                surfaceTintStrength = newValue.surfaceTintStrength
+            }
+            if tabTintStrength != newValue.tabTintStrength {
+                tabTintStrength = newValue.tabTintStrength
+            }
+            if minimapVisibility != newValue.minimapVisibility {
+                minimapVisibility = newValue.minimapVisibility
+            }
+            if minimapHeight != newValue.minimapHeight {
+                minimapHeight = newValue.minimapHeight
+            }
         }
     }
 

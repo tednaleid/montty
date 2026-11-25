@@ -5,19 +5,18 @@ import Foundation
 
 enum ParsedInvocation: Equatable {
     case control(ControlCommand)
-    /// `montty <scope> color` with no value: print what that scope resolves to.
-    case showColor(ControlScope)
+    /// A setting named with no value: print what that scope resolves to.
+    case read(SettingRead)
     /// A Claude Code hook event name, forwarded on the legacy wire format,
     /// with the version of the installed entry that ran it, when it says.
     case hook(event: String, hooksVersion: Int?)
     case installHooks(HookAgent)
     case uninstallHooks(HookAgent)
     case version
-    case help
 }
 
 /// An agent whose own settings `montty install-hooks` knows how to edit.
-enum HookAgent: String, Equatable {
+enum HookAgent: String, Equatable, CaseIterable {
     case claude
 }
 
@@ -31,82 +30,11 @@ enum ExitCode: Int32 {
 }
 
 enum ControlArgs {
-    enum UsageError: Error, Equatable {
-        case noArguments
-        case unknownScope(String)
-        case unknownProperty(String)
-        case unknownStatus(String)
-        case missingValue(String)
-        case badColor(String)
-        case tooManyStops
-        case badTintStrength(String)
-        case badMinimapVisibility(String)
-        case badMinimapHeight(String)
-        case unexpectedArgument(String)
-        case unknownAgent(String)
-    }
-
-    static var usage: String {
-        """
-        usage: montty <scope> <property> <value>
-
-          montty surface color <spec>      montty surface color --reset
-          montty tab     color <spec>      montty tab     color --reset
-          montty repo    color <spec>      montty repo    color --reset
-          montty <scope> color             prints what that scope resolves to
-          montty tab     name  <text>      montty tab     name  --reset
-          montty surface status <working|waiting|idle|clear>
-          montty surface resume-command <cmd>
-                                           montty surface resume-command --reset
-          montty hook <event>
-          montty install-hooks claude      montty uninstall-hooks claude
-          montty tint-strength <value>     montty tint-strength --reset
-          montty tab minimap <when>        montty tab minimap --reset
-          montty minimap <when>            montty minimap --reset
-          montty minimap-height <points>   montty minimap-height --reset
-          montty info
-          montty --version                 montty -v
-          montty --help                    montty -h
-
-        <spec> is 1 to 3 comma-separated stops. A stop is a palette name
-        (green, brightMagenta, neutralBright) or a six-digit hex value with
-        or without a leading #.
-
-        <value> for tint-strength is between \(SurfaceTintStrength.range.lowerBound) and \
-        \(SurfaceTintStrength.range.upperBound); the default is \(SurfaceTintStrength.default).
-
-        <when> is always, never, or a comma-separated list of split (the tab
-        has more than one surface) and status (a surface has an activity
-        status). `montty minimap` sets every tab; `montty tab minimap`
-        overrides it for this tab.
-
-        <points> for minimap-height is between \(Int(MinimapHeight.range.lowerBound)) and \
-        \(Int(MinimapHeight.range.upperBound)); the default is \(Int(MinimapHeight.default)).
-
-        palette names:
-        \(colorNameList)
-        """
-    }
-
-    /// Every palette name paired with its bright counterpart, matching the
-    /// grouping `TabColor.hueFamily` already draws. `gray` has no bright
-    /// pair, so it stands alone.
-    private static let pairedColorNames: [(TabColor, TabColor)] = [
-        (.red, .brightRed), (.green, .brightGreen), (.yellow, .brightYellow),
-        (.blue, .brightBlue), (.magenta, .brightMagenta), (.cyan, .brightCyan),
-        (.neutral, .neutralBright)
-    ]
-
-    private static func swatch(_ color: TabColor) -> String {
-        "\u{1B}[\(color.ansiCode)m\u{25A0}\u{1B}[0m"
-    }
-
-    private static var colorNameList: String {
-        let rows = pairedColorNames.map { base, bright -> String in
-            let name = base.rawValue.padding(toLength: 9, withPad: " ", startingAt: 0)
-            return "  \(swatch(base)) \(name)\(swatch(bright)) \(bright.rawValue)"
-        }
-        return (rows + ["  \(swatch(.gray)) gray"]).joined(separator: "\n")
+    /// What to print and exit with when argv is not a command to run: help
+    /// that was asked for (exit 0), or a usage error (exit 64).
+    struct ParseExit: Error, Equatable {
+        let message: String
+        let exitCode: Int32
     }
 
     /// Flags montty answers itself. Every other flag belongs to macOS.
@@ -125,78 +53,28 @@ enum ControlArgs {
         return ownFlags.contains(first)
     }
 
-    static func parse(_ arguments: [String]) -> Result<ParsedInvocation, UsageError> {
-        guard let first = arguments.first else { return .failure(.noArguments) }
-
-        if let topLevel = parseTopLevel(first, arguments: arguments) {
-            return topLevel
+    /// The version flags and `hook` are answered here. Everything else goes
+    /// to the command declarations in `CLI`.
+    static func parse(_ arguments: [String]) -> Result<ParsedInvocation, ParseExit> {
+        if arguments == ["--version"] || arguments == ["-v"] {
+            return .success(.version)
         }
-
-        guard let scope = ControlScope(rawValue: first) else {
-            return .failure(.unknownScope(first))
+        if arguments.first == "hook" {
+            return parseHook(arguments)
         }
-        guard arguments.count >= 2 else { return .failure(.missingValue("property")) }
-        if arguments.count > 3 { return .failure(.unexpectedArgument(arguments[3])) }
-        return parseProperty(
-            arguments[1], of: scope, value: arguments.count >= 3 ? arguments[2] : nil
-        )
+        return CLI.parse(arguments)
     }
 
-    private static func parseProperty(
-        _ property: String, of scope: ControlScope, value: String?
-    ) -> Result<ParsedInvocation, UsageError> {
-        switch (scope, property) {
-        case (_, "color"):
-            return parseColor(scope: scope, value: value)
-        case (.tab, "name"):
-            return parseName(value)
-        case (.surface, "status"):
-            return parseStatus(value)
-        case (.surface, "resume-command"):
-            return parseResumeCommand(value)
-        case (.tab, "minimap"):
-            return parseTabMinimap(value)
-        default:
-            return .failure(.unknownProperty(property))
+    /// A hook runs on every event of an agent session and must never print,
+    /// so it is parsed here, where no argument can turn into help text.
+    private static func parseHook(_ arguments: [String]) -> Result<ParsedInvocation, ParseExit> {
+        guard arguments.count >= 2 else {
+            return .failure(ParseExit(
+                message: "Error: hook needs an event\nUsage: montty hook <event>",
+                exitCode: ExitCode.usage.rawValue
+            ))
         }
-    }
-
-    /// Handles the invocations that stand outside the scope/property/value
-    /// grammar. Returns nil when `first` is not one of those keywords, so the
-    /// caller falls through to scope parsing.
-    private static func parseTopLevel(
-        _ first: String, arguments: [String]
-    ) -> Result<ParsedInvocation, UsageError>? {
-        switch first {
-        case "--version", "-v":
-            return exactly(1, of: arguments, is: .version)
-        case "--help", "-h":
-            return exactly(1, of: arguments, is: .help)
-        case "info":
-            return exactly(1, of: arguments, is: .control(.info))
-        case "hook":
-            guard arguments.count >= 2 else { return .failure(.missingValue("hook")) }
-            return .success(.hook(event: arguments[1], hooksVersion: hooksVersion(in: arguments)))
-        case "install-hooks", "uninstall-hooks":
-            return parseHookSettings(first, arguments: arguments)
-        case "tint-strength":
-            return appWide(arguments, parse: parseTintStrength)
-        case "minimap":
-            return appWide(arguments, parse: parseMinimap)
-        case "minimap-height":
-            return appWide(arguments, parse: parseMinimapHeight)
-        default:
-            return nil
-        }
-    }
-
-    /// An app-wide setting takes exactly one value after its keyword.
-    private static func appWide(
-        _ arguments: [String], parse: (String) -> Result<ParsedInvocation, UsageError>
-    ) -> Result<ParsedInvocation, UsageError> {
-        guard arguments.count >= 2 else { return .failure(.missingValue(arguments[0])) }
-        guard arguments.count <= 2 else { return .failure(.unexpectedArgument(arguments[2])) }
-        return parse(arguments[1])
+        return .success(.hook(event: arguments[1], hooksVersion: hooksVersion(in: arguments)))
     }
 
     /// Hook entries are written by whichever montty installed them, which can
@@ -207,109 +85,5 @@ enum ControlArgs {
             return nil
         }
         return Int(arguments[flag + 1])
-    }
-
-    private static func parseHookSettings(
-        _ verb: String, arguments: [String]
-    ) -> Result<ParsedInvocation, UsageError> {
-        guard arguments.count >= 2 else { return .failure(.missingValue(verb)) }
-        guard let agent = HookAgent(rawValue: arguments[1]) else {
-            return .failure(.unknownAgent(arguments[1]))
-        }
-        let invocation: ParsedInvocation = verb == "install-hooks"
-            ? .installHooks(agent) : .uninstallHooks(agent)
-        return exactly(2, of: arguments, is: invocation)
-    }
-
-    private static func parseTintStrength(_ value: String) -> Result<ParsedInvocation, UsageError> {
-        if value == "--reset" {
-            return .success(.control(.setTintStrength(SurfaceTintStrength.default)))
-        }
-        guard let strength = Double(value), SurfaceTintStrength.range.contains(strength) else {
-            return .failure(.badTintStrength(value))
-        }
-        return .success(.control(.setTintStrength(strength)))
-    }
-
-    private static func parseMinimap(_ value: String) -> Result<ParsedInvocation, UsageError> {
-        if value == "--reset" { return .success(.control(.setMinimapVisibility(.always))) }
-        guard let visibility = MinimapVisibility.parse(value) else {
-            return .failure(.badMinimapVisibility(value))
-        }
-        return .success(.control(.setMinimapVisibility(visibility)))
-    }
-
-    private static func parseTabMinimap(_ value: String?) -> Result<ParsedInvocation, UsageError> {
-        guard let value else { return .failure(.missingValue("minimap")) }
-        if value == "--reset" { return .success(.control(.setTabMinimapVisibility(nil))) }
-        guard let visibility = MinimapVisibility.parse(value) else {
-            return .failure(.badMinimapVisibility(value))
-        }
-        return .success(.control(.setTabMinimapVisibility(visibility)))
-    }
-
-    private static func parseMinimapHeight(_ value: String) -> Result<ParsedInvocation, UsageError> {
-        if value == "--reset" {
-            return .success(.control(.setMinimapHeight(MinimapHeight.default)))
-        }
-        guard let height = Double(value), MinimapHeight.range.contains(height) else {
-            return .failure(.badMinimapHeight(value))
-        }
-        return .success(.control(.setMinimapHeight(height)))
-    }
-
-    /// Every invocation has a fixed arity. An argument past it means the caller
-    /// left a value unquoted, and parsing the prefix would silently apply a
-    /// different command than the one they typed.
-    private static func exactly(
-        _ count: Int, of arguments: [String], is invocation: ParsedInvocation
-    ) -> Result<ParsedInvocation, UsageError> {
-        arguments.count > count
-            ? .failure(.unexpectedArgument(arguments[count]))
-            : .success(invocation)
-    }
-
-    private static func parseColor(
-        scope: ControlScope, value: String?
-    ) -> Result<ParsedInvocation, UsageError> {
-        guard let value else { return .success(.showColor(scope)) }
-        if value == "--reset" { return .success(.control(.clearColor(scope: scope))) }
-        return parseTint(value).map { .control(.setColor(scope: scope, tint: $0)) }
-    }
-
-    private static func parseName(_ value: String?) -> Result<ParsedInvocation, UsageError> {
-        guard let value else { return .failure(.missingValue("name")) }
-        if value == "--reset" { return .success(.control(.clearName)) }
-        return .success(.control(.setName(value)))
-    }
-
-    private static func parseResumeCommand(_ value: String?) -> Result<ParsedInvocation, UsageError> {
-        guard let value else { return .failure(.missingValue("resume-command")) }
-        if value == "--reset" { return .success(.control(.setResumeCommand(nil))) }
-        return .success(.control(.setResumeCommand(value)))
-    }
-
-    private static func parseStatus(_ value: String?) -> Result<ParsedInvocation, UsageError> {
-        guard let value else { return .failure(.missingValue("status")) }
-        switch value {
-        case "working": return .success(.control(.setStatus(.working)))
-        case "waiting": return .success(.control(.setStatus(.waiting)))
-        case "idle":    return .success(.control(.setStatus(.idle)))
-        case "clear":   return .success(.control(.setStatus(nil)))
-        default:        return .failure(.unknownStatus(value))
-        }
-    }
-
-    private static func parseTint(_ spec: String) -> Result<PaneTint, UsageError> {
-        let parts = spec.components(separatedBy: ",")
-        guard parts.count <= PaneTint.maxStops else { return .failure(.tooManyStops) }
-
-        var stops: [TintStop] = []
-        for part in parts {
-            guard let stop = TintStop.parse(part) else { return .failure(.badColor(part)) }
-            stops.append(stop)
-        }
-        guard !stops.isEmpty else { return .failure(.badColor(spec)) }
-        return .success(PaneTint(stops: stops))
     }
 }

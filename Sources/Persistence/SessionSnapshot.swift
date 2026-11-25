@@ -11,6 +11,7 @@ struct SessionSnapshot: Codable {
     var surfaceTintStrength: Double = SurfaceTintStrength.default
     var minimapVisibility: MinimapVisibility = .always
     var minimapHeight: Double = MinimapHeight.default
+    var tabTintStrength: Double = TabTintStrength.default
     var windows: [WindowSnapshot] = []
     var keyWindowID: UUID?
     var repoColorOverrides: [String: PaneTint] = [:]
@@ -23,6 +24,7 @@ struct SessionSnapshot: Codable {
         surfaceTintStrength: Double = SurfaceTintStrength.default,
         minimapVisibility: MinimapVisibility = .always,
         minimapHeight: Double = MinimapHeight.default,
+        tabTintStrength: Double = TabTintStrength.default,
         windows: [WindowSnapshot] = [],
         keyWindowID: UUID? = nil,
         repoColorOverrides: [String: PaneTint] = [:],
@@ -32,6 +34,7 @@ struct SessionSnapshot: Codable {
         self.surfaceTintStrength = surfaceTintStrength
         self.minimapVisibility = minimapVisibility
         self.minimapHeight = minimapHeight
+        self.tabTintStrength = tabTintStrength
         self.windows = windows
         self.keyWindowID = keyWindowID
         self.repoColorOverrides = repoColorOverrides
@@ -61,6 +64,9 @@ struct SessionSnapshot: Codable {
         let height = (try? container.decodeIfPresent(Double.self, forKey: .minimapHeight)) ?? nil
         minimapHeight = height.flatMap { MinimapHeight.range.contains($0) ? $0 : nil }
             ?? MinimapHeight.default
+        let tabTint = (try? container.decodeIfPresent(Double.self, forKey: .tabTintStrength)) ?? nil
+        tabTintStrength = tabTint.flatMap { TabTintStrength.range.contains($0) ? $0 : nil }
+            ?? TabTintStrength.default
         repoColorOverrides = try container.decodeIfPresent(
             [String: PaneTint].self, forKey: .repoColorOverrides) ?? [:]
         lastClosedWindow = try container.decodeIfPresent(

@@ -34,13 +34,15 @@ enum SessionSnapshotBuilder {
         surfaceTint: SurfaceTintSettings,
         repoColorOverrides: [String: PaneTint],
         environment: SessionEnvironment,
-        minimap: MinimapSettings = MinimapSettings()
+        minimap: MinimapSettings = MinimapSettings(),
+        tabTintStrength: Double = TabTintStrength.default
     ) -> SessionSnapshot {
         SessionSnapshot(
             surfaceTintEnabled: surfaceTint.enabled,
             surfaceTintStrength: surfaceTint.strength,
             minimapVisibility: minimap.visibility,
             minimapHeight: minimap.height,
+            tabTintStrength: tabTintStrength,
             windows: windows.map { window in
                 WindowSnapshot(
                     windowID: window.id,

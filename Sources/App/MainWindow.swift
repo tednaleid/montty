@@ -26,6 +26,7 @@ struct MainWindow: View {
                     repoColorOverrides: appDelegate.repoColorOverrides,
                     minimapVisibility: appDelegate.minimapVisibility,
                     minimapHeight: appDelegate.minimapHeight,
+                    tabTintStrength: appDelegate.tabTintStrength,
                     jumpLabels: appDelegate.jumpState?.leafToLabel ?? [:],
                     onJumpToSurface: { tabID, leafID in
                         appDelegate.exitJumpMode()

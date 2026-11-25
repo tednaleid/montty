@@ -444,11 +444,14 @@ import Testing
             repoColorOverrides: [:],
             frames: [:],
             directories: [:],
-            minimap: MinimapSettings(visibility: .never, height: 60)
+            minimap: MinimapSettings(visibility: .never, height: 60),
+            tabTintStrength: 0.25
         )
 
         let useCases = WindowUseCases()
         let outcome = useCases.restore(saved)
+
+        #expect(outcome.applySettings?.tabTintStrength == 0.25)
 
         #expect(outcome.applySettings?.minimap == MinimapSettings(visibility: .never, height: 60))
         #expect(useCases.registry.windows[0].tabStore.tabs[0].minimapVisibility == .when([.split]))

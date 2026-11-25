@@ -25,10 +25,10 @@ enum ControlCLI {
             ?? NSTemporaryDirectory() + "montty-hook.sock"
 
         switch invocation {
-        case .version, .help, .installHooks, .uninstallHooks:
+        case .version, .installHooks, .uninstallHooks:
             fatalError("\(invocation) already exited above; it needs no surface")
-        case .showColor(let scope):
-            runShowColor(scope: scope, surface: surface, socketPath: socketPath)
+        case .read(let read):
+            runRead(read, surface: surface, socketPath: socketPath)
         case .hook(let event, let hooksVersion):
             runHook(event: event, hooksVersion: hooksVersion, surface: surface, socketPath: socketPath)
         case .control(let command):
@@ -43,14 +43,11 @@ enum ControlCLI {
         case .version:
             print(version())
             exit(ExitCode.ok.rawValue)
-        case .help:
-            print(ControlArgs.usage)
-            exit(ExitCode.ok.rawValue)
         case .installHooks(let agent):
             runHookSettings(agent: agent, install: true)
         case .uninstallHooks(let agent):
             runHookSettings(agent: agent, install: false)
-        case .control, .showColor, .hook:
+        case .control, .read, .hook:
             return
         }
     }
@@ -62,47 +59,17 @@ enum ControlCLI {
             ?? "montty (development build)"
     }
 
-    /// Parses argv into an invocation, exiting with the usage error text on
-    /// any failure so every caller sees a fully resolved grammar.
+    /// Parses argv into an invocation. Help that was asked for prints to
+    /// stdout and exits 0; a usage error prints to stderr and exits 64.
     private static func parseOrExit(_ arguments: [String]) -> ParsedInvocation {
         switch ControlArgs.parse(arguments) {
         case .success(let parsed):
             return parsed
-        case .failure(let error):
-            fail("\(usageErrorDetail(error))\n\n\(ControlArgs.usage)", .usage)
-        }
-    }
-
-    private static func usageErrorDetail(_ error: ControlArgs.UsageError) -> String {
-        switch error {
-        case .noArguments: return "no arguments"
-        case .unknownScope(let value): return "unknown scope \"\(value)\""
-        case .unknownProperty(let value): return "unknown property \"\(value)\""
-        case .unknownStatus(let value): return "unknown status \"\(value)\""
-        case .missingValue(let value): return "\(value) needs a value"
-        case .badColor(let value): return "not a color: \"\(value)\" (use a palette name or #rrggbb)"
-        case .tooManyStops: return "at most \(PaneTint.maxStops) comma-separated stops"
-        case .badTintStrength, .badMinimapVisibility, .badMinimapHeight:
-            return badSettingDetail(error)
-        case .unexpectedArgument(let value):
-            return "unexpected argument \"\(value)\"; quote a value that contains spaces"
-        case .unknownAgent(let value): return "unknown agent \"\(value)\" (supported: claude)"
-        }
-    }
-
-    /// The detail for a value an app-wide or minimap setting cannot take.
-    private static func badSettingDetail(_ error: ControlArgs.UsageError) -> String {
-        switch error {
-        case .badTintStrength(let value):
-            return "not a number between \(SurfaceTintStrength.range.lowerBound) and "
-                + "\(SurfaceTintStrength.range.upperBound): \"\(value)\""
-        case .badMinimapVisibility(let value):
-            return "not always, never, or a list of split and status: \"\(value)\""
-        case .badMinimapHeight(let value):
-            return "not a number between \(Int(MinimapHeight.range.lowerBound)) and "
-                + "\(Int(MinimapHeight.range.upperBound)): \"\(value)\""
-        default:
-            return "bad value"
+        case .failure(let parseExit):
+            let output = parseExit.exitCode == ExitCode.ok.rawValue
+                ? FileHandle.standardOutput : FileHandle.standardError
+            output.write(Data("\(parseExit.message)\n".utf8))
+            exit(parseExit.exitCode)
         }
     }
 
@@ -187,20 +154,12 @@ enum ControlCLI {
         }
     }
 
-    /// Reads the colors back through the existing info command, so no new
-    /// wire verb is needed. A scope with no override of its own reports what
-    /// it inherits instead, since that is what the pane actually renders.
-    private static func runShowColor(
-        scope: ControlScope, surface: String, socketPath: String
-    ) -> Never {
+    /// Reads a setting back through the info command, so no wire verb is
+    /// needed per setting. A setting with nothing to report prints nothing.
+    private static func runRead(_ read: SettingRead, surface: String, socketPath: String) -> Never {
         let info = requestInfo(surface: surface, socketPath: socketPath)
-        let scopes = info["scopes"] as? [String: Any]
-        let own = (scopes?[scope.rawValue] as? [String: Any])?["stops"] as? [String]
-        if let own {
-            print(own.joined(separator: ","))
-        } else {
-            let effective = (info["effective"] as? [String: Any])?["stops"] as? [String]
-            print("not set (effective \(effective?.joined(separator: ",") ?? "none"))")
+        if let text = SettingReadout.text(read, info: info) {
+            print(text)
         }
         exit(ExitCode.ok.rawValue)
     }

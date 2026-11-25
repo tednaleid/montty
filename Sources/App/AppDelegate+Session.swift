@@ -34,7 +34,8 @@ extension AppDelegate {
             repoColorOverrides: repoColorOverrides,
             frames: frames,
             directories: directories,
-            minimap: MinimapSettings(visibility: minimapVisibility, height: minimapHeight)
+            minimap: MinimapSettings(visibility: minimapVisibility, height: minimapHeight),
+            tabTintStrength: tabTintStrength
         )
     }
 

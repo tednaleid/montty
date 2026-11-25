@@ -306,12 +306,38 @@ import Testing
         #expect(info.effective?.stops == ["magenta"])
     }
 
-    private func minimapInfo(_ subject: ControlState) -> ControlInfo.Minimap? {
+    private func settingsInfo(_ subject: ControlState) -> ControlInfo.Settings? {
         var subject = subject
         guard case .read(let info) = ControlService.apply(
             .info, target: ref(), to: &subject, gitInfoProvider: git
         ) else { return nil }
-        return info.minimap
+        return info.settings
+    }
+
+    @Test func appScopeCommandsChangeTheAppSettings() {
+        var subject = state()
+        for command: ControlCommand in [
+            .setTintStrength(0.3), .setTabTintStrength(0.2),
+            .setMinimapVisibility(.never), .setMinimapHeight(60)
+        ] {
+            #expect(ControlService.apply(command, target: ref(), to: &subject, gitInfoProvider: git) == .applied)
+        }
+        #expect(subject.app == AppSettings(
+            surfaceTintStrength: 0.3, tabTintStrength: 0.2,
+            minimapVisibility: .never, minimapHeight: 60
+        ))
+    }
+
+    @Test func infoReportsEachAppSettingAsItsEffectiveValue() {
+        var subject = state()
+        subject.app = AppSettings(
+            surfaceTintStrength: 0.3, tabTintStrength: 0.2,
+            minimapVisibility: .never, minimapHeight: 60
+        )
+        let settings = settingsInfo(subject)
+        #expect(settings?.surfaceTintStrength == .init(app: 0.3, effective: 0.3))
+        #expect(settings?.tabTintStrength == .init(app: 0.2, effective: 0.2))
+        #expect(settings?.minimapHeight == .init(app: 60, effective: 60))
     }
 
     @Test func setsAndClearsTheTabMinimapVisibility() {
@@ -330,15 +356,16 @@ import Testing
 
     @Test func infoReportsTheAppWideMinimapVisibilityWhenTheTabHasNoOverride() {
         var subject = state()
-        subject.minimapVisibility = .when([.split])
-        #expect(minimapInfo(subject) == ControlInfo.Minimap(tab: nil, effective: "split"))
+        subject.app.minimapVisibility = .when([.split])
+        #expect(settingsInfo(subject)?.minimap == .init(app: "split", effective: "split"))
     }
 
     @Test func infoReportsTheTabMinimapOverrideAsEffective() {
         var subject = state()
-        subject.minimapVisibility = .when([.split])
+        subject.app.minimapVisibility = .when([.split])
         subject.tabMinimapVisibility = .never
-        #expect(minimapInfo(subject) == ControlInfo.Minimap(tab: "never", effective: "never"))
+        #expect(settingsInfo(subject)?.minimap
+            == .init(tab: "never", app: "split", effective: "never"))
     }
 
     @Test func infoReportsTheOverriddenNameWhenOneIsSet() {

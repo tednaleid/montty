@@ -55,13 +55,13 @@ session written before they existed still loads.
 ### CLI
 
 ```
-montty minimap     <always|never|split|status|split,status>
-montty minimap     --reset
+montty app minimap <always|never|split|status|split,status>
+montty app minimap --reset
 montty tab minimap <always|never|split|status|split,status>
 montty tab minimap --reset
 ```
 
-`montty minimap` sets the global value and `--reset` returns it to `always`.
+`montty app minimap` sets the global value and `--reset` returns it to `always`.
 `montty tab minimap` sets the override on the tab holding the calling surface
 and `--reset` removes it. Conditions are a comma-separated list in any order.
 An unknown value, an empty list, or `always`/`never` mixed with a condition is
@@ -90,7 +90,7 @@ No keyboard shortcuts.
   tab, which focuses the surface that was last focused there, or the first
   surface in tree order when none is recorded.
 
-### Row tint
+### Tab tint
 
 Every row is washed with the tint gradient of its tab's focused surface. A row
 with its minimap hidden gets a stronger wash, because it has no minimap
@@ -101,6 +101,19 @@ so the surfaces drawn on top still stand out.
 |---|---|---|
 | minimap hidden | 0.40 | 0.20 |
 | minimap showing | 0.15 | 0.12 |
+
+Those are the defaults. The tab tint strength is one app-wide value, stored in
+`SessionSnapshot`, default 0.12, range 0 to 0.3. It is the strength of a row
+that is not active and shows its minimap, and the other three scale from it in
+the proportions above, so 0 turns the wash off and 0.3 makes the strongest row
+fully opaque. CLI only:
+
+```
+montty app tab-tint-strength <value>
+montty app tab-tint-strength --reset
+```
+
+A value outside the range, or not a number, is a usage error (exit 64).
 
 ### Changes over time
 
@@ -133,8 +146,8 @@ The target list is built without reference to sidebar width or badge width.
 - CLI only:
 
 ```
-montty minimap-height <points>
-montty minimap-height --reset
+montty app minimap-height <points>
+montty app minimap-height --reset
 ```
 
 - No menu item and no per-tab value.
@@ -154,10 +167,11 @@ Pure model, unit-tested without AppKit or SwiftUI:
 - The jump target list, given the tabs, the active tab, and which tabs show
   their minimap.
 
-The tab override is applied by `ControlService`, like the other tab-scoped
-control commands. The two app-wide values are set on `AppDelegate`, the same
-way `tint-strength` is, and cross the use case boundary as data on save and
-restore. `Sources/View` reads the results and holds no decisions.
+`ControlService` applies the tab override and the app values alike. The app
+values are passed in beside the tab's state, held on `AppDelegate`, and cross
+the use case boundary as data on save and restore. `Sources/View` reads the
+results and holds no decisions. The grammar these commands are spelled in is in
+[spec-cli-grammar.md](./spec-cli-grammar.md).
 
 The debug server reports each tab's override, effective visibility, and whether
 its minimap is showing, plus the global value and the minimap height.

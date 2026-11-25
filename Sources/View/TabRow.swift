@@ -9,6 +9,7 @@ struct TabRow: View {
     @Binding var editingTabID: UUID?
     var showsMinimap = true
     var minimapHeight = MinimapHeight.default
+    var tabTintStrength = TabTintStrength.default
     var jumpLabels: [UUID: String] = [:]
     var onPaneTap: ((UUID) -> Void)?
 
@@ -157,17 +158,10 @@ struct TabRow: View {
         isActive ? leadingEdgeColor : leadingEdgeColor.opacity(0.3)
     }
 
-    /// How strongly the row is washed with the tab's tint. A row with its
-    /// minimap hidden is stronger, because it has no minimap rectangle to carry
-    /// the tint. A row with its minimap showing stays below the minimap's own
-    /// fills so the surfaces still read against it.
     private var backgroundOpacity: Double {
-        switch (isActive, showsMinimap) {
-        case (true, true): return 0.15
-        case (true, false): return 0.4
-        case (false, true): return 0.12
-        case (false, false): return 0.2
-        }
+        TabTintStrength.opacity(
+            base: tabTintStrength, isActive: isActive, showsMinimap: showsMinimap
+        )
     }
 }
 

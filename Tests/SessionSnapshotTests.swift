@@ -290,6 +290,24 @@ struct SessionSnapshotTests {
         #expect(decoded.minimapHeight == MinimapHeight.default)
     }
 
+    @Test func tabTintStrengthRoundTrips() throws {
+        let data = try JSONEncoder().encode(SessionSnapshot(tabTintStrength: 0.25))
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: data)
+
+        #expect(decoded.tabTintStrength == 0.25)
+    }
+
+    @Test(arguments: [
+        #"{"version":4,"windows":[]}"#,
+        #"{"version":4,"windows":[],"tabTintStrength":7}"#,
+        #"{"version":4,"windows":[],"tabTintStrength":"strong"}"#
+    ])
+    func aMissingOrUnusableTabTintStrengthDecodesToTheDefault(json: String) throws {
+        let decoded = try JSONDecoder().decode(SessionSnapshot.self, from: Data(json.utf8))
+
+        #expect(decoded.tabTintStrength == TabTintStrength.default)
+    }
+
     @Test func decodesAV2TabMissingLeafColorOverrides() throws {
         let tabID = UUID()
         let leafID = UUID()
