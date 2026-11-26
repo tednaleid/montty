@@ -176,6 +176,9 @@ def build_session() -> dict:
     return {
         "version": 4,
         "surfaceTintEnabled": True,
+        # What a fresh install starts with. A session with no value is read
+        # as "always", which is not what a new user sees.
+        "minimapVisibility": "split",
         "keyWindowID": windows[0]["windowID"],
         "repoColorOverrides": {
             path: stops if len(stops) > 1 else stops[0]
@@ -650,7 +653,7 @@ def postprocess() -> None:
     for source, target in [
         ("hero.png", "screenshot.png"),
         ("jump.png", "screenshot-easymotion.png"),
-        ("compact.png", "screenshot-compact.png"),
+        ("minimaps.png", "screenshot-minimaps.png"),
         ("cli.png", "screenshot-cli.png"),
     ]:
         image = Image.open(RAW / source)
@@ -699,11 +702,11 @@ def capture_all() -> None:
     capture(hero["id"], RAW / "window-one.png")
     capture(second_window["id"], RAW / "window-two.png")
 
-    # The same window with every minimap hidden, then shown again so the
-    # shot after this one matches the others.
-    run_montty(hero, "app", "minimap", "never")
+    # The same window with a minimap on every tab, then back to the default
+    # so the shot after this one matches the others.
+    run_montty(hero, "app", "minimap", "always")
     time.sleep(0.5)
-    capture(hero["id"], RAW / "compact.png")
+    capture(hero["id"], RAW / "minimaps.png")
     run_montty(hero, "app", "minimap", "--reset")
     time.sleep(0.5)
 

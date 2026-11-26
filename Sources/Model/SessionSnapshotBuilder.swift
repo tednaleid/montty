@@ -21,7 +21,7 @@ struct SurfaceTintSettings: Equatable {
 
 /// The app-wide minimap settings, bundled for the same reason.
 struct MinimapSettings: Equatable {
-    var visibility: MinimapVisibility = .always
+    var visibility: MinimapVisibility = .default
     var height: Double = MinimapHeight.default
 }
 

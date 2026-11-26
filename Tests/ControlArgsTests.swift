@@ -99,7 +99,7 @@ import Testing
         #expect(command(["app", "minimap", "never"]) == .setMinimapVisibility(.never))
         #expect(command(["app", "minimap", "status,split"])
             == .setMinimapVisibility(.when([.split, .status])))
-        #expect(command(["app", "minimap", "--reset"]) == .setMinimapVisibility(.always))
+        #expect(command(["app", "minimap", "--reset"]) == .setMinimapVisibility(.when([.split])))
     }
 
     @Test func parsesTheTabMinimapVisibility() {

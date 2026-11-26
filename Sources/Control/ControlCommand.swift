@@ -71,7 +71,7 @@ enum StrengthSetting: String, CaseIterable {
 struct AppSettings: Equatable {
     var surfaceTintStrength = SurfaceTintStrength.default
     var tabTintStrength = TabTintStrength.default
-    var minimapVisibility = MinimapVisibility.always
+    var minimapVisibility = MinimapVisibility.default
     var minimapHeight = MinimapHeight.default
 
     subscript(setting: StrengthSetting) -> Double {

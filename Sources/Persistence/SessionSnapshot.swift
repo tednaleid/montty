@@ -9,7 +9,7 @@ struct SessionSnapshot: Codable {
     var version: Int = Self.currentVersion
     var surfaceTintEnabled: Bool = true
     var surfaceTintStrength: Double = SurfaceTintStrength.default
-    var minimapVisibility: MinimapVisibility = .always
+    var minimapVisibility: MinimapVisibility = .default
     var minimapHeight: Double = MinimapHeight.default
     var tabTintStrength: Double = TabTintStrength.default
     var windows: [WindowSnapshot] = []
@@ -24,7 +24,7 @@ struct SessionSnapshot: Codable {
     init(
         surfaceTintEnabled: Bool = true,
         surfaceTintStrength: Double = SurfaceTintStrength.default,
-        minimapVisibility: MinimapVisibility = .always,
+        minimapVisibility: MinimapVisibility = .default,
         minimapHeight: Double = MinimapHeight.default,
         tabTintStrength: Double = TabTintStrength.default,
         windows: [WindowSnapshot] = [],
@@ -61,8 +61,10 @@ struct SessionSnapshot: Codable {
             Bool.self, forKey: .surfaceTintEnabled) ?? true
         surfaceTintStrength = try container.decodeIfPresent(
             Double.self, forKey: .surfaceTintStrength) ?? SurfaceTintStrength.default
-        // A value this montty cannot read, such as a condition a later one
-        // added, falls back to the default rather than failing the session.
+        // A session saved before the setting existed showed every minimap,
+        // so it keeps doing so. A value this montty cannot read, such as a
+        // condition a later one added, gets the same rather than failing the
+        // session.
         minimapVisibility = (try? container.decodeIfPresent(
             MinimapVisibility.self, forKey: .minimapVisibility)) ?? .always
         let height = (try? container.decodeIfPresent(Double.self, forKey: .minimapHeight)) ?? nil

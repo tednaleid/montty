@@ -25,6 +25,10 @@ enum MinimapVisibility: Equatable {
     /// empty list and `toggling` turns one into `never`.
     case when(Set<MinimapCondition>)
 
+    /// What a montty with no saved session starts with, and what resetting
+    /// the app scope returns to: a minimap only for a tab that is split.
+    static let `default` = MinimapVisibility.when([.split])
+
     /// Reads the CLI and session form: `always`, `never`, or a comma-separated
     /// list of conditions in any order.
     static func parse(_ text: String) -> MinimapVisibility? {

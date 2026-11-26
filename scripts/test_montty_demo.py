@@ -16,6 +16,7 @@ class BuildSessionTest(unittest.TestCase):
 
     def test_is_version_four_with_two_windows(self):
         self.assertEqual(self.session["version"], 4)
+        self.assertEqual(self.session["minimapVisibility"], "split")
         self.assertEqual(len(self.session["windows"]), 2)
 
     def test_first_window_carries_the_five_tab_roster(self):

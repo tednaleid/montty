@@ -6,13 +6,13 @@ A macOS terminal app built on [GhosttyKit](https://github.com/ghostty-org/ghostt
 
 ## Features
 
-- Vertical tab sidebar with large, scannable names, and a minimap of terminal surfaces across tabs
+- Vertical tab sidebar with large, scannable names, and a minimap of the terminal surfaces in each split tab
 - Per-tab color coding (user-assignable or auto from directory)
 - Horizontal and vertical splits within tabs
 - Session restore (tabs, splits, names, colors, focus state survive restart)
 - Claude Code sessions come back after a relaunch: each surface that was running one has `claude --resume <id>` typed at its prompt, ready to run (see [Claude Code hooks](#claude-code-hooks))
 - Click any minimap pane to jump directly to that surface
-- Minimaps that can be hidden to fit more tabs, everywhere or per tab, or shown only for tabs that are split or have an activity status, at a height you choose (see [docs/montty-cli.md](docs/montty-cli.md#minimap))
+- Minimaps shown for split tabs by default, and settable to every tab, no tab, or tabs with an activity status, for the whole app or per tab, at a height you choose (see [docs/montty-cli.md](docs/montty-cli.md#minimap))
 - Git branch and directory info in tab sidebar
 - Claude Code status indicators (working, waiting, idle) on minimap panes (see [Claude Code hooks](#claude-code-hooks))
 - Standard Ghostty theming from `~/.config/ghostty/config`
@@ -29,9 +29,9 @@ Easy Motion allows movement directly to any terminal surface across tabs:
 
 ![Montty easy motion screenshot](docs/screenshot-easymotion.png)
 
-Minimaps can be hidden to fit more tabs in the sidebar, everywhere or per tab, or shown only for tabs that are split or have an activity status. A tab without its minimap keeps its color:
+A tab shows a minimap while it is split. A tab without one keeps its color and shows its most urgent activity status beside its name. `montty app minimap always` gives every tab a minimap, and `never` hides them all; the View menu and a tab's right-click menu set the same thing:
 
-![Montty hidden minimaps screenshot](docs/screenshot-compact.png)
+![Montty screenshot with a minimap on every tab](docs/screenshot-minimaps.png)
 
 `Cmd-N` opens another window from the same process. Each window keeps its own tabs and splits; drag a tab onto another window to move it there, or out onto empty space to open it in a new window:
 

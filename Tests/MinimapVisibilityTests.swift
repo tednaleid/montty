@@ -5,6 +5,13 @@ import Foundation
 import Testing
 
 @Suite struct MinimapVisibilityTests {
+    @Test func aFreshStartShowsMinimapsOnlyForSplitTabs() {
+        #expect(MinimapVisibility.default == .when([.split]))
+        #expect(AppSettings().minimapVisibility == .default)
+        #expect(MinimapSettings().visibility == .default)
+        #expect(SessionSnapshot().minimapVisibility == .default)
+    }
+
     private let split = MinimapVisibility.when([.split])
     private let status = MinimapVisibility.when([.status])
     private let either = MinimapVisibility.when([.split, .status])

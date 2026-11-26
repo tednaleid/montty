@@ -26,7 +26,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, Observab
     /// Opacity of the surface tint overlay.
     @Published var surfaceTintStrength = SurfaceTintStrength.default
     /// Whether tab rows show their minimap, unless a tab overrides it.
-    @Published var minimapVisibility = MinimapVisibility.always
+    @Published var minimapVisibility = MinimapVisibility.default
     /// Height in points of a shown minimap.
     @Published var minimapHeight = MinimapHeight.default
     /// Strength of the tint wash behind each tab row.

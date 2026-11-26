@@ -51,7 +51,7 @@ across all windows.
 | `resume-command` | `surface` | a shell command |
 | `surface-tint-strength` | `surface`, `tab`, `repo`, `app` | 0 to 0.5, default 0.12 |
 | `tab-tint-strength` | `surface`, `tab`, `repo`, `app` | 0 to 0.3, default 0.12 |
-| `minimap` | `tab`, `app` | `always`, `never`, or conditions; default `always` |
+| `minimap` | `tab`, `app` | `always`, `never`, or conditions; default `split` |
 | `minimap-height` | `tab`, `app` | 40 to 200 points, default 90 |
 
 The rest are verbs:
@@ -257,14 +257,14 @@ A tab row shows its minimap according to a minimap visibility, `<when>`:
 
 | value | the row shows its minimap |
 |---|---|
-| `always` | always (the default) |
+| `always` | always |
 | `never` | never |
-| `split` | while the tab has more than one surface |
+| `split` | while the tab has more than one surface (the default) |
 | `status` | while any surface in the tab has an activity status, `idle` included |
 | `split,status` | while either holds |
 
 `montty app minimap` sets it for every tab in every window, and `--reset`
-returns it to `always`. `montty tab minimap` overrides it for the tab the
+returns it to `split`. `montty tab minimap` overrides it for the tab the
 command runs in, and `--reset` removes the override so the tab follows the app
 value again. The same choices are in View > Minimaps and in the tab's
 right-click menu.

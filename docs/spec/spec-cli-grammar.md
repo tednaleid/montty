@@ -39,7 +39,7 @@ may contain a scope-sounding word (`surface-tint-strength`,
 | `resume-command` | yes | | | | a shell command |
 | `surface-tint-strength` | yes | yes | yes | yes | 0 to 0.5, default 0.12 |
 | `tab-tint-strength` | yes | yes | yes | yes | 0 to 0.3, default 0.12 |
-| `minimap` | | yes | | yes | `always`, `never`, or conditions; default `always` |
+| `minimap` | | yes | | yes | `always`, `never`, or conditions; default `split` |
 | `minimap-height` | | yes | | yes | 40 to 200 points, default 90 |
 
 Naming a scope a setting does not accept is a usage error that lists the scopes

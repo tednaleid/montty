@@ -38,7 +38,8 @@ Conditions combine with OR. The set is open to more conditions later.
 ### Scopes
 
 - **Global**: one value for the whole app, across all windows. Default
-  `always`, so a session that predates the setting looks the same as before.
+  `split`. A session saved before the setting existed has no value and is
+  read as `always`, so it looks the same as before.
 - **Tab override**: optional. A tab with an override uses it; a tab without one
   uses the global value. Resetting removes the override.
 
@@ -61,7 +62,7 @@ montty tab minimap <always|never|split|status|split,status>
 montty tab minimap --reset
 ```
 
-`montty app minimap` sets the global value and `--reset` returns it to `always`.
+`montty app minimap` sets the global value and `--reset` returns it to `split`.
 `montty tab minimap` sets the override on the tab holding the calling surface
 and `--reset` removes it. Conditions are a comma-separated list in any order.
 An unknown value, an empty list, or `always`/`never` mixed with a condition is

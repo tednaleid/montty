@@ -468,7 +468,7 @@ enum MinimapSetting: SettingDefinition {
     static let discussion = """
         split shows the minimap while the tab has more than one surface.
         status shows it while a surface in the tab has an activity status.
-        With both, either one shows it. The default is always.
+        With both, either one shows it. The default is split.
         """
 
     static func set(_ text: String, at scope: SettingScope) throws -> ControlCommand {
@@ -479,7 +479,7 @@ enum MinimapSetting: SettingDefinition {
     }
 
     static func reset(at scope: SettingScope) -> ControlCommand {
-        scope == .app ? .setMinimapVisibility(.always) : .setTabMinimapVisibility(nil)
+        scope == .app ? .setMinimapVisibility(.default) : .setTabMinimapVisibility(nil)
     }
 }
 
